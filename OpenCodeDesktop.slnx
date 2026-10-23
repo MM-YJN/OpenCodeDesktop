@@ -1,0 +1,21 @@
+<Solution>
+  <Configurations>
+    <Platform Name="ARM64" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/src/">
+    <Project Path="src/OpenCodeDesktop/OpenCodeDesktop.csproj">
+      <Platform Solution="*|ARM64" Project="ARM64" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|x86" Project="x86" />
+      <Deploy />
+    </Project>
+    <Project Path="src/OpenCodeDesktop.Core/OpenCodeDesktop.Core.csproj" />
+    <Project Path="src/OpenCodeDesktop.Infrastructure/OpenCodeDesktop.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OpenCodeDesktop.Core.Tests/OpenCodeDesktop.Core.Tests.csproj" />
+    <Project Path="tests/OpenCodeDesktop.Infrastructure.Tests/OpenCodeDesktop.Infrastructure.Tests.csproj" />
+  </Folder>
+</Solution>

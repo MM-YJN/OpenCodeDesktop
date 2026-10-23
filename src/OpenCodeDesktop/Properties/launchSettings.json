@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "OpenCodeDesktop (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "OpenCodeDesktop (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
