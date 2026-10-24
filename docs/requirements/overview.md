@@ -20,7 +20,11 @@ This document records the initial product direction derived from the official v2
 
 ## Workspace Layout
 
-The [desktop concept](desktop-concept.png) establishes the intended workspace layout: a collapsible project/session panel, a central task header, conversation and composer, and a collapsible session-info pane. App navigation remains separate; the project/session panel belongs to Workspace and is visible only when that destination is selected. The shell prepares these regions before their features are implemented. Example content in the image is illustrative and must not imply selected data or live capabilities in the disconnected client.
+The [desktop concept](desktop-concept.png) establishes the intended workspace layout: a collapsible project/session panel, a central task header, conversation and composer, and a collapsible, resizable Details pane. There is no separate application navigation rail. Settings is accessible from the projects panel and remains accessible from the workspace header when that panel is collapsed. Connections and Extensions are sections inside Settings, alongside Models & Providers, Permissions, Appearance, and Notifications. Returning from Settings restores the workspace context.
+
+Details has Info, Files, and Changes tabs. Info contains session metadata, context, instructions, usage, and activity. Files combines navigation/search with a selected-file preview. Changes combines a changed-file list with an expanded diff and an explicit comparison selector. Conversation file references and change summaries open the corresponding Details tab. Each tab retains its selection and scroll position; the pane supports expand/restore for larger previews. File previews and diffs live in Details rather than below the conversation. A collapsible terminal surface can occupy the bottom of the central workspace. Connection status and pending-attention access remain visible outside Settings.
+
+The shell should support an explicitly labeled, offline layout preview with in-memory sample content so users can exercise navigation and component interactions before live integrations exist. Sample projects, models, permissions, execution states, and outputs are illustrative; they must never imply a real connection, execution, file mutation, or approval. The normal disconnected experience remains truthful and can be restored from preview mode.
 
 ## Integration Direction
 

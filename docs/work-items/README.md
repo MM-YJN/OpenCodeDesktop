@@ -8,9 +8,10 @@ This is the active index for unfinished work, in intended execution order. Done 
 
 | ID | Task | Type | Status | Dependencies |
 | --- | --- | --- | --- | --- |
-| [WI-002](WI-002-implement-server-connection.md) | Connect to the pinned existing OpenCode server | Implementation | Ready | [WI-001](WI-001-verify-connection-contract.md), [WI-003](WI-003-implement-application-shell.md) |
+| [WI-004](WI-004-implement-interactive-workspace-layout.md) | Implement the interactive workspace layout and Settings navigation | Implementation | Ready | [WI-003](WI-003-implement-application-shell.md) |
+| [WI-002](WI-002-implement-server-connection.md) | Connect to the pinned existing OpenCode server | Implementation | Ready | [WI-001](WI-001-verify-connection-contract.md), [WI-003](WI-003-implement-application-shell.md), [WI-004](WI-004-implement-interactive-workspace-layout.md) |
 
-Next: WI-002. Both dependencies, WI-001 and WI-003, are complete. Execution has not started.
+Next: WI-004. WI-003 is complete; layout implementation has not started. WI-002 follows WI-004 so its connection UI can be implemented inside Settings rather than the superseded Connection destination.
 
 ## Working Agreements
 

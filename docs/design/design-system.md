@@ -2,6 +2,8 @@
 
 This initial visual foundation is delivered by [WI-003](../work-items/WI-003-implement-application-shell.md). It covers the disconnected application shell. Server connection and task workflows extend it in later work items.
 
+The revised [desktop concept](../requirements/desktop-concept.png) and [workspace requirements](../requirements/overview.md#workspace-layout) supersede the application-navigation and single-inspector layout described below. [WI-004](../work-items/WI-004-implement-interactive-workspace-layout.md) will remove the rail, move Connections and Extensions into Settings, and introduce the interactive tabbed Details pane. Until that item is implemented, the token catalog and implementation descriptions below describe the existing WI-003 shell. WI-004 must update them to match the delivered layout.
+
 ## Visual direction
 
 Use [the desktop concept](../requirements/desktop-concept.png) as the layout reference: a left project/session sidebar, a central task workspace with header, conversation, and bottom input area, and a right session inspector. Use native WinUI controls, system typography, quiet layered surfaces, and restrained borders. Content headings establish hierarchy; explanatory text wraps rather than truncates. The native title bar supplies application identity and standard window controls. No custom branding or control templates are introduced.
