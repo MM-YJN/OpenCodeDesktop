@@ -32,7 +32,7 @@ public sealed partial class WorkspaceView
     private void RenderTaskControls()
     {
         SessionTaskState? state = CurrentTask;
-        var presentation = LiveTaskPresentation.From(state, _draft?.Text, _live?.Tasks?.AttentionError);
+        var presentation = LiveTaskPresentation.From(state, _draft?.Text, _live?.Tasks?.AttentionError, _live?.Tasks);
         string previousStatus = TaskStatus.Text;
         string previousError = TaskError.Text;
         TaskStatus.Text = presentation.Status;
@@ -49,6 +49,14 @@ public sealed partial class WorkspaceView
         }
 
         TaskLoading.Visibility = presentation.IsBusy ? Visibility.Visible : Visibility.Collapsed;
+        string previousRecovery = RecoveryStatus.Text;
+        RecoveryStatus.Text = presentation.RecoveryStatus;
+        RecoveryStatus.Visibility = presentation.ShowRecovery ? Visibility.Visible : Visibility.Collapsed;
+        RetryRecovery.Visibility = presentation.CanRetryRecovery ? Visibility.Visible : Visibility.Collapsed;
+        if (previousRecovery != RecoveryStatus.Text)
+        {
+            FrameworkElementAutomationPeer.FromElement(RecoveryStatus)?.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
+        }
         RefreshTask.IsEnabled = presentation.CanRefresh;
         _send?.IsEnabled = presentation.CanSend;
 
@@ -146,11 +154,25 @@ public sealed partial class WorkspaceView
         }
     }
     private Task StopTaskAsync() => _live?.Tasks is { } workflow && CurrentTask is { } state ? workflow.StopAsync(state) : Task.CompletedTask;
+    private async void RetryRecovery_ClickAsync(object sender, RoutedEventArgs args)
+    {
+        if (_live?.Tasks is { } workflow)
+        {
+            await workflow.RetryRecoveryAsync().ConfigureAwait(true);
+        }
+    }
     private async void RefreshTask_ClickAsync(object sender, RoutedEventArgs args)
     {
         if (_live?.Tasks is { } workflow && CurrentTask is { } state)
         {
-            await workflow.RefreshAsync(state).ConfigureAwait(true);
+            if (workflow.Recovery != WorkspaceRecovery.Current)
+            {
+                await workflow.RetryRecoveryAsync().ConfigureAwait(true);
+            }
+            else
+            {
+                await workflow.RefreshAsync(state).ConfigureAwait(true);
+            }
         }
     }
     private void Attention_Click(object sender, RoutedEventArgs args)

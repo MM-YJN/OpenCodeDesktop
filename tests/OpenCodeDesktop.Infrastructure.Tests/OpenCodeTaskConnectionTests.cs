@@ -8,7 +8,7 @@ using OpenCodeDesktop.Infrastructure.Workspaces;
 
 namespace OpenCodeDesktop.Infrastructure.Tests;
 
-public sealed class OpenCodeTaskConnectionTests
+public sealed partial class OpenCodeTaskConnectionTests
 {
     [Theory]
     [InlineData(HttpStatusCode.BadRequest)]
@@ -132,7 +132,7 @@ public sealed class OpenCodeTaskConnectionTests
     [Fact]
     public async Task CatalogOmitsSecretsDisabledModelsAndHiddenSubagentsAndRunsHandlerOffCallerThread()
     {
-        int caller = Environment.CurrentManagedThreadId;
+        int caller = 0;
         List<int> threads = [];
         using HttpClient client = new(new Handler((request, _) =>
         {
@@ -142,7 +142,25 @@ public sealed class OpenCodeTaskConnectionTests
                 : """{"data":[{"id":"build","name":"Build","mode":"primary","hidden":false},{"id":"sub","mode":"subagent","hidden":false},{"id":"hidden","mode":"primary","hidden":true}]}"""));
         }));
         using OpenCodeWorkspaceConnection api = Create(client);
-        Task<TaskCatalog> pending = api.CatalogAsync("/dir with spaces", TestContext.Current.CancellationToken);
+        // A dedicated caller represents the UI thread. A pool thread can legitimately be reused
+        // by the second handler after the first await, so comparing against a test pool thread is racy.
+        TaskCompletionSource<Task<TaskCatalog>> invoked = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationToken token = TestContext.Current.CancellationToken;
+        Thread callerThread = new(() =>
+        {
+            caller = Environment.CurrentManagedThreadId;
+            try
+            {
+                invoked.SetResult(api.CatalogAsync("/dir with spaces", token));
+            }
+            catch (Exception error)
+            {
+                invoked.SetException(error);
+            }
+        })
+        { IsBackground = true };
+        callerThread.Start();
+        Task<TaskCatalog> pending = await invoked.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
         TaskCatalog catalog = await pending;
         Assert.Equal("m", Assert.Single(catalog.Models).Id);
         Assert.Equal("build", Assert.Single(catalog.Agents).Id);

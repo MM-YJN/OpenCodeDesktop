@@ -8,9 +8,10 @@ This is the active index for unfinished work, in intended execution order. Done 
 
 | ID | Task | Type | Status | Dependencies |
 | --- | --- | --- | --- | --- |
-| [WI-009](WI-009-implement-session-recovery.md) | Recover connections and reopen existing work | Implementation | Ready | [WI-008](WI-008-implement-live-task-workflow.md) |
 
-Next: WI-009. WI-008 was accepted for completion by the user on 2026-10-24, satisfying its dependency. WI-009 remains Ready and unstarted; this update does not start it.
+No active work items.
+
+Next: No task selected.
 
 ## Working Agreements
 

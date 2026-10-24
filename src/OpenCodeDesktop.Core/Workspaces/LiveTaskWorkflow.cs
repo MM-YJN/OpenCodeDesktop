@@ -28,6 +28,8 @@ public sealed class SessionTaskState(string id, string directory, string project
     internal Dictionary<(string Message, int Ordinal), string> Text { get; } = [];
     internal Dictionary<(string Message, string Tool), string> Tools { get; } = [];
     internal long Revision { get; set; }
+    internal Task? Refresh { get; set; }
+    internal string? HistoryCursor { get; set; }
     internal double? Idle { get; set; }
     internal double? SubmissionIdle { get; set; }
     internal bool Accepted { get; set; }
@@ -63,7 +65,7 @@ public sealed class SessionTaskState(string id, string directory, string project
         Permissions.Count == 0 && Forms.Count == 0 && Model is not null && Agent is not null &&
         Catalog.Models.Any(m => m.Id == Model.Id && m.ProviderId == Model.ProviderId) && Catalog.Agents.Any(a => a.Id == Agent);
     public string Status => Stopping ? "Stopping… confirming the result" : Busy ? "Sending decision or request…" :
-        Stale ? "Live state unavailable — refresh explicitly" : Permissions.Count + Forms.Count > 0 ? (Active ? "Waiting for you · task active" : "Waiting for you · session inactive") :
+        Stale ? (Hydrated ? "Live state unavailable · last observed: " + (Active ? "Running" : Outcome) : "Live state unavailable — no execution state confirmed") : Permissions.Count + Forms.Count > 0 ? (Active ? "Waiting for you · task active" : "Waiting for you · session inactive") :
         Active ? "Running" : Loading ? "Checking live state…" : Submission is not null ? (DeliveryUncertain ? "Delivery uncertain — do not resend; refresh" : "Accepted / queued") :
         Inbox.Count > 0 ? (Outcome == "Ready" ? "Accepted / queued" : Outcome + " · queued input remains") : Outcome;
     public IReadOnlyList<HistoryMessage> Conversation => History
@@ -74,8 +76,8 @@ public sealed class SessionTaskState(string id, string directory, string project
 }
 
 /// <summary>Session-owned workflow, called on its owning synchronization context. Never retries mutations.</summary>
-[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = "The stream consumer disposes the cancellation source when all producers exit.")]
-public sealed class LiveTaskWorkflow : IDisposable
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = "DisposeLifetimeAsync waits for stream, hydration and recovery operations before disposing the cancellation source.")]
+public sealed partial class LiveTaskWorkflow : IDisposable
 {
     private readonly IWorkspaceConnection _workspace;
     private readonly ITaskConnection _api;
@@ -85,15 +87,17 @@ public sealed class LiveTaskWorkflow : IDisposable
     private readonly Queue<string> _eventOrder = new();
     private bool _disposed;
     private bool _streamAvailable;
+    private int _pendingEvents;
     private Task? _watch;
     private readonly Dictionary<string, string> _directories = new(StringComparer.Ordinal);
     private bool _discovering;
     private TaskCompletionSource _connected = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    public LiveTaskWorkflow(IWorkspaceConnection workspace, ITaskConnection api)
+    public LiveTaskWorkflow(IWorkspaceConnection workspace, ITaskConnection api, IRecoveryScheduler? scheduler = null)
     {
         _workspace = workspace;
         _api = api;
+        _scheduler = scheduler ?? new RecoveryScheduler();
     }
     public event EventHandler? Changed;
     public IReadOnlyList<SessionTaskState> Sessions => _sessions.Values.ToArray();
@@ -110,22 +114,33 @@ public sealed class LiveTaskWorkflow : IDisposable
     public async Task OpenDirectoryAsync(ProjectLocation location)
     {
         ArgumentNullException.ThrowIfNull(location);
-        _directories[location.Directory] = location.ProjectId;
+        RememberDirectory(location);
         try
         {
             await EnsureStreamAsync().ConfigureAwait(true);
             await DiscoverAsync().ConfigureAwait(true);
         }
-        catch (Exception)
+        catch (Exception error)
         {
-            AttentionError = "Pending requests could not be loaded. Reopen the directory to refresh.";
+            RequestRecovery(error);
+            AttentionError = "Pending requests could not be loaded. Recovery is required.";
             Notify();
         }
     }
+    internal void RememberDirectory(ProjectLocation location)
+    {
+        _directories[location.Directory] = location.ProjectId;
+        _directoryRevision++;
+    }
     private async Task EnsureStreamAsync()
     {
+        if (!_streamAvailable && _watch is not null)
+        {
+            await _watch.ConfigureAwait(true);
+        }
         if (_watch is null || _watch.IsCompleted)
         {
+            _pendingEvents = 0;
             _connected = new(TaskCreationOptions.RunContinuationsAsynchronously);
             _watch = ConsumeAsync();
         }
@@ -162,9 +177,10 @@ public sealed class LiveTaskWorkflow : IDisposable
                 }
             }
         }
-        catch (Exception)
+        catch (Exception error)
         {
-            AttentionError = "Pending requests could not be confirmed. Reopen the directory to refresh.";
+            RequestRecovery(error);
+            AttentionError = "Pending requests could not be confirmed. Recovery is required.";
             foreach (SessionTaskState state in _sessions.Values)
             {
                 state.Stale = true;
@@ -196,25 +212,40 @@ public sealed class LiveTaskWorkflow : IDisposable
     public async Task RefreshAsync(SessionTaskState state, bool reconnect = true)
     {
         ArgumentNullException.ThrowIfNull(state);
-        if (_disposed || state.Loading)
+        if (_disposed || state.Loading || !reconnect && !_streamAvailable)
         {
-            return;
-        }
-        if (!reconnect && !_streamAvailable)
-        {
-            state.Stale = true;
-            Notify();
             return;
         }
 
+        state.Refresh = HydrateAsync(state);
+        try
+        {
+            await state.Refresh.ConfigureAwait(true);
+        }
+        catch (Exception error)
+        {
+            if (!_disposed)
+            {
+                state.Stale = true;
+                state.Error = "Could not confirm live state. No prompt or decision was retried.";
+                RequestRecovery(error);
+            }
+        }
+    }
+
+    private async Task HydrateAsync(SessionTaskState state)
+    {
         state.Loading = true;
+        // An ordinary read on a healthy stream keeps interruption available. Recovery has
+        // already invalidated all observations and must keep them stale until the full read set succeeds.
+        state.Stale |= Recovery != WorkspaceRecovery.Current;
         state.Error = null;
         Notify();
         try
         {
             await EnsureStreamAsync().ConfigureAwait(true);
-            state.Catalog = await _api.CatalogAsync(state.Directory, _lifetime.Token).ConfigureAwait(true);
-            // Events invalidate the read set. Re-read until a quiet snapshot is obtained; never claim an atomic snapshot.
+            TaskCatalog catalog = await _api.CatalogAsync(state.Directory, _lifetime.Token).ConfigureAwait(true);
+            // Invalidate concurrent reads; these endpoints do not form an atomic snapshot.
             for (int attempt = 0; attempt < 8; attempt++)
             {
                 long revision = state.Revision;
@@ -222,38 +253,29 @@ public sealed class LiveTaskWorkflow : IDisposable
                 if (snapshot.Session.Id != state.Id || snapshot.Session.Directory != state.Directory || snapshot.Session.ProjectId != state.ProjectId ||
                     snapshot.Permissions.Any(p => p.SessionId != state.Id) || snapshot.Forms.Any(f => f.SessionId != state.Id))
                 {
-                    throw new WorkspaceException(WorkspaceFailure.Protocol, "Task data belongs to another session. Refresh the owning directory.");
+                    throw new WorkspaceException(WorkspaceFailure.Protocol, "Task data belongs to another session. Check the supported server version.");
                 }
-
                 List<HistoryMessage> messages = await ReadDeliveryHistoryAsync(state, snapshot).ConfigureAwait(true);
                 if (_disposed)
                 {
                     return;
                 }
-
-                if (revision != state.Revision)
+                if (revision != state.Revision || Volatile.Read(ref _pendingEvents) > 0)
                 {
+                    await Task.Yield();
                     continue;
                 }
-
+                if (!_streamAvailable)
+                {
+                    throw new WorkspaceException(WorkspaceFailure.Transport, "Live updates disconnected during hydration.");
+                }
+                state.Catalog = catalog;
                 ApplySnapshot(state, snapshot, messages);
-
-                if (revision != state.Revision)
-                {
-                    continue;
-                }
-
-                state.Stale = !_streamAvailable;
+                state.Stale = Recovery != WorkspaceRecovery.Current;
                 state.Hydrated = true;
                 return;
             }
-            state.Stale = true;
-            state.Error = "The session is changing while checking. Refresh to confirm its latest state.";
-        }
-        catch (Exception)
-        {
-            state.Stale = true;
-            state.Error = "Could not confirm live state. Check the connection and refresh. No prompt or decision was retried.";
+            throw new WorkspaceException(WorkspaceFailure.Transport, "The session kept changing during hydration. Retry recovery.");
         }
         finally
         {
@@ -282,11 +304,15 @@ public sealed class LiveTaskWorkflow : IDisposable
                 throw new WorkspaceException(WorkspaceFailure.Size, "History is too large to reconcile safely. Delivery remains unresolved.");
             }
 
-            if (state.Submission is null || messages.Any(m => m.Id == state.Submission.Id) || snapshot.Inbox.Contains(state.Submission.Id))
+            bool deliveryChecked = state.Submission is null || messages.Any(m => m.Id == state.Submission.Id) || snapshot.Inbox.Contains(state.Submission.Id);
+            bool historyBridged = state.History.Count == 0 || messages.Any(m => state.History.Any(old => old.Id == m.Id));
+            bool terminalChecked = snapshot.Active || !snapshot.Idle.HasValue || messages.Any(m => m.Kind == "idle");
+            if (deliveryChecked && historyBridged && terminalChecked)
             {
                 break;
             }
         } while (cursor is not null);
+        state.HistoryCursor = cursor;
         return messages;
     }
     private static void ApplySnapshot(SessionTaskState state, TaskSnapshot snapshot, List<HistoryMessage> messages)
@@ -322,13 +348,13 @@ public sealed class LiveTaskWorkflow : IDisposable
         }
         bool terminal = !snapshot.Active && snapshot.Idle.HasValue && messages.Any(m => m.Kind == "idle") &&
             (state.Submission is null || state.Accepted && snapshot.Idle != state.SubmissionIdle && found && !snapshot.Inbox.Contains(state.Submission.Id));
-        state.Outcome = terminal ? snapshot.Outcome switch { "succeeded" => "Completed", "failed" => "Failed — review errors and model access", "interrupted" => "Interrupted", _ => "Ready" } : "Ready";
+        state.Outcome = terminal ? snapshot.Outcome switch { "succeeded" => "Completed", "failed" => "Failed — review errors and model access", "interrupted" => "Interrupted", _ => "Ready" } : snapshot.Active ? "Running" : "Inactive — completion unconfirmed";
         if (terminal && snapshot.Outcome is "succeeded" or "failed" or "interrupted")
         {
             state.Submission = null;
         }
 
-        foreach ((string Message, int Ordinal) key in state.Text.Keys.Where(k => messages.Any(m => m.Id == k.Message) && !snapshot.Active).ToArray())
+        foreach ((string Message, int Ordinal) key in state.Text.Keys.Where(k => messages.Any(m => m.Id == k.Message)).ToArray())
         {
             state.Text.Remove(key);
         }
@@ -519,7 +545,11 @@ public sealed class LiveTaskWorkflow : IDisposable
     {
         using var streamLifetime = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         var channel = Channel.CreateBounded<TaskEvent>(new BoundedChannelOptions(256) { SingleReader = true, SingleWriter = true });
-        Task ProduceAsync() => _api.WatchAsync(e => channel.Writer.WriteAsync(e, streamLifetime.Token).AsTask(), streamLifetime.Token);
+        Task ProduceAsync() => _api.WatchAsync(async e =>
+        {
+            Interlocked.Increment(ref _pendingEvents);
+            await channel.Writer.WriteAsync(e, streamLifetime.Token).ConfigureAwait(false);
+        }, streamLifetime.Token);
         async Task ProducerAsync()
         {
             try
@@ -537,6 +567,7 @@ public sealed class LiveTaskWorkflow : IDisposable
         {
             await foreach (TaskEvent e in channel.Reader.ReadAllAsync(_lifetime.Token).ConfigureAwait(true))
             {
+                Interlocked.Decrement(ref _pendingEvents);
                 if (_disposed)
                 {
                     break;
@@ -548,6 +579,7 @@ public sealed class LiveTaskWorkflow : IDisposable
                     _connected.TrySetResult();
                     continue;
                 }
+                _directoryRevision++;
                 if (e.Type.StartsWith("permission.", StringComparison.Ordinal) || e.Type.StartsWith("form.", StringComparison.Ordinal))
                 {
                     _ = DiscoverAsync();
@@ -571,7 +603,7 @@ public sealed class LiveTaskWorkflow : IDisposable
                 {
                     state.Revision++;
                     ApplyEvent(state, e);
-                    if (!state.Loading && !state.Busy)
+                    if (!state.Loading && !state.Busy && Recovery == WorkspaceRecovery.Current)
                     {
                         _ = RefreshAfterEventAsync(state);
                     }
@@ -583,10 +615,11 @@ public sealed class LiveTaskWorkflow : IDisposable
                 throw new WorkspaceException(WorkspaceFailure.Transport, "Live stream ended.");
             }
         }
-        catch (Exception)
+        catch (Exception error)
         {
             _streamAvailable = false;
-            _connected.TrySetException(new WorkspaceException(WorkspaceFailure.Transport, "Live stream unavailable."));
+            _connected.TrySetException(error);
+            RequestRecovery(error);
             foreach (SessionTaskState state in _sessions.Values)
             {
                 state.Stale = true;
@@ -602,10 +635,6 @@ public sealed class LiveTaskWorkflow : IDisposable
                 await producer.ConfigureAwait(true);
             }
             catch (Exception) { /* Reported through the channel. */ }
-            if (_disposed)
-            {
-                _lifetime.Dispose();
-            }
         }
     }
     private static void ApplyEvent(SessionTaskState state, TaskEvent e)
@@ -668,6 +697,20 @@ public sealed class LiveTaskWorkflow : IDisposable
             Changed?.Invoke(this, EventArgs.Empty);
         }
     }
+    private async Task DisposeLifetimeAsync()
+    {
+        Task[] pending = _sessions.Values.Select(s => s.Refresh).Append(_watch).Append(_recovery).OfType<Task>().ToArray();
+        try
+        {
+            await Task.WhenAll(pending).ConfigureAwait(false);
+        }
+        catch (Exception) { /* Obsolete reads cannot publish state. */ }
+        finally
+        {
+            _lifetime.Dispose();
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -677,9 +720,6 @@ public sealed class LiveTaskWorkflow : IDisposable
 
         _disposed = true;
         _lifetime.Cancel();
-        if (_watch is null || _watch.IsCompleted)
-        {
-            _lifetime.Dispose();
-        }
+        _ = DisposeLifetimeAsync();
     }
 }

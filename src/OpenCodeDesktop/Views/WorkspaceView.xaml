@@ -31,6 +31,8 @@
                             <Button x:Name="OpenDirectoryButton" Content="Open directory" IsEnabled="False" Click="OpenDirectory_ClickAsync"/>
                             <ProgressBar x:Name="WorkspaceLoading" IsIndeterminate="True" Visibility="Collapsed" AutomationProperties.Name="Loading server workspace"/>
                             <TextBlock x:Name="WorkspaceStatus" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                            <TextBlock x:Name="RecoveryStatus" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" Visibility="Collapsed"/>
+                            <Button x:Name="RetryRecovery" Content="Retry recovery" Click="RetryRecovery_ClickAsync" Visibility="Collapsed"/>
                             <TextBlock x:Name="WorkspaceError" TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive" IsTextSelectionEnabled="True"/>
                             <Button x:Name="WorkspaceRetry" Content="Retry loading" Click="RetryWorkspace_ClickAsync" Visibility="Collapsed"/>
                         </StackPanel>

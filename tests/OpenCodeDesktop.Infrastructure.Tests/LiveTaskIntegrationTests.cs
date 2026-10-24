@@ -100,6 +100,40 @@ public sealed class LiveTaskIntegrationTests
                 await WaitAsync(api, session.Id, s => !s.Active && s.Outcome == "interrupted", token);
                 Assert.Contains(events, e => e.Type == "session.text.delta" && e.SessionId == session.Id);
                 Assert.Contains(events, e => e.Type == "form.created");
+
+                using LiveTaskWorkflow recovering = new(api, api);
+                await recovering.OpenDirectoryAsync(location);
+                await recovering.OpenAsync(session);
+                TaskCompletionSource interruptedUpdates = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                TaskCompletionSource recovered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                recovering.Changed += (_, _) =>
+                {
+                    if (recovering.Recovery == WorkspaceRecovery.Recovering)
+                    {
+                        interruptedUpdates.TrySetResult();
+                    }
+                    if (interruptedUpdates.Task.IsCompleted && recovering.Recovery == WorkspaceRecovery.Current)
+                    {
+                        recovered.TrySetResult();
+                    }
+                };
+                await server.RestartAsync(token);
+                await interruptedUpdates.Task.WaitAsync(TimeSpan.FromSeconds(10), token);
+                await recovered.Task.WaitAsync(TimeSpan.FromSeconds(45), token);
+                Assert.False(recovering.Find(session.Id)!.Stale);
+                Assert.Single(recovering.Find(session.Id)!.Conversation, m => m.Id == inputId);
+
+                // A fresh client has no profile or selection until explicitly supplied.
+                using ServerConnections reopenedConnections = new(new OpenCodeConnectionService(client));
+                using LiveWorkspace reopened = new(reopenedConnections);
+                Assert.Empty(reopenedConnections.Profiles);
+                Assert.Null(reopened.Selected);
+                ServerProfile reopenedProfile = reopenedConnections.Save(null, "Explicit reconnect", server.Origin)!;
+                await reopenedConnections.ConnectAsync(reopenedProfile.Id, server.Password, token);
+                await reopened.OpenProjectAsync(location.Directory);
+                await reopened.SelectSessionAsync(session.Id);
+                Assert.False(reopened.Tasks!.Find(session.Id)!.Stale);
+                Assert.Single(reopened.Tasks.Find(session.Id)!.Conversation, m => m.Id == inputId);
             }
             finally
             {
@@ -109,6 +143,7 @@ public sealed class LiveTaskIntegrationTests
                     await watch;
                 }
                 catch (OperationCanceledException) { }
+                catch (WorkspaceException error) when (error.Failure == WorkspaceFailure.Transport) { /* The old subscriber ended at server restart. */ }
             }
         }
         finally

@@ -2,12 +2,15 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 
+using OpenCodeDesktop.Core.Connections;
 using OpenCodeDesktop.Core.Workspaces;
+using OpenCodeDesktop.Infrastructure.Connections;
 
 namespace OpenCodeDesktop.Infrastructure.Workspaces;
 
 public sealed partial class OpenCodeWorkspaceConnection : ITaskConnection
 {
+    private int _streamSubscriptions;
     public async Task<IReadOnlyList<string>> AttentionSessionsAsync(string directory, CancellationToken cancellationToken)
     {
         string[] permissions = await RequestAsync(HttpMethod.Get, "/api/permission/request?" + LocationQuery(directory), null, 1048576,
@@ -124,27 +127,56 @@ public sealed partial class OpenCodeWorkspaceConnection : ITaskConnection
         }
         return Task.Run(async () =>
         {
-            using (lifetime)
-            using (HttpRequestMessage request = CreateRequest(HttpMethod.Get, "/api/event", null, credential))
+            try
             {
-                request.Headers.Accept.Clear();
-                request.Headers.Accept.ParseAdd("text/event-stream");
-                using var headers = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
-                headers.CancelAfter(_deadline);
-                using HttpResponseMessage response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, headers.Token).ConfigureAwait(false);
-                if (response.StatusCode == HttpStatusCode.Unauthorized)
+                using (lifetime)
+                using (HttpRequestMessage request = CreateRequest(HttpMethod.Get, "/api/event", null, credential))
                 {
-                    throw new WorkspaceException(WorkspaceFailure.Unauthorized, "Authorization was rejected. Reconnect in Settings.");
-                }
+                    // The initial connection was probed at promotion. A replacement server may now own this port.
+                    if (Interlocked.Increment(ref _streamSubscriptions) > 1)
+                    {
+                        ConnectionResult identity = await new OpenCodeConnectionService(client, _deadline).ProbeAsync(address, credential, lifetime.Token).ConfigureAwait(false);
+                        if (identity.Outcome != ConnectionOutcome.Ready)
+                        {
+                            throw new WorkspaceException(identity.Outcome switch
+                            {
+                                ConnectionOutcome.AuthenticationFailed => WorkspaceFailure.Unauthorized,
+                                ConnectionOutcome.Incompatible => WorkspaceFailure.Protocol,
+                                _ => WorkspaceFailure.Transport,
+                            }, identity.Message);
+                        }
+                    }
+                    request.Headers.Accept.Clear();
+                    request.Headers.Accept.ParseAdd("text/event-stream");
+                    using var headers = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+                    headers.CancelAfter(_deadline);
+                    using HttpResponseMessage response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, headers.Token).ConfigureAwait(false);
+                    if (response.StatusCode == HttpStatusCode.Unauthorized)
+                    {
+                        throw new WorkspaceException(WorkspaceFailure.Unauthorized, "Authorization was rejected. Reconnect in Settings.");
+                    }
 
-                if (response.StatusCode != HttpStatusCode.OK || response.Content.Headers.ContentType?.MediaType != "text/event-stream")
-                {
-                    throw Protocol();
-                }
+                    if ((int)response.StatusCode >= 500)
+                    {
+                        throw new WorkspaceException(WorkspaceFailure.Transport, "The server is unavailable. Recovery will retry reads only.");
+                    }
+                    if (response.StatusCode != HttpStatusCode.OK || response.Content.Headers.ContentType?.MediaType != "text/event-stream")
+                    {
+                        throw Protocol();
+                    }
 
-                using Stream stream = await response.Content.ReadAsStreamAsync(lifetime.Token).ConfigureAwait(false);
-                await ReadEventsAsync(stream, receive, lifetime.Token).ConfigureAwait(false);
-                throw new WorkspaceException(WorkspaceFailure.Transport, "Live updates disconnected. Refresh explicitly to reconcile; no input was retried.");
+                    using Stream stream = await response.Content.ReadAsStreamAsync(lifetime.Token).ConfigureAwait(false);
+                    await ReadEventsAsync(stream, receive, lifetime.Token).ConfigureAwait(false);
+                    throw new WorkspaceException(WorkspaceFailure.Transport, "Live updates disconnected. Reconcile server state; no input was retried.");
+                }
+            }
+            catch (Exception error) when (error is HttpRequestException or IOException)
+            {
+                throw new WorkspaceException(WorkspaceFailure.Transport, "Live updates were interrupted. Reconcile server state before continuing.");
+            }
+            catch (Exception error) when (error is JsonException or DecoderFallbackException)
+            {
+                throw Protocol();
             }
         }, CancellationToken.None);
     }
@@ -173,7 +205,11 @@ public sealed partial class OpenCodeWorkspaceConnection : ITaskConnection
                 data.Clear();
                 JsonElement root = json.RootElement;
                 string type = Required(root, "type");
-                if (type is "server.error" or "stream.error" || type.EndsWith("overflow", StringComparison.Ordinal))
+                if (type == "stream.error" || type.EndsWith("overflow", StringComparison.Ordinal))
+                {
+                    throw new WorkspaceException(WorkspaceFailure.Transport, "Live event delivery overflowed or failed. Refresh authoritative server state.");
+                }
+                if (type == "server.error")
                 {
                     throw Protocol();
                 }

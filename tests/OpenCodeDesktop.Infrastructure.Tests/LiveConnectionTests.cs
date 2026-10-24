@@ -63,6 +63,20 @@ public sealed class LiveConnectionTests
         public string Password { get; } = password;
         internal string WorkspaceDirectory => Path.Combine(scratch, "workspace");
 
+        internal async Task RestartAsync(CancellationToken cancellationToken)
+        {
+            ProcessStartInfo start = process.StartInfo;
+            process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync(cancellationToken);
+            process.Dispose();
+            // Preserve the same isolated storage, credential, directory and port.
+            start.ArgumentList[^1] = new Uri(Origin).Port.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            process = Process.Start(start)!;
+            _ = process.StandardError.ReadToEndAsync(cancellationToken);
+            string? line = await process.StandardOutput.ReadLineAsync(cancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(30), cancellationToken);
+            Assert.Equal("server listening on " + Origin, line);
+        }
+
         public static async Task<IsolatedServer> StartAsync(string executable, string? configuration = null)
         {
             string scratch = Path.Combine(Path.GetTempPath(), "ocd-wi002-" + Guid.NewGuid().ToString("N"));

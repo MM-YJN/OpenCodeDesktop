@@ -5,7 +5,7 @@ using OpenCodeDesktop.Core.Workspaces;
 
 namespace OpenCodeDesktop.Core.Tests;
 
-public sealed class LiveTaskWorkflowTests
+public sealed partial class LiveTaskWorkflowTests
 {
     [Fact]
     public async Task EventDuringHydrationInvalidatesOldTerminalSnapshot()
@@ -68,7 +68,7 @@ public sealed class LiveTaskWorkflowTests
         Assert.Equal(1, api.AnswerCount);
     }
     [Fact]
-    public async Task StreamingStaysWithOwningSessionAndDisconnectDoesNotReconnectOrCompleteTask()
+    public async Task StreamingStaysWithOwningSessionAndDisconnectRetainsLastExecutionState()
     {
         using Api api = new();
         using LiveTaskWorkflow workflow = new(api, api);
@@ -347,19 +347,30 @@ public sealed class LiveTaskWorkflowTests
         public int Watches { get; private set; }
         public int CancelCount { get; private set; }
         public bool RejectAnswer { get; set; }
+        public Exception? ReadFailure { get; set; }
+        public Exception? StreamFailure { get; set; }
+        public Exception? HistoryFailure { get; set; }
+        public IReadOnlyList<string> PendingSessions { get; set; } = [];
+        public Dictionary<string, TaskSnapshot> OtherSnapshots { get; } = [];
+        public int SnapshotReads { get; private set; }
         public TaskCompletionSource<TaskSnapshot>? HeldSnapshot { get; set; }
         public Channel<TaskEvent> Events { get; } = Channel.CreateUnbounded<TaskEvent>();
         private TaskSubmission? _submitted;
-        public Task<IReadOnlyList<string>> AttentionSessionsAsync(string directory, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<string>>([]);
+        public Task<IReadOnlyList<string>> AttentionSessionsAsync(string directory, CancellationToken cancellationToken) => Task.FromResult(PendingSessions);
         public Task<TaskCatalog> CatalogAsync(string directory, CancellationToken cancellationToken) => Task.FromResult(Catalog);
         public Task<TaskSnapshot> TaskSnapshotAsync(string id, CancellationToken cancellationToken)
         {
+            SnapshotReads++;
+            if (ReadFailure is { } error)
+            {
+                return Task.FromException<TaskSnapshot>(error);
+            }
             if (HeldSnapshot is { } held)
             {
                 HeldSnapshot = null;
                 return held.Task;
             }
-            return Task.FromResult(Snapshot);
+            return Task.FromResult(OtherSnapshots.GetValueOrDefault(id) ?? Snapshot);
         }
         public Task SelectModelAsync(string id, TaskModel model, CancellationToken cancellationToken)
         {
@@ -423,6 +434,10 @@ public sealed class LiveTaskWorkflowTests
         public async Task WatchAsync(Func<TaskEvent, Task> receive, CancellationToken cancellationToken)
         {
             Watches++;
+            if (StreamFailure is { } error)
+            {
+                throw error;
+            }
             await receive(new("connected", "server.connected", null, null, 0, null));
             await foreach (TaskEvent e in Events.Reader.ReadAllAsync(cancellationToken))
             {
@@ -434,13 +449,13 @@ public sealed class LiveTaskWorkflowTests
                 await receive(e);
             }
         }
-        public Task<WorkspacePage<HistoryMessage>> HistoryAsync(string id, string? cursor, CancellationToken cancellationToken) => Task.FromResult(
+        public Task<WorkspacePage<HistoryMessage>> HistoryAsync(string id, string? cursor, CancellationToken cancellationToken) => HistoryFailure is { } error ? Task.FromException<WorkspacePage<HistoryMessage>>(error) : Task.FromResult(
             cursor is not null && _submitted is not null ? new WorkspacePage<HistoryMessage>([new(_submitted.Id, "user", _submitted.Text)], null) : new(History, RecoverInOlderHistory && _submitted is not null ? "older" : null));
         public Task<ProjectLocation> ResolveAsync(string directory, CancellationToken cancellationToken) => Task.FromResult(new ProjectLocation(directory, "project"));
         public Task ValidateDirectoryAsync(string directory, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<WorkspacePage<WorkspaceSession>> SessionsAsync(string directory, string? cursor, CancellationToken cancellationToken) => Task.FromResult(new WorkspacePage<WorkspaceSession>([Session], null));
         public Task<WorkspaceSession> CreateAsync(string directory, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<WorkspaceSession> SessionAsync(string id, CancellationToken cancellationToken) => Task.FromResult(Session);
+        public Task<WorkspaceSession> SessionAsync(string id, CancellationToken cancellationToken) => Task.FromResult(OtherSnapshots.GetValueOrDefault(id)?.Session ?? Session);
         public void Dispose() { }
     }
 }

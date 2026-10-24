@@ -6,6 +6,37 @@ namespace OpenCodeDesktop.Presentation.Tests;
 public sealed class LiveTaskPresentationTests
 {
     [Fact]
+    public async Task RecoveryShowsRetryOrReconnectSeparatelyFromLastRunningTask()
+    {
+        using Api api = new();
+        using LiveTaskWorkflow workflow = new(api, api, new ImmediateScheduler());
+        api.Catalog.SetResult(new([new("m", "p", "Model")], [new("build", "Build")]));
+        api.Snapshot = api.Snapshot with { Active = true };
+        await workflow.OpenAsync(api.Session);
+        SessionTaskState state = workflow.Find("s")!;
+        api.ReadFailure = new WorkspaceException(WorkspaceFailure.Transport, "offline");
+        await workflow.RefreshAsync(state);
+        await workflow.RetryRecoveryAsync();
+        var presentation = LiveTaskPresentation.From(state, "retained draft", null, workflow);
+        Assert.Contains("last observed: Running", presentation.Status, StringComparison.Ordinal);
+        Assert.True(presentation.ShowRecovery);
+        Assert.True(presentation.CanRetryRecovery);
+        Assert.False(presentation.CanStop);
+        Assert.False(presentation.CanSend);
+        api.ReadFailure = new WorkspaceException(WorkspaceFailure.Unauthorized, "credentials expired");
+        await workflow.RetryRecoveryAsync();
+        presentation = LiveTaskPresentation.From(state, "retained draft", null, workflow);
+        Assert.True(presentation.ShowRecovery);
+        Assert.Contains("Reconnect", presentation.RecoveryStatus, StringComparison.Ordinal);
+        Assert.False(presentation.CanRetryRecovery);
+        Assert.False(presentation.CanRefresh);
+    }
+
+    private sealed class ImmediateScheduler : IRecoveryScheduler
+    {
+        public Task DelayAsync(TimeSpan delay, CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+    [Fact]
     public async Task SendingLoadingRunningAndDisconnectedControlsStayDistinct()
     {
         using Api api = new();
@@ -46,8 +77,9 @@ public sealed class LiveTaskPresentationTests
         public TaskSnapshot Snapshot { get; set; } = new(new("s", "/dir", "project", "Task"), false, null, null, new("m", "p", "Model"), "build", [], [], []);
         public TaskCompletionSource<TaskCatalog> Catalog { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Submitted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public Exception? ReadFailure { get; set; }
         public Task<TaskCatalog> CatalogAsync(string directory, CancellationToken cancellationToken) => Catalog.Task;
-        public Task<TaskSnapshot> TaskSnapshotAsync(string id, CancellationToken cancellationToken) => Task.FromResult(Snapshot);
+        public Task<TaskSnapshot> TaskSnapshotAsync(string id, CancellationToken cancellationToken) => ReadFailure is { } error ? Task.FromException<TaskSnapshot>(error) : Task.FromResult(Snapshot);
         public Task SelectModelAsync(string id, TaskModel model, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task SelectAgentAsync(string id, string agent, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task SubmitAsync(string id, TaskSubmission submission, CancellationToken cancellationToken) => Submitted.Task;

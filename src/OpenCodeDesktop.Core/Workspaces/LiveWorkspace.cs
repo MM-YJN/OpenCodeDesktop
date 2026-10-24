@@ -7,6 +7,7 @@ namespace OpenCodeDesktop.Core.Workspaces;
 public sealed class LiveWorkspace : IDisposable
 {
     private readonly ServerConnections _connections;
+    private readonly IRecoveryScheduler? _recoveryScheduler;
     private readonly Dictionary<Guid, Backend> _backends = [];
     private CancellationTokenSource? _load;
     private long _generation;
@@ -16,10 +17,11 @@ public sealed class LiveWorkspace : IDisposable
     private bool _disposed;
     private Func<Task>? _retry;
 
-    public LiveWorkspace(ServerConnections connections)
+    public LiveWorkspace(ServerConnections connections, IRecoveryScheduler? recoveryScheduler = null)
     {
         ArgumentNullException.ThrowIfNull(connections);
         _connections = connections;
+        _recoveryScheduler = recoveryScheduler;
         connections.Changed += ConnectionChangedAsync;
         ConnectionChangedAsync(this, EventArgs.Empty);
     }
@@ -79,7 +81,7 @@ public sealed class LiveWorkspace : IDisposable
         }
 
         Tasks?.Dispose();
-        Tasks = _connections.Context is ITaskConnection tasks ? new LiveTaskWorkflow(_connections.Context, tasks) : null;
+        Tasks = _connections.Context is ITaskConnection tasks ? new LiveTaskWorkflow(_connections.Context, tasks, _recoveryScheduler) : null;
         Tasks?.Changed += TaskChanged;
 
         CancelLoad();
@@ -98,6 +100,10 @@ public sealed class LiveWorkspace : IDisposable
                 _backends.Add(server.Profile.Id, _backend);
             }
             Tasks?.Restore(_backend.TaskStates);
+            foreach (Project project in _backend.Projects.Values)
+            {
+                Tasks?.RememberDirectory(project.Location);
+            }
             Status = "Enter a server-side directory and choose Open.";
             string? remembered = _backend.Directory;
             Notify();
@@ -211,6 +217,10 @@ public sealed class LiveWorkspace : IDisposable
 
     private async Task ReadHistoryAsync(IWorkspaceConnection context, Project project, string id, Func<bool> current, CancellationToken token)
     {
+        if (project.Sessions.FirstOrDefault(s => s.Id == id) is { } known)
+        {
+            Tasks?.Track(known);
+        }
         WorkspaceSession session = await context.SessionAsync(id, token).ConfigureAwait(true);
         ValidateSessions(project.Location, [session]);
         if (session.Id != id)
@@ -452,6 +462,10 @@ public sealed class LiveWorkspace : IDisposable
                 }
 
                 _retry = retry;
+                if (_project is { SelectedId: not null, Uncertain: false } && error.Failure is WorkspaceFailure.Transport or WorkspaceFailure.Timeout)
+                {
+                    Tasks?.ReportReadFailure(error);
+                }
             }
         }
         catch (Exception)
@@ -506,7 +520,21 @@ public sealed class LiveWorkspace : IDisposable
         _load = null;
         IsLoading = false;
     }
-    private void TaskChanged(object? sender, EventArgs args) => Notify();
+    private void TaskChanged(object? sender, EventArgs args)
+    {
+        if (!IsLoading && !HistoryLoaded && Error is not null && _project is { SelectedId: { } id, Uncertain: false } project &&
+            Tasks is { Recovery: WorkspaceRecovery.Current } tasks && tasks.Find(id) is { Hydrated: true, Stale: false } state)
+        {
+            History = state.History;
+            HistoryLoaded = true;
+            project.HistoryCursor = state.HistoryCursor;
+            project.HistoryCursors.Clear();
+            Error = null;
+            _retry = null;
+            Status = "Ready. Server state refreshed.";
+        }
+        Notify();
+    }
     private void Notify() => Changed?.Invoke(this, EventArgs.Empty);
     public void Dispose()
     {
