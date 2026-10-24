@@ -1,0 +1,732 @@
+{
+  "serverVersion": "2.1.4",
+  "executableSha256": "B12B0613E9B4A491E5B12D90A5E9BBAE6D261FE9688C82BF73125A036963D399",
+  "verifiedAtUtc": "2026-10-24T10:02:17.1174240Z",
+  "sanitization": "Owned root replaced; nonempty cursors replaced; model/agent bodies projected to availability fields. No authorization retained.",
+  "cases": {
+    "openProjectA": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "directory": "<isolated-root>\\project A 测试",
+        "project": {
+          "id": "global",
+          "directory": "<isolated-root>\\project A 测试",
+          "canonical": "<isolated-root>\\project A 测试"
+        }
+      }
+    },
+    "validateDirectory": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "location": {
+          "directory": "<isolated-root>\\project A 测试"
+        },
+        "data": [
+          {
+            "path": ".git\\",
+            "type": "directory"
+          }
+        ]
+      }
+    },
+    "openProjectB": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "directory": "<isolated-root>\\project B",
+        "project": {
+          "id": "global",
+          "directory": "<isolated-root>\\project B",
+          "canonical": "<isolated-root>\\project B"
+        }
+      }
+    },
+    "emptySessions": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [],
+        "cursor": {
+          "previous": null,
+          "next": null
+        }
+      }
+    },
+    "createSession": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "ses_e92a39425ffekTYQ6E5Nn63QAA",
+          "projectID": "global",
+          "cost": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "time": {
+            "created": 1792836136147,
+            "updated": 1792836136147
+          },
+          "title": "WI-005 disposable history",
+          "location": {
+            "directory": "<isolated-root>\\project A 测试"
+          }
+        }
+      }
+    },
+    "listCreatedSession": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [
+          {
+            "id": "ses_e92a39425ffekTYQ6E5Nn63QAA",
+            "projectID": "global",
+            "cost": 0,
+            "tokens": {
+              "input": 0,
+              "output": 0,
+              "reasoning": 0,
+              "cache": {
+                "read": 0,
+                "write": 0
+              }
+            },
+            "time": {
+              "created": 1792836136147,
+              "updated": 1792836136147
+            },
+            "title": "WI-005 disposable history",
+            "location": {
+              "directory": "<isolated-root>\\project A 测试"
+            }
+          }
+        ],
+        "cursor": {
+          "previous": "<opaque-cursor>",
+          "next": "<opaque-cursor>"
+        }
+      }
+    },
+    "reopenSession": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "ses_e92a39425ffekTYQ6E5Nn63QAA",
+          "projectID": "global",
+          "cost": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "time": {
+            "created": 1792836136147,
+            "updated": 1792836136147
+          },
+          "title": "WI-005 disposable history",
+          "location": {
+            "directory": "<isolated-root>\\project A 测试"
+          }
+        }
+      }
+    },
+    "emptyHistory": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [],
+        "cursor": {
+          "previous": null,
+          "next": null
+        }
+      }
+    },
+    "importHistoryFixture": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "ses_wi005history",
+          "projectID": "global",
+          "cost": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "time": {
+            "created": 1792836136147,
+            "updated": 1792836136417
+          },
+          "title": "WI-005 disposable history",
+          "location": {
+            "directory": "<isolated-root>\\project A 测试"
+          }
+        }
+      }
+    },
+    "reopenHistorySession": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "ses_wi005history",
+          "projectID": "global",
+          "cost": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "time": {
+            "created": 1792836136147,
+            "updated": 1792836136417
+          },
+          "title": "WI-005 disposable history",
+          "location": {
+            "directory": "<isolated-root>\\project A 测试"
+          }
+        }
+      }
+    },
+    "historyNewest": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [
+          {
+            "id": "msg_wi005_5",
+            "time": {
+              "created": 1700000000005
+            },
+            "text": "WI-005 fixture 5",
+            "type": "synthetic"
+          },
+          {
+            "id": "msg_wi005_4",
+            "time": {
+              "created": 1700000000004
+            },
+            "text": "WI-005 fixture 4",
+            "type": "synthetic"
+          }
+        ],
+        "cursor": {
+          "previous": "<opaque-cursor>",
+          "next": "<opaque-cursor>"
+        }
+      }
+    },
+    "historyOlder": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [
+          {
+            "id": "msg_wi005_3",
+            "time": {
+              "created": 1700000000003
+            },
+            "text": "WI-005 fixture 3",
+            "type": "synthetic"
+          },
+          {
+            "id": "msg_wi005_2",
+            "time": {
+              "created": 1700000000002
+            },
+            "text": "WI-005 fixture 2",
+            "type": "synthetic"
+          }
+        ],
+        "cursor": {
+          "previous": "<opaque-cursor>",
+          "next": "<opaque-cursor>"
+        }
+      }
+    },
+    "historyOldest": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [
+          {
+            "id": "msg_wi005_1",
+            "time": {
+              "created": 1700000000001
+            },
+            "text": "WI-005 fixture 1",
+            "type": "synthetic"
+          }
+        ],
+        "cursor": {
+          "previous": "<opaque-cursor>",
+          "next": "<opaque-cursor>"
+        }
+      }
+    },
+    "historyEnd": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [],
+        "cursor": {
+          "previous": null,
+          "next": null
+        }
+      }
+    },
+    "listedSession": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [
+          {
+            "id": "ses_wi005history",
+            "projectID": "global",
+            "cost": 0,
+            "tokens": {
+              "input": 0,
+              "output": 0,
+              "reasoning": 0,
+              "cache": {
+                "read": 0,
+                "write": 0
+              }
+            },
+            "time": {
+              "created": 1792836136147,
+              "updated": 1792836136417
+            },
+            "title": "WI-005 disposable history",
+            "location": {
+              "directory": "<isolated-root>\\project A 测试"
+            }
+          }
+        ],
+        "cursor": {
+          "previous": "<opaque-cursor>",
+          "next": "<opaque-cursor>"
+        }
+      }
+    },
+    "createSecondSession": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "ses_e92a391f7ffeTXIHFK05By0qiW",
+          "projectID": "global",
+          "cost": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "time": {
+            "created": 1792836136689,
+            "updated": 1792836136689
+          },
+          "title": "WI-005 second session",
+          "location": {
+            "directory": "<isolated-root>\\project A 测试"
+          }
+        }
+      }
+    },
+    "sessionPageOne": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [
+          {
+            "id": "ses_e92a391f7ffeTXIHFK05By0qiW",
+            "projectID": "global",
+            "cost": 0,
+            "tokens": {
+              "input": 0,
+              "output": 0,
+              "reasoning": 0,
+              "cache": {
+                "read": 0,
+                "write": 0
+              }
+            },
+            "time": {
+              "created": 1792836136689,
+              "updated": 1792836136689
+            },
+            "title": "WI-005 second session",
+            "location": {
+              "directory": "<isolated-root>\\project A 测试"
+            }
+          }
+        ],
+        "cursor": {
+          "previous": "<opaque-cursor>",
+          "next": "<opaque-cursor>"
+        }
+      }
+    },
+    "sessionPageTwo": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [
+          {
+            "id": "ses_wi005history",
+            "projectID": "global",
+            "cost": 0,
+            "tokens": {
+              "input": 0,
+              "output": 0,
+              "reasoning": 0,
+              "cache": {
+                "read": 0,
+                "write": 0
+              }
+            },
+            "time": {
+              "created": 1792836136147,
+              "updated": 1792836136417
+            },
+            "title": "WI-005 disposable history",
+            "location": {
+              "directory": "<isolated-root>\\project A 测试"
+            }
+          }
+        ],
+        "cursor": {
+          "previous": "<opaque-cursor>",
+          "next": "<opaque-cursor>"
+        }
+      }
+    },
+    "otherProjectSessions": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [],
+        "cursor": {
+          "previous": null,
+          "next": null
+        }
+      }
+    },
+    "missingDirectory": {
+      "status": 404,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "_tag": "LocationNotFoundError",
+        "location": {
+          "directory": "<isolated-root>\\missing"
+        },
+        "message": "Location not found: <isolated-root>\\missing"
+      }
+    },
+    "fileAsDirectory": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "directory": "<isolated-root>\\ordinary-file.txt",
+        "project": {
+          "id": "9cc52766c4cc41a9c16319d68df7213370b81d45",
+          "directory": "<isolated-root>\\ordinary-file.txt",
+          "canonical": "<isolated-root>\\ordinary-file.txt"
+        }
+      }
+    },
+    "validateFileAsDirectory": {
+      "status": 404,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "_tag": "FileNotFoundError",
+        "path": ".",
+        "message": "Directory not found: ."
+      }
+    },
+    "missingSession": {
+      "status": 404,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "_tag": "SessionNotFoundError",
+        "sessionID": "ses_missing",
+        "message": "Session not found: ses_missing"
+      }
+    },
+    "missingSessionHistory": {
+      "status": 404,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "_tag": "SessionNotFoundError",
+        "sessionID": "ses_missing",
+        "message": "Session not found: ses_missing"
+      }
+    },
+    "invalidHistoryCursor": {
+      "status": 400,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "_tag": "InvalidCursorError",
+        "message": "Invalid cursor"
+      }
+    },
+    "invalidSessionCursor": {
+      "status": 400,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "_tag": "InvalidCursorError",
+        "message": "Invalid cursor"
+      }
+    },
+    "missingAuthorization": {
+      "status": 401,
+      "contentType": "application/json",
+      "challenge": "Basic realm=\"Secure Area\"",
+      "retryAfter": "",
+      "body": {
+        "_tag": "UnauthorizedError",
+        "message": "Authentication required"
+      }
+    },
+    "wrongAuthorization": {
+      "status": 401,
+      "contentType": "application/json",
+      "challenge": "Basic realm=\"Secure Area\"",
+      "retryAfter": "",
+      "body": {
+        "_tag": "UnauthorizedError",
+        "message": "Authentication required"
+      }
+    },
+    "models": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "location": {
+          "directory": "<isolated-root>\\project A 测试"
+        },
+        "data": [
+          {
+            "status": "active",
+            "id": "flint-40b-free",
+            "modelID": "flint-40b-free",
+            "providerID": "opencode",
+            "enabled": true
+          },
+          {
+            "status": "active",
+            "id": "nemotron-3.5-super-vl-free",
+            "modelID": "nemotron-3.5-super-vl-free",
+            "providerID": "opencode",
+            "enabled": true
+          },
+          {
+            "status": "active",
+            "id": "beam-free",
+            "modelID": "beam-free",
+            "providerID": "opencode",
+            "enabled": true
+          },
+          {
+            "status": "active",
+            "id": "mimo-v2.6-flash-free",
+            "modelID": "mimo-v2.6-flash-free",
+            "providerID": "opencode",
+            "enabled": true
+          },
+          {
+            "status": "active",
+            "id": "deepseek-v4.1-flash-free",
+            "modelID": "deepseek-v4.1-flash-free",
+            "providerID": "opencode",
+            "enabled": true
+          },
+          {
+            "status": "active",
+            "id": "glm-5.3-flash-free",
+            "modelID": "glm-5.3-flash-free",
+            "providerID": "opencode",
+            "enabled": true
+          },
+          {
+            "status": "active",
+            "id": "nemotron-3.5-lightning-free",
+            "modelID": "nemotron-3.5-lightning-free",
+            "providerID": "opencode",
+            "enabled": true
+          },
+          {
+            "status": "active",
+            "id": "nemotron-3-ultra-free",
+            "modelID": "nemotron-3-ultra-free",
+            "providerID": "opencode",
+            "enabled": true
+          },
+          {
+            "status": "active",
+            "id": "big-pickle",
+            "modelID": "big-pickle",
+            "providerID": "opencode",
+            "enabled": true
+          },
+          {
+            "status": "active",
+            "id": "kimi-k3:cloud",
+            "modelID": "kimi-k3:cloud",
+            "providerID": "ollama",
+            "enabled": true
+          }
+        ]
+      }
+    },
+    "agents": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "location": {
+          "directory": "<isolated-root>\\project A 测试"
+        },
+        "data": [
+          {
+            "id": "build",
+            "hidden": false,
+            "mode": "primary"
+          },
+          {
+            "id": "general",
+            "hidden": false,
+            "mode": "subagent"
+          },
+          {
+            "id": "explore",
+            "hidden": false,
+            "mode": "subagent"
+          },
+          {
+            "id": "compaction",
+            "hidden": true,
+            "mode": "primary"
+          },
+          {
+            "id": "title",
+            "hidden": true,
+            "mode": "primary"
+          },
+          {
+            "id": "summary",
+            "hidden": true,
+            "mode": "primary"
+          },
+          {
+            "id": "plan",
+            "hidden": false,
+            "mode": "primary"
+          }
+        ]
+      }
+    },
+    "defaultModel": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "location": {
+          "directory": "<isolated-root>\\project A 测试"
+        },
+        "data": [
+          {
+            "status": "active",
+            "id": "flint-40b-free",
+            "modelID": "flint-40b-free",
+            "providerID": "opencode",
+            "enabled": true
+          }
+        ]
+      }
+    }
+  }
+}

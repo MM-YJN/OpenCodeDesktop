@@ -25,13 +25,13 @@ The [desktop concept](desktop-concept.png) establishes the intended workspace la
 
 Details has Info, Files, and Changes tabs. Info contains session metadata, context, instructions, usage, and activity. Files combines navigation/search with a selected-file preview. Changes combines a changed-file list with an expanded diff and an explicit comparison selector. Conversation file references and change summaries open the corresponding Details tab. Each tab retains its selection and scroll position; the pane supports expand/restore for larger previews. File previews and diffs live in Details rather than below the conversation. A collapsible terminal surface can occupy the bottom of the central workspace. Connection status and pending-attention access remain visible outside Settings.
 
-Until live integrations exist, the app opens directly with in-memory sample content so users can exercise navigation and component interactions. There is no separate sample/preview mode or entry/exit flow. Use fictional project names, paths, task text, and file content unrelated to the user's projects. Sample models, permissions, execution states, and outputs remain illustrative and must never imply a real connection, execution, file mutation, or approval. Connection status remains truthfully disconnected.
+The app opens with an empty, disconnected workspace and guidance to Settings > Connections. Projects, sessions and conversation history appear only after connecting to a real server and opening a server-side directory. Do not populate the workspace, Details, terminal, composer or attention surfaces with illustrative data. Features without a live integration remain explicitly unavailable.
 
 ## Integration Direction
 
 Use the OpenCode v2 HTTP API and event stream through Infrastructure implementations. The official v2 network client is `@opencode/client`; legacy examples using `@opencode-ai/sdk/v2` must not be treated as the OpenCode 2 contract.
 
-The preferred C# integration is direct HTTP communication with an independent OpenCode service. Embedding the JavaScript/Bun host is outside the initial scope. Connecting to an existing service comes first; local service discovery and startup follow later.
+The preferred C# integration is direct HTTP communication with an independent OpenCode service. Embedding the JavaScript/Bun host is outside the initial scope. Connect to existing services directly. Connections also detects a supported installed Windows service, verifies its local credential, and offers explicit add/connect without password copy/paste. Automatic service startup remains later work.
 
 The published HTTP surface is marked experimental. Select a supported server version and retain the corresponding API contract before building the integration. Exact authentication, event payloads, error formats, and operation semantics require runtime verification.
 
@@ -60,7 +60,7 @@ The following resource groups describe the documented capabilities relevant to p
 
 | ID | Requirement |
 | --- | --- |
-| CON-01 | Manage multiple named existing OpenCode v2 server backends, connect using the supported authentication mechanism, and explicitly switch the active backend. Display active-server identity, readiness, and actionable errors; a failed or cancelled switch retains the previous active backend. Initial profiles are in memory and use the verified local-address boundary. |
+| CON-01 | Manage multiple named existing OpenCode v2 server backends, connect using the supported authentication mechanism, and explicitly switch the active backend. Display active-server identity, readiness, and actionable errors; a failed or cancelled switch retains the previous active backend. Initial profiles are in memory and use the verified local-address boundary. New profiles default to the Windows v2 service address `http://127.0.0.1:28894`; an omitted or blank address uses that default, while an explicit address overrides it. |
 | CON-02 | Detect and communicate an unsupported server version or contract instead of silently continuing with incompatible behavior. |
 | PRJ-01 | Select a server-side project directory and show the active server and directory clearly. |
 | SES-01 | List sessions, create a session, switch between sessions, and load message history with pagination where required. |
@@ -78,7 +78,7 @@ The following resource groups describe the documented capabilities relevant to p
 
 | ID | Requirement |
 | --- | --- |
-| CON-03 | Discover and start a compatible local service when needed, with clear ownership of service lifecycle. |
+| CON-03 | Detect a running installed compatible local service and retrieve its password transiently for an explicit Add local environment action. Preserve manual connection entry. Starting a local service when needed remains later scope, with clear ownership of service lifecycle. |
 | SES-03 | Search, rename, archive, and restore sessions. |
 | SES-04 | Fork a session from supported history boundaries and expose supported revert operations with clear effects. |
 | MSG-02 | Attach or reference files using the supported v2 input contract. |

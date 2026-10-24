@@ -15,6 +15,7 @@
     <Project Path="src/OpenCodeDesktop.Infrastructure/OpenCodeDesktop.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/OpenCodeDesktop.CliFixture/OpenCodeDesktop.CliFixture.csproj" />
     <Project Path="tests/OpenCodeDesktop.Presentation.Tests/OpenCodeDesktop.Presentation.Tests.csproj" />
     <Project Path="tests/OpenCodeDesktop.Core.Tests/OpenCodeDesktop.Core.Tests.csproj" />
     <Project Path="tests/OpenCodeDesktop.Infrastructure.Tests/OpenCodeDesktop.Infrastructure.Tests.csproj" />

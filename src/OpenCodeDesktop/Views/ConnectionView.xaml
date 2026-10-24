@@ -36,6 +36,18 @@
                     <Button x:Name="AddServerButton" Grid.Column="1" Content="+ Add server" Click="Add_Click" VerticalAlignment="Center"/>
                 </Grid>
                 <TextBlock Text="Profiles last for this app session. Only local OpenCode 2.1.4 servers are supported." Style="{StaticResource ShellSecondaryTextStyle}"/>
+                <Border Style="{StaticResource ShellCardStyle}" Padding="16">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Local environment" Style="{StaticResource ShellHeadingTextStyle}"/>
+                        <TextBlock x:Name="LocalDetectionStatus" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                        <ProgressBar x:Name="LocalDetectionProgress" IsIndeterminate="True" Visibility="Collapsed" AutomationProperties.Name="Detecting local OpenCode environment"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="DetectLocalButton" Content="Detect local environment" Click="DetectLocal_ClickAsync"/>
+                            <Button x:Name="AddLocalButton" Content="Add local environment" Click="AddLocal_ClickAsync" Visibility="Collapsed"/>
+                        </StackPanel>
+                        <TextBlock Text="Uses the installed local CLI to verify the running service and retrieve its password in memory. Does not start or change the service." Style="{StaticResource ShellSecondaryTextStyle}"/>
+                    </StackPanel>
+                </Border>
                 <TextBlock x:Name="EmptyState" Text="No servers configured. Add a server below to get started." Style="{StaticResource ShellBodyTextStyle}"/>
                 <StackPanel x:Name="ServerList" Spacing="8"/>
                 <Button x:Name="DisconnectButton" Content="Disconnect active server" Click="Disconnect_Click" Visibility="Collapsed"/>
@@ -48,10 +60,11 @@
                             <TextBlock Text="Name" VerticalAlignment="Center" Style="{StaticResource ShellBodyTextStyle}"/>
                             <TextBox x:Name="ServerName" Grid.Column="1" PlaceholderText="Local development" MaxLength="80" AutomationProperties.Name="Server name"/>
                             <TextBlock Grid.Row="1" Text="Server address" VerticalAlignment="Center" Style="{StaticResource ShellBodyTextStyle}"/>
-                            <TextBox x:Name="ServerOrigin" Grid.Row="1" Grid.Column="1" PlaceholderText="http://127.0.0.1:4096" MaxLength="256" AutomationProperties.Name="Server address"/>
+                            <TextBox x:Name="ServerOrigin" Grid.Row="1" Grid.Column="1" MaxLength="256" AutomationProperties.Name="Server address"/>
                             <TextBlock Grid.Row="2" Text="Server password" VerticalAlignment="Center" Style="{StaticResource ShellBodyTextStyle}"/>
                             <PasswordBox x:Name="ServerPassword" Grid.Row="2" Grid.Column="1" MaxLength="4096" PasswordRevealMode="Peek" AutomationProperties.Name="Server password"/>
                         </Grid>
+                        <TextBlock x:Name="DefaultAddressHint" Style="{StaticResource ShellSecondaryTextStyle}"/>
                         <TextBlock Text="Password is used for this connection only. It is never saved." Style="{StaticResource ShellSecondaryTextStyle}"/>
                         <InfoBar x:Name="SwitchInformation" IsOpen="True" IsClosable="False" Severity="Informational"
                                  Message="Your current server stays active until the new connection is ready."/>
@@ -59,7 +72,7 @@
                         <ProgressBar x:Name="ConnectingProgress" IsIndeterminate="True" Visibility="Collapsed" AutomationProperties.Name="Connecting to selected server"/>
                     </StackPanel>
                 </Border>
-                <TextBlock Text="Server readiness checks identity and compatibility only. The workspace still contains independent sample data; no live projects or sessions are loaded."
+                <TextBlock Text="Server readiness checks identity and compatibility. After connecting, open a server-side directory in Projects to load its sessions."
                            Style="{StaticResource ShellSecondaryTextStyle}"/>
             </StackPanel>
         </ScrollViewer>

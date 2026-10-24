@@ -10,6 +10,7 @@ public sealed partial class ServerAddress
 
     public Uri Origin { get; }
     public string Display => "http://127.0.0.1:" + Origin.Port.ToString(CultureInfo.InvariantCulture);
+    public const string DefaultOrigin = "http://127.0.0.1:28894";
     public const string FormatMessage = "Use http://127.0.0.1:<port> with a port from 1 to 65535 and no path, query, or fragment.";
 
     public static bool TryParse(string? input, out ServerAddress? address)

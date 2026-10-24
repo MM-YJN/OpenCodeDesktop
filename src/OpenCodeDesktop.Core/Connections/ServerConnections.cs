@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 
+using OpenCodeDesktop.Core.Workspaces;
+
 namespace OpenCodeDesktop.Core.Connections;
 
 public sealed record ServerProfile(Guid Id, string Name, ServerAddress Address);
@@ -14,13 +16,15 @@ public sealed class ServerConnections(IServerConnectionService service) : IDispo
 
     public ReadOnlyCollection<ServerProfile> Profiles => _profiles.AsReadOnly();
     public ActiveServer? Active { get; private set; }
+    public IWorkspaceConnection? Context { get; private set; }
+    public long Generation { get; private set; }
     public Guid? ConnectingId { get; private set; }
     public bool IsConnecting => _attempt is not null;
     public ConnectionResult? LastResult { get; private set; }
     public string Message { get; private set; } = "Add a server to get started.";
     public event EventHandler? Changed;
 
-    public ServerProfile? Save(Guid? id, string name, string origin)
+    public ServerProfile? Save(Guid? id, string name, string? origin)
     {
         if (_disposed || IsConnecting)
         {
@@ -28,7 +32,7 @@ public sealed class ServerConnections(IServerConnectionService service) : IDispo
         }
 
         string? error = string.IsNullOrWhiteSpace(name) ? "Enter a server name." : null;
-        if (!ServerAddress.TryParse(origin, out ServerAddress? address))
+        if (!ServerAddress.TryParse(string.IsNullOrWhiteSpace(origin) ? ServerAddress.DefaultOrigin : origin, out ServerAddress? address))
         {
             error = ServerAddress.FormatMessage;
         }
@@ -84,9 +88,11 @@ public sealed class ServerConnections(IServerConnectionService service) : IDispo
         return removed;
     }
 
-    public async Task ConnectAsync(Guid id, string password)
+    public Task ConnectAsync(Guid id, string password) => ConnectAsync(id, password, CancellationToken.None);
+
+    public async Task ConnectAsync(Guid id, string password, CancellationToken cancellationToken)
     {
-        if (_disposed || IsConnecting || Active?.Profile.Id == id)
+        if (_disposed || IsConnecting || Active?.Profile.Id == id || cancellationToken.IsCancellationRequested)
         {
             return;
         }
@@ -105,7 +111,7 @@ public sealed class ServerConnections(IServerConnectionService service) : IDispo
             return;
         }
 
-        using CancellationTokenSource attempt = new();
+        using var attempt = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _attempt = attempt;
         ConnectingId = id;
         LastResult = null;
@@ -139,7 +145,18 @@ public sealed class ServerConnections(IServerConnectionService service) : IDispo
 
         if (result.IsReady)
         {
-            Active = new(profile, result.Version!);
+            try
+            {
+                IWorkspaceConnection? candidate = (service as IWorkspaceConnectionFactory)?.Create(profile.Address, password);
+                Context?.Dispose();
+                Context = candidate;
+                Generation++;
+                Active = new(profile, result.Version!);
+            }
+            catch (Exception)
+            {
+                result = new(ConnectionOutcome.TransportFailure, "Could not establish the workspace connection. Try connecting again.");
+            }
         }
 
         _attempt = null;
@@ -158,7 +175,7 @@ public sealed class ServerConnections(IServerConnectionService service) : IDispo
             return;
         }
 
-        Active = null;
+        ReleaseContext();
         LastResult = null;
         Message = "Disconnected. Select a server to connect.";
         Notify();
@@ -166,13 +183,34 @@ public sealed class ServerConnections(IServerConnectionService service) : IDispo
 
     private void Notify() => Changed?.Invoke(this, EventArgs.Empty);
 
+    public void RejectAuthorization(long generation)
+    {
+        if (_disposed || generation != Generation || Active is null)
+        {
+            return;
+        }
+
+        ReleaseContext();
+        Message = "Authorization was rejected. Reconnect with the server password.";
+        LastResult = new(ConnectionOutcome.AuthenticationFailed, Message);
+        Notify();
+    }
+
+    private void ReleaseContext()
+    {
+        Context?.Dispose();
+        Context = null;
+        Generation++;
+        Active = null;
+    }
+
     public void Dispose()
     {
         _disposed = true;
         _attempt?.Cancel();
         _attempt?.Dispose();
         _attempt = null;
-        Active = null;
+        ReleaseContext();
         ConnectingId = null;
         LastResult = null;
         _profiles.Clear();

@@ -49,8 +49,10 @@ public partial class App : Application
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
         HttpClient client = OpenCodeConnectionService.CreateHttpClient();
-        ServerConnections connections = new(new OpenCodeConnectionService(client));
-        _window = new MainWindow(connections);
+        OpenCodeConnectionService connectionService = new(client);
+        ServerConnections connections = new(connectionService);
+        ILocalServerDiscovery localDiscovery = new LocalServerDiscovery(connectionService, new LocalOpenCodeCommands());
+        _window = new MainWindow(connections, localDiscovery);
         _window.Closed += (_, _) => client.Dispose();
         _window.Activate();
     }

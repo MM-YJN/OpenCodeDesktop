@@ -25,10 +25,15 @@
                         </Button>
                         <TextBlock Text="Projects" Style="{StaticResource ShellHeadingTextStyle}"/>
                         <Button Content="Close Projects" Click="CloseProjects_Click"/>
-                        <Button x:Name="NewTaskButton" Content="New task" Click="NewTask_Click"/>
-                        <TextBox x:Name="SearchBox" PlaceholderText="Search projects / sessions" AutomationProperties.Name="Search projects or sessions" TextChanged="Search_Changed"/>
-                        <Button Content="Clear search" Click="ClearSearch_Click"/>
-                        <CheckBox x:Name="ArchivedFilter" Content="Show archived" Checked="Filter_Changed" Unchecked="Filter_Changed"/>
+                        <Button x:Name="NewTaskButton" Content="New-session draft" IsEnabled="False" Click="NewTask_ClickAsync"/>
+                        <StackPanel x:Name="LiveProjectControls" Spacing="8">
+                            <TextBox x:Name="ServerDirectory" IsEnabled="False" Header="Server-side directory" PlaceholderText="Path on the selected server" AutomationProperties.Name="Server-side project directory"/>
+                            <Button x:Name="OpenDirectoryButton" Content="Open directory" IsEnabled="False" Click="OpenDirectory_ClickAsync"/>
+                            <ProgressBar x:Name="WorkspaceLoading" IsIndeterminate="True" Visibility="Collapsed" AutomationProperties.Name="Loading server workspace"/>
+                            <TextBlock x:Name="WorkspaceStatus" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                            <TextBlock x:Name="WorkspaceError" TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive" IsTextSelectionEnabled="True"/>
+                            <Button x:Name="WorkspaceRetry" Content="Retry loading" Click="RetryWorkspace_ClickAsync" Visibility="Collapsed"/>
+                        </StackPanel>
                     </StackPanel>
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,8,0,8">
                         <StackPanel x:Name="ProjectList" Spacing="8"/>
@@ -51,7 +56,8 @@
                                     <Button Content="Close Details" Click="CloseDetails_Click"/>
                                 </StackPanel>
                             </StackPanel>
-                            <views:DetailsView x:Name="Details" Grid.Row="1"/>
+                            <TextBlock x:Name="LiveDetails" Grid.Row="1" TextWrapping="Wrap" Margin="0,12,0,0"
+                                       Text="Details, files, changes, terminal and attention requests are unavailable in this increment. Conversation entries show recorded history only."/>
                         </Grid>
                     </Grid>
                 </SplitView.Pane>
@@ -63,34 +69,16 @@
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <Button x:Name="ProjectsToggle" Content="Projects" Click="Projects_Click"/>
                                     <Button x:Name="DetailsToggle" Content="Details" Click="Details_Click"/>
-                                    <Button x:Name="TerminalToggle" Content="Terminal" Click="Terminal_Click"/>
+                                    <Button x:Name="TerminalToggle" Content="Terminal unavailable" IsEnabled="False"/>
                                 </StackPanel>
                             </ScrollViewer>
                             <TextBlock x:Name="SessionTitle" Text="Workspace" Style="{StaticResource ShellHeadingTextStyle}"/>
                             <TextBlock x:Name="SessionPath" Text="No server connected · No session selected" Style="{StaticResource ShellSecondaryTextStyle}"/>
                         </StackPanel>
                     </Border>
-                    <ScrollViewer x:Name="ConversationScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" ViewChanged="Conversation_ViewChanged">
+                    <ScrollViewer x:Name="ConversationScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" IsTabStop="True" AutomationProperties.Name="Conversation history">
                         <StackPanel x:Name="Conversation" Padding="16" Spacing="16"/>
                     </ScrollViewer>
-                    <Border x:Name="TerminalRegion" Grid.Row="2" Height="{StaticResource ShellTerminalHeight}" Visibility="Collapsed" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="0,1,0,0" Padding="8">
-                        <Grid>
-                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                            <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Auto" VerticalScrollBarVisibility="Disabled">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <ComboBox x:Name="TerminalSelection" SelectedIndex="0" AutomationProperties.Name="Sample terminal" SelectionChanged="Terminal_Changed">
-                                        <x:String>Verification sample</x:String><x:String>Build sample</x:String>
-                                    </ComboBox>
-                                    <Button Content="Clear" Click="ClearTerminal_Click"/>
-                                    <Button Content="Reset output" Click="ResetTerminal_Click"/>
-                                    <Button Content="Close terminal" Click="CloseTerminal_Click"/>
-                                </StackPanel>
-                            </ScrollViewer>
-                            <ScrollViewer Grid.Row="1" HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                                <TextBlock x:Name="TerminalOutput" FontFamily="Consolas" IsTextSelectionEnabled="True"/>
-                            </ScrollViewer>
-                        </Grid>
-                    </Border>
                     <ScrollViewer x:Name="ComposerScroll" Grid.Row="3" MaxHeight="{StaticResource ShellComposerMaximumHeight}" VerticalScrollBarVisibility="Auto">
                         <StackPanel x:Name="Composer" Padding="12" Spacing="8"/>
                     </ScrollViewer>

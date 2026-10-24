@@ -5,6 +5,31 @@ namespace OpenCodeDesktop.Core.Tests;
 public sealed class ServerConnectionsTests
 {
     [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void MissingProfileAddressUsesWindowsDefault(string? origin)
+    {
+        FakeService service = new();
+        using ServerConnections connections = new(service);
+        ServerProfile profile = connections.Save(null, "Local", origin)!;
+        Assert.Equal("http://127.0.0.1:28894", profile.Address.Display);
+        Assert.Null(connections.Save(null, "Duplicate default", ServerAddress.DefaultOrigin));
+        Assert.Equal(0, service.Calls);
+    }
+
+    [Fact]
+    public void ExplicitProfileAddressOverridesDefaultAndBlankEditReturnsToDefault()
+    {
+        using ServerConnections connections = new(new FakeService());
+        ServerProfile profile = connections.Save(null, "Custom", "http://127.0.0.1:4096")!;
+        Assert.Equal("http://127.0.0.1:4096", profile.Address.Display);
+        Assert.Equal(ServerAddress.DefaultOrigin, connections.Save(profile.Id, "Default", "")!.Address.Display);
+        Assert.Null(connections.Save(profile.Id, "Invalid", "http://127.0.0.1:invalid"));
+        Assert.Equal(ServerAddress.DefaultOrigin, Assert.Single(connections.Profiles).Address.Display);
+    }
+
+    [Theory]
     [InlineData(" http://127.0.0.1:4096/ ", "http://127.0.0.1:4096")]
     [InlineData("HTTP://127.0.0.1:00080", "http://127.0.0.1:80")]
     [InlineData("http://127.0.0.1:1", "http://127.0.0.1:1")]

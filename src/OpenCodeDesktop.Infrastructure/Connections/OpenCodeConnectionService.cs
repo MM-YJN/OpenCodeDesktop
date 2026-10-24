@@ -5,12 +5,15 @@ using System.Text;
 using System.Text.Json;
 
 using OpenCodeDesktop.Core.Connections;
+using OpenCodeDesktop.Core.Workspaces;
+using OpenCodeDesktop.Infrastructure.Workspaces;
 
 namespace OpenCodeDesktop.Infrastructure.Connections;
 
 /// <summary>Probes the pinned identity contract; it does not establish project or model readiness.</summary>
-public sealed class OpenCodeConnectionService(HttpClient client, TimeSpan? deadline = null) : IServerConnectionService
+public sealed class OpenCodeConnectionService(HttpClient client, TimeSpan? deadline = null) : IServerConnectionService, IWorkspaceConnectionFactory
 {
+    public IWorkspaceConnection Create(ServerAddress address, string password) => new OpenCodeWorkspaceConnection(client, address, password);
     private const int MaximumResponseBytes = 65536;
     private readonly TimeSpan _deadline = deadline ?? TimeSpan.FromSeconds(5);
 
@@ -25,7 +28,10 @@ public sealed class OpenCodeConnectionService(HttpClient client, TimeSpan? deadl
         Timeout = Timeout.InfiniteTimeSpan,
     };
 
-    public async Task<ConnectionResult> ProbeAsync(ServerAddress address, string password, CancellationToken cancellationToken)
+    public Task<ConnectionResult> ProbeAsync(ServerAddress address, string password, CancellationToken cancellationToken)
+        => Task.Run(() => ProbeCoreAsync(address, password, cancellationToken));
+
+    private async Task<ConnectionResult> ProbeCoreAsync(ServerAddress address, string password, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(address);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);

@@ -2,6 +2,7 @@ using System;
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 
@@ -9,22 +10,60 @@ using OpenCodeDesktop.Core.Connections;
 
 namespace OpenCodeDesktop.Views;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "The owning window invokes Shutdown to cancel, unbind and dispose the page's local environment workflow.")]
 public sealed partial class ConnectionView : UserControl
 {
     private readonly ServerConnections _connections;
+    private readonly LocalEnvironment _local;
     private Guid? _editingId;
     private bool _showFeedback;
+    private long _activation;
 
-    public ConnectionView(ServerConnections connections)
+    public ConnectionView(ServerConnections connections, ILocalServerDiscovery localDiscovery)
     {
         _connections = connections;
+        _local = new LocalEnvironment(connections, localDiscovery);
         InitializeComponent();
-        _connections.Changed += (_, _) => Refresh();
+        ServerOrigin.PlaceholderText = ServerAddress.DefaultOrigin;
+        ServerOrigin.Text = ServerAddress.DefaultOrigin;
+        DefaultAddressHint.Text = "Leave the address blank to use " + ServerAddress.DefaultOrigin + ", the Windows OpenCode v2 default.";
+        _connections.Changed += ConnectionsChanged;
+        _local.Changed += LocalChanged;
         ActualThemeChanged += (_, _) => Refresh();
         Refresh();
     }
 
     public void ClearPassword() => ServerPassword.Password = "";
+
+    public void Activate() => _ = _local.DetectAsync();
+    public void Deactivate()
+    {
+        _activation++;
+        ClearPassword();
+        _local.Deactivate();
+    }
+    public void Shutdown()
+    {
+        _activation++;
+        ClearPassword();
+        _local.Changed -= LocalChanged;
+        _local.Dispose();
+        _connections.Changed -= ConnectionsChanged;
+    }
+    private void ConnectionsChanged(object? sender, EventArgs args) => Refresh();
+    private void LocalChanged(object? sender, EventArgs args) => Refresh();
+
+    private async void DetectLocal_ClickAsync(object sender, RoutedEventArgs args) => await _local.DetectAsync().ConfigureAwait(true);
+    private async void AddLocal_ClickAsync(object sender, RoutedEventArgs args)
+    {
+        ClearPassword();
+        long activation = _activation;
+        await _local.AddAsync().ConfigureAwait(true);
+        if (activation == _activation && IsLoaded && _local.IsAlreadyConnected && _connections.Active is { } active)
+        {
+            Edit(active.Profile);
+        }
+    }
 
     public void Edit(ServerProfile? profile)
     {
@@ -36,7 +75,7 @@ public sealed partial class ConnectionView : UserControl
         ClearPassword();
         _editingId = profile?.Id;
         ServerName.Text = profile?.Name ?? "";
-        ServerOrigin.Text = profile?.Address.Display ?? "";
+        ServerOrigin.Text = profile?.Address.Display ?? ServerAddress.DefaultOrigin;
         _showFeedback = false;
         Refresh();
         (profile is null ? (Control)ServerName : ServerPassword).Focus(FocusState.Programmatic);
@@ -44,7 +83,19 @@ public sealed partial class ConnectionView : UserControl
 
     private void Refresh()
     {
-        bool busy = _connections.IsConnecting;
+        bool busy = _connections.IsConnecting || _local.IsAdding;
+        bool localStatusChanged = LocalDetectionStatus.Text != _local.Message;
+        LocalDetectionStatus.Text = _local.Message;
+        LocalDetectionProgress.Visibility = _local.IsBusy ? Visibility.Visible : Visibility.Collapsed;
+        DetectLocalButton.IsEnabled = !_local.IsBusy && !_connections.IsConnecting;
+        AddLocalButton.Visibility = _local.Detected is null ? Visibility.Collapsed : Visibility.Visible;
+        AddLocalButton.IsEnabled = _local.CanAdd;
+        AddLocalButton.Content = _local.IsAlreadyConnected ? "Local environment connected" : "Add local environment";
+        if (localStatusChanged)
+        {
+            FrameworkElementAutomationPeer.FromElement(LocalDetectionStatus)?.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
+        }
+
         bool editingActive = _editingId.HasValue && _connections.Active?.Profile.Id == _editingId;
         EmptyState.Visibility = _connections.Profiles.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         RenderProfiles(busy);
@@ -54,7 +105,7 @@ public sealed partial class ConnectionView : UserControl
         AddServerButton.IsEnabled = !busy;
         SaveButton.IsEnabled = ConnectButton.IsEnabled = !busy && !editingActive;
         ConnectButton.Content = _connections.Active is null ? "Connect" : "Connect & switch";
-        CancelButton.Content = busy ? "Cancel connection" : "Cancel";
+        CancelButton.Content = _local.IsBusy ? "Cancel local operation" : busy ? "Cancel connection" : "Cancel";
         DisconnectButton.Visibility = _connections.Active is null ? Visibility.Collapsed : Visibility.Visible;
         DisconnectButton.IsEnabled = !busy;
         SwitchInformation.Message = editingActive ? "Disconnect this server before editing or removing it."
@@ -155,6 +206,10 @@ public sealed partial class ConnectionView : UserControl
     private void Cancel_Click(object sender, RoutedEventArgs args)
     {
         ClearPassword();
+        if (_local.IsBusy)
+        {
+            _local.Deactivate();
+        }
         if (_connections.IsConnecting)
         {
             _connections.Cancel();

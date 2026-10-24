@@ -40,7 +40,7 @@ public sealed class LiveConnectionTests
         Assert.Null(connections.Active);
     }
 
-    private static async Task WaitForReadyAsync(ServerConnections connections, Guid id, string password)
+    internal static async Task WaitForReadyAsync(ServerConnections connections, Guid id, string password)
     {
         for (int attempt = 0; attempt < 30; attempt++)
         {
@@ -57,10 +57,11 @@ public sealed class LiveConnectionTests
         Assert.Fail("The isolated server did not become ready.");
     }
 
-    private sealed class IsolatedServer(string scratch, Process process, string origin, string password) : IAsyncDisposable
+    internal sealed class IsolatedServer(string scratch, Process process, string origin, string password) : IAsyncDisposable
     {
         public string Origin { get; } = origin;
         public string Password { get; } = password;
+        internal string WorkspaceDirectory => Path.Combine(scratch, "workspace");
 
         public static async Task<IsolatedServer> StartAsync(string executable)
         {

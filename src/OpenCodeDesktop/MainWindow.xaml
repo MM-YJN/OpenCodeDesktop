@@ -25,7 +25,7 @@
                 AutomationProperties.LiveSetting="Polite"
                 Foreground="{ThemeResource ShellDisconnectedBrush}"
                 Style="{StaticResource ShellBodyTextStyle}" VerticalAlignment="Center" />
-                <Button x:Name="AttentionButton" Grid.Column="1" Content="Needs attention: 0" Click="Attention_Click"
+                <Button x:Name="AttentionButton" Grid.Column="1" Content="Attention unavailable" IsEnabled="False"
                         AutomationProperties.LiveSetting="Polite"/>
             </Grid>
         </Border>

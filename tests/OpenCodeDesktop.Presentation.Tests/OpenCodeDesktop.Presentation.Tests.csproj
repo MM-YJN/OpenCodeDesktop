@@ -7,8 +7,9 @@
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../../src/OpenCodeDesktop.Core/OpenCodeDesktop.Core.csproj" />
     <PackageReference Include="xunit.v3.mtp-v2" Version="4.0.2" />
-    <!-- Test the UI-independent App preview state without moving sample concerns into Core. -->
+    <!-- Test the UI-independent App presentation state without a Windows UI dependency. -->
     <Compile Include="../../src/OpenCodeDesktop/Presentation/*.cs" Link="Presentation/%(Filename)%(Extension)" />
     <Using Include="Xunit" />
   </ItemGroup>

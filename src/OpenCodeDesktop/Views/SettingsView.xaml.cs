@@ -12,10 +12,10 @@ public sealed partial class SettingsView : UserControl
     private readonly ConnectionView _connectionsView;
     public event EventHandler? ReturnRequested;
 
-    public SettingsView(ServerConnections connections)
+    public SettingsView(ServerConnections connections, ILocalServerDiscovery localDiscovery)
     {
         InitializeComponent();
-        _connectionsView = new ConnectionView(connections);
+        _connectionsView = new ConnectionView(connections, localDiscovery);
         ConnectionsHost.Content = _connectionsView;
         // Subscribe after XAML initialization so initial values do not generate sample feedback.
         DefaultModel.SelectionChanged += (_, _) => Feedback(DefaultModel.SelectedIndex == 0 ? "Reasoning model selected." : "Fast model selected.");
@@ -35,7 +35,15 @@ public sealed partial class SettingsView : UserControl
         Sections.SelectedIndex = 0;
     }
 
-    public void ClearPassword() => _connectionsView.ClearPassword();
+    public void ClearPassword() => _connectionsView.Deactivate();
+    public void Shutdown() => _connectionsView.Shutdown();
+    public void Activate()
+    {
+        if (Sections.SelectedIndex == 0)
+        {
+            _connectionsView.Activate();
+        }
+    }
 
     public void ShowConnections(ServerProfile? profile)
     {
@@ -53,6 +61,10 @@ public sealed partial class SettingsView : UserControl
         if (Sections.SelectedIndex != 0)
         {
             ClearPassword();
+        }
+        else if (IsLoaded && Visibility == Visibility.Visible)
+        {
+            _connectionsView.Activate();
         }
 
         for (int index = 0; index < Pages.Children.Count; index++)
