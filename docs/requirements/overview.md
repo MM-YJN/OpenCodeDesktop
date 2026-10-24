@@ -17,7 +17,7 @@ This document records the initial product direction derived from the official v2
 - Preserve continuity when users switch sessions, restart the app, or reconnect.
 - Use OpenCode for agent execution, model access, and tools while focusing this client on Windows interaction and task presentation.
 - Support server-owned projects and paths without assuming that every file exists on the client machine.
-- Allow users to connect to different OpenCode server backends and switch the active backend. Make server identity visible and keep projects and sessions scoped to their owning server. This product direction does not establish remote-host support or a profile/credential persistence contract.
+- Allow users to connect to different OpenCode server backends and switch the active backend. Make server identity visible and keep project lists and sessions scoped to their owning connection. Persist connections and their project lists, protect saved credentials, and automatically restore the last active workspace on launch. Remote-host support remains outside the established connection boundary.
 
 ## Workspace Layout
 
@@ -25,7 +25,7 @@ The [desktop concept](desktop-concept.png) establishes the intended workspace la
 
 Details has Info, Files, and Changes tabs. Info contains session metadata, context, instructions, usage, and activity. Files combines navigation/search with a selected-file preview. Changes combines a changed-file list with an expanded diff and an explicit comparison selector. Conversation file references and change summaries open the corresponding Details tab. Each tab retains its selection and scroll position; the pane supports expand/restore for larger previews. File previews and diffs live in Details rather than below the conversation. A collapsible terminal surface can occupy the bottom of the central workspace. Connection status and pending-attention access remain visible outside Settings.
 
-The app opens with an empty, disconnected workspace and guidance to Settings > Connections. Projects, sessions and conversation history appear only after connecting to a real server and opening a server-side directory. Do not populate the workspace, Details, terminal, composer or attention surfaces with illustrative data. Features without a live integration remain explicitly unavailable.
+On first launch, or after an explicit disconnect, the app opens with an empty, disconnected workspace and guidance to Settings > Connections. With saved active connection information, launch automatically reconnects and restores the last selected project/session after validation and authoritative server refresh. Saved project lists may be shown while disconnected, with connection state clear; live sessions and conversation history require a real connection. Do not populate the workspace, Details, terminal, composer or attention surfaces with illustrative data. Features without a live integration remain explicitly unavailable.
 
 ## Integration Direction
 
@@ -60,9 +60,10 @@ The following resource groups describe the documented capabilities relevant to p
 
 | ID | Requirement |
 | --- | --- |
-| CON-01 | Manage multiple named existing OpenCode v2 server backends, connect using the supported authentication mechanism, and explicitly switch the active backend. Display active-server identity, readiness, and actionable errors; a failed or cancelled switch retains the previous active backend. Initial profiles are in memory and use the verified local-address boundary. New profiles default to the Windows v2 service address `http://127.0.0.1:28894`; an omitted or blank address uses that default, while an explicit address overrides it. |
+| CON-01 | Manage multiple named existing OpenCode v2 server backends, connect using the supported authentication mechanism, and explicitly switch the active backend. Display active-server identity, readiness, and actionable errors; a failed or cancelled switch retains the previous active backend. Preserve the verified local-address boundary. New profiles default to the Windows v2 service address `http://127.0.0.1:28894`; an omitted or blank address uses that default, while an explicit address overrides it. |
 | CON-02 | Detect and communicate an unsupported server version or contract instead of silently continuing with incompatible behavior. |
-| PRJ-01 | Select a server-side project directory and show the active server and directory clearly. |
+| CON-04 | Persist connection profiles, protected credentials and each connection's project list/navigation selections. On launch automatically reconnect to the last active connection and restore its validated project/session using authoritative server state. Respect explicit disconnect and provide actionable recovery for unavailable servers, invalid credentials or missing selections. |
+| PRJ-01 | Maintain a project list per connection, add validated server-side directories, switch between listed projects, and remove navigation entries without deleting server work. Show the active server and directory clearly and retain each project's session selection and in-memory drafts during navigation. |
 | SES-01 | List sessions, create a session, switch between sessions, and load message history with pagination where required. |
 | SES-02 | Select an available model and agent for a task and show the current selection. |
 | MSG-01 | Submit a text prompt and render user messages, assistant content, code blocks, tool activity, and execution errors. |
