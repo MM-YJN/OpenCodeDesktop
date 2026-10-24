@@ -8,9 +8,10 @@ This is the active index for unfinished work, in intended execution order. Done 
 
 | ID | Task | Type | Status | Dependencies |
 | --- | --- | --- | --- | --- |
-| [WI-002](WI-002-implement-server-connection.md) | Connect to the pinned existing OpenCode server | Implementation | Ready | [WI-001](WI-001-verify-connection-contract.md) |
+| [WI-003](WI-003-implement-application-shell.md) | Define design tokens and implement the application shell | Implementation | Ready | None |
+| [WI-002](WI-002-implement-server-connection.md) | Connect to the pinned existing OpenCode server | Implementation | Ready | [WI-001](WI-001-verify-connection-contract.md), [WI-003](WI-003-implement-application-shell.md) |
 
-Next: WI-002. Its dependency is satisfied; execution has not started.
+Next: WI-003. Execution has not started. WI-002 follows after the shell is accepted; its WI-001 connection-contract dependency is already satisfied.
 
 ## Working Agreements
 

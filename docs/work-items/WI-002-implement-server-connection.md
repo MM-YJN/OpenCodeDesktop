@@ -5,7 +5,7 @@
 - Type: Implementation
 - Related requirements: CON-01, CON-02
 - Priority: P0
-- Dependencies: WI-001 completed and its target/support boundary accepted
+- Dependencies: WI-001 completed and its target/support boundary accepted; WI-003 application shell completed and accepted
 - Status: See the [work item index](README.md)
 
 ## Goal and contract
@@ -16,7 +16,7 @@ Allow a user to enter an existing local OpenCode server address and password, ex
 
 - Core: UI-independent address validation, connection result/state models, supported-version policy, and an external connection service abstraction. Keep transport details outside Core.
 - Infrastructure: injected `HttpClient` implementation; Basic authentication with username `opencode`; `GET /api/info`; DTO validation and mapping; five-second total deadline, cancellation, failure classification, and resource cleanup. Disable automatic redirects. Do not log credentials or treat returned server paths as client paths.
-- App: address input, masked password input, connect/cancel actions, disconnected/connecting/ready/failure presentation, and actionable messages. Compose implementations at startup. Keep the last entered address available for correction and credentials only in memory for the active connection flow.
+- App: replace the WI-003 shell's Connection placeholder with address input, masked password input, connect/cancel actions, disconnected/connecting/ready/failure presentation, and actionable messages. Reuse its design tokens and update its persistent connection-status region. Compose implementations at startup. Keep the last entered address available for correction and credentials only in memory for the active connection flow.
 - Tests: Core validation/policy with no network; Infrastructure controlled HTTP handlers for request construction, response parsing, cancellation, timeout, and error mapping. The real-service verification is opt-in.
 
 The supported origin is `http://127.0.0.1:<explicit-port>` with optional trailing slash. A successful probe requires HTTP 200, required fields of the correct types, and exact version `2.1.4`. Ignore unknown response properties without accepting another version. One attempt runs at a time; cancellation and completion cannot overwrite the result of a newer attempt.
@@ -54,4 +54,4 @@ Record manual keyboard, masked input, responsive connect/cancel, correction/retr
 
 ## Implementation and verification record
 
-Not started. WI-001 was accepted on 2026-10-24; its dependency is satisfied.
+Not started. WI-001 was accepted on 2026-10-24; its dependency is satisfied. On 2026-10-24, WI-003 was placed first to establish design tokens and the application shell; that dependency remains outstanding.
