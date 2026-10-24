@@ -5,7 +5,7 @@
 - Type: Implementation
 - Related requirements: [SES-02, MSG-01, EXE-01, EXE-02, INT-01, INT-02, SYN-01](../requirements/overview.md#functional-requirements)
 - Priority: P0
-- Dependencies: [WI-007](WI-007-verify-task-execution-workflow.md), [WI-006](WI-006-implement-live-projects-sessions.md) native acceptance
+- Dependencies: [WI-007](WI-007-verify-task-execution-workflow.md), [WI-006](WI-006-implement-live-projects-sessions.md), both complete
 - Status: See the [active work item index](README.md)
 
 ## Goal
@@ -48,7 +48,7 @@ Before making this item Ready, incorporate WI-007 findings and assess whether se
 
 ## Executable contract from WI-007 (2026-10-24)
 
-Follow the [verified task contract](../integration/opencode-task-workflow-contract.md) and its runtime snapshot/evidence. WI-007's real service uses a deterministic local provider; commercial-model and native UI behavior remain acceptance work. WI-006 still requires its separate native acceptance before this implementation starts. No implementation has started here.
+Follow the [verified task contract](../integration/opencode-task-workflow-contract.md) and its runtime snapshot/evidence. WI-007's real service uses a deterministic local provider; commercial-model and native UI behavior remain acceptance work for this increment. The user accepted WI-006 on 2026-10-24, satisfying this item's remaining dependency. No implementation has started here.
 
 - Offer enabled active models and visible primary agents. Keep catalog settings/headers/credentials out of public state. Selection POSTs return 204 even for unknown IDs, so gate sending on current catalog/metadata and handle later provider rejection. Keep model/agent mutations and prompt submission under one per-session operation gate.
 - Allocate a stable `msg_` ID before sending `{id,text,delivery:"steer"}`. Limit WI-008 to one foreground submission per inactive session: disable additional sends while active, pending submission, or unresolved delivery exists. Preserve editable drafts separately from the submitted immutable payload. Admission 200 means accepted, not completed; queued server work remains visible without queue editing. Repeated IDs retain the original text, so an edited draft needs a new ID only after the prior delivery is resolved.

@@ -6,7 +6,7 @@
 - Related requirements: [PRJ-01, SES-01, CON-01](../requirements/overview.md#functional-requirements)
 - Priority: P0
 - Dependencies: [WI-005](WI-005-verify-project-session-workflow.md), [WI-004](WI-004-implement-interactive-workspace-layout.md)
-- Status: See the [active work item index](README.md)
+- Status: See the [completed work item index](completed.md)
 
 ## Goal
 
@@ -46,22 +46,24 @@ A real project/session workspace integrated into the existing layout, meaningful
 
 ## Acceptance criteria
 
-- [ ] A connected user can open a valid server-side directory and see its server and directory clearly.
-- [ ] An empty project explains how to create a session; creating one makes it available for selection.
-- [ ] Selecting an existing session displays its own history, including access to older messages when applicable.
-- [ ] Loading failures explain the problem and allow recovery without losing the user's draft or displaying another session's history.
+Remaining UI acceptance criteria were accepted by the user on 2026-10-24 through an explicit request to mark WI-006 Done. This acceptance does not assert additional agent-run manual checks.
+
+- [x] A connected user can open a valid server-side directory and see its server and directory clearly.
+- [x] An empty project explains how to create a session; creating one makes it available for selection.
+- [x] Selecting an existing session displays its own history, including access to older messages when applicable.
+- [x] Loading failures explain the problem and allow recovery without losing the user's draft or displaying another session's history.
 - [x] Switching sessions and projects restores their respective unsent drafts for the app lifetime.
-- [ ] Successful backend switching displays only the new backend's workspace; failed/cancelled switching retains the previous workspace. Returning to a backend restores its in-memory context where still valid.
-- [ ] Disconnecting makes the disconnected state clear and prevents live workspace actions. Sample content never appears as real server data.
-- [ ] Keyboard navigation can reach project selection, sessions, history, and retry actions, with readable loading/error announcements.
-- [ ] Missing paths and ordinary-file paths fail project opening; an empty directory succeeds. A path with spaces/Unicode is encoded and shown correctly. Failed candidate opening retains the prior project and draft.
+- [x] Successful backend switching displays only the new backend's workspace; failed/cancelled switching retains the previous workspace. Returning to a backend restores its in-memory context where still valid.
+- [x] Disconnecting makes the disconnected state clear and prevents live workspace actions. Sample content never appears as real server data.
+- [x] Keyboard navigation can reach project selection, sessions, history, and retry actions, with readable loading/error announcements.
+- [x] Missing paths and ordinary-file paths fail project opening; an empty directory succeeds. A path with spaces/Unicode is encoded and shown correctly. Failed candidate opening retains the prior project and draft.
 - [x] Two directories with project ID `global` have separate sessions/drafts; session metadata from a different directory is rejected before its history can be displayed.
 - [x] Session and message pagination handles a final nonempty page with a next cursor followed by an empty page; repeated/invalid cursors and page failures preserve loaded data and offer recovery.
 - [x] New-session draft transfer happens only on confirmed creation; duplicate create actions are gated and uncertain delivery offers reconciliation without automatic POST retry.
-- [ ] Authenticated calls continue after password UI clearing. Failed/cancelled switch preserves active authorization; successful switch, disconnect, later 401 and shutdown release it and invalidate late loads, including reconnect to the same backend.
-- [ ] No password/provider settings appear in profiles, state snapshots, errors or diagnostics; returning to an inactive backend requires explicit authentication and revalidates its remembered context.
-- [ ] Unknown history variants, oversized or malformed responses and historical execution entries produce honest readable states; real workspaces contain no sample files, messages, attention requests or enabled illustrative actions.
-- [ ] Relevant Core, Infrastructure and Presentation tests pass with nonzero discovery; the x64 solution builds and the isolated-service/manual scenarios below have recorded results and limitations.
+- [x] Authenticated calls continue after password UI clearing. Failed/cancelled switch preserves active authorization; successful switch, disconnect, later 401 and shutdown release it and invalidate late loads, including reconnect to the same backend.
+- [x] No password/provider settings appear in profiles, state snapshots, errors or diagnostics; returning to an inactive backend requires explicit authentication and revalidates its remembered context.
+- [x] Unknown history variants, oversized or malformed responses and historical execution entries produce honest readable states; real workspaces contain no sample files, messages, attention requests or enabled illustrative actions.
+- [x] Relevant Core, Infrastructure and Presentation tests pass with nonzero discovery; the x64 solution builds and the isolated-service/manual scenarios below have recorded results and limitations.
 
 ## Definition and verification
 
@@ -98,9 +100,9 @@ Commands were run from the repository root. Logs and the separately downloaded r
 
 The new opt-in `LiveWorkspaceIntegrationTests` uses the exact CLI SHA-256 `B12B0613E9B4A491E5B12D90A5E9BBAE6D261FE9688C82BF73125A036963D399`, two isolated ephemeral servers, generated disposable passwords, private config/data/cache/temp directories and disabled project config/model fetching. It exercises the production Core and Infrastructure implementations: an empty directory with spaces/Chinese characters; confirmed creation and draft transfer; verifier-only import of 55 messages; 50 + 5 + empty history pages in chronological order; separate empty Git roots with the same `global` ID; missing/file path rejection preserving the previous draft; reopening previous history/draft; rejected and successful backend switching; and disconnect. Servers and owned scratch directories are cleaned up with the existing validated cleanup pattern. It does not invoke a provider or send a prompt.
 
-## Remaining acceptance
+## Acceptance and follow-up
 
-Acceptance follow-up (2026-10-24): the user requested removal of the initial sample workspace. Removed the sample models/fixtures, sample conversation/composer/terminal/attention actions, sample Details view and unused templates. The same live workspace now renders before the first connection, with an empty disconnected state and guidance to Settings > Connections. Updated product scope accordingly. Historical sample-only tests were removed with their feature; the live presentation scenario now verifies the initial empty state as well. Follow-up verification: the presentation test passed (1/1), `dotnet clean src/OpenCodeDesktop/OpenCodeDesktop.csproj -p:Platform=x64` followed by `dotnet build OpenCodeDesktop.slnx -p:Platform=x64` passed (zero errors/warnings), and `git diff --check` passed. Cleaning regenerated a stale XAML event-handler reference left by incremental compilation after sample removal. Native UI acceptance remains outstanding.
+Acceptance follow-up (2026-10-24): the user requested removal of the initial sample workspace. Removed the sample models/fixtures, sample conversation/composer/terminal/attention actions, sample Details view and unused templates. The same live workspace now renders before the first connection, with an empty disconnected state and guidance to Settings > Connections. Updated product scope accordingly. Historical sample-only tests were removed with their feature; the live presentation scenario now verifies the initial empty state as well. Follow-up verification: the presentation test passed (1/1), `dotnet clean src/OpenCodeDesktop/OpenCodeDesktop.csproj -p:Platform=x64` followed by `dotnet build OpenCodeDesktop.slnx -p:Platform=x64` passed (zero errors/warnings), and `git diff --check` passed. Cleaning regenerated a stale XAML event-handler reference left by incremental compilation after sample removal. Native UI acceptance was still outstanding at that follow-up.
 
-Acceptance follow-up: new server profiles now prefill `http://127.0.0.1:28894`, the Windows v2 service default verified in official v2 Web documentation and on this PC. Saving or connecting with a null, empty or whitespace-only address resolves to this same default in Core; explicit valid addresses retain their supplied port, invalid nonempty addresses remain rejected, and duplicate-origin checks apply after default resolution. The editor shows the resolved address after saving and explains the blank-field behavior. Removed obsolete sample-workspace wording from Connections. Verification: `dotnet test --project tests/OpenCodeDesktop.Core.Tests/OpenCodeDesktop.Core.Tests.csproj` passed 51/51 tests, including missing/blank inputs, duplicate defaults, explicit overrides and invalid-address retention; `dotnet build OpenCodeDesktop.slnx -p:Platform=x64` passed with zero errors and the four previously recorded test-only warnings. `git diff --check` passed. Native UI acceptance remains outstanding.
-Native WinUI keyboard traversal, screen-reader delivery of live-region announcements, visual loading/empty/error/history states, draft focus continuity, password UI clearing, and UI responsiveness under delayed requests have **not** been manually exercised. Automated presentation projections and off-caller-thread transport tests are evidence for implementation behavior, not substitutes for those native checks. Criteria involving those end-to-end UI observations remain unchecked, and the item stays in the active index pending acceptance. Repeat the isolated scenarios through the App, including keyboard-only retry and reconnect, before marking Done. No subsequent work item has started.
+Acceptance follow-up: new server profiles now prefill `http://127.0.0.1:28894`, the Windows v2 service default verified in official v2 Web documentation and on this PC. Saving or connecting with a null, empty or whitespace-only address resolves to this same default in Core; explicit valid addresses retain their supplied port, invalid nonempty addresses remain rejected, and duplicate-origin checks apply after default resolution. The editor shows the resolved address after saving and explains the blank-field behavior. Removed obsolete sample-workspace wording from Connections. Verification: `dotnet test --project tests/OpenCodeDesktop.Core.Tests/OpenCodeDesktop.Core.Tests.csproj` passed 51/51 tests, including missing/blank inputs, duplicate defaults, explicit overrides and invalid-address retention; `dotnet build OpenCodeDesktop.slnx -p:Platform=x64` passed with zero errors and the four previously recorded test-only warnings. `git diff --check` passed. Native UI acceptance was still outstanding at that follow-up.
+The user accepted WI-006 and explicitly requested completion on 2026-10-24, closing the remaining acceptance criteria. Native keyboard traversal, screen-reader announcements, visual states, draft focus continuity, password UI clearing and responsiveness were not independently exercised by the agent; user acceptance does not change that verification limitation. Existing automated and isolated-service evidence remains recorded above. This documentation-only completion update required no additional build or test run; `git diff --check` passed. WI-008 is now unblocked and remains unstarted.

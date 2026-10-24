@@ -8,11 +8,10 @@ This is the active index for unfinished work, in intended execution order. Done 
 
 | ID | Task | Type | Status | Dependencies |
 | --- | --- | --- | --- | --- |
-| [WI-006](WI-006-implement-live-projects-sessions.md) | Open real projects and manage sessions | Implementation | Awaiting Acceptance | [WI-005](WI-005-verify-project-session-workflow.md), [WI-004](WI-004-implement-interactive-workspace-layout.md) |
-| [WI-008](WI-008-implement-live-task-workflow.md) | Run tasks and respond to agent requests | Implementation | Ready — blocked pending WI-006 native acceptance | [WI-007](WI-007-verify-task-execution-workflow.md), [WI-006](WI-006-implement-live-projects-sessions.md) |
+| [WI-008](WI-008-implement-live-task-workflow.md) | Run tasks and respond to agent requests | Implementation | Ready | [WI-007](WI-007-verify-task-execution-workflow.md), [WI-006](WI-006-implement-live-projects-sessions.md) |
 | [WI-009](WI-009-implement-session-recovery.md) | Recover connections and reopen existing work | Implementation | Ready | [WI-008](WI-008-implement-live-task-workflow.md) |
 
-Current: WI-006 remains Awaiting Acceptance for native UI/manual checks. WI-007's isolated task-workflow investigation is complete; the user explicitly selected it while WI-006 acceptance remained open. Next: accept WI-006, then implement WI-008 using the verified task contract. WI-008 and WI-009 are defined and unstarted; completing the investigation does not authorize starting them.
+Next: WI-008, using the verified task contract. WI-006 is complete following user acceptance, and WI-007's isolated task-workflow investigation is complete; WI-008's dependencies are satisfied. WI-008 and WI-009 remain defined and unstarted. This completion update does not start either item.
 
 ## Working Agreements
 
