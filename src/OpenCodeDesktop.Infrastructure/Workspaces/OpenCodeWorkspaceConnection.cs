@@ -9,7 +9,7 @@ using OpenCodeDesktop.Core.Workspaces;
 namespace OpenCodeDesktop.Infrastructure.Workspaces;
 
 /// <summary>One immutable origin and credential lifetime. Parsing and transport execute on the thread pool.</summary>
-public sealed class OpenCodeWorkspaceConnection(HttpClient client, ServerAddress address, string password, TimeSpan? deadline = null) : IWorkspaceConnection
+public sealed partial class OpenCodeWorkspaceConnection(HttpClient client, ServerAddress address, string password, TimeSpan? deadline = null) : IWorkspaceConnection
 {
     private string? _password = password;
     private readonly CancellationTokenSource _lifetime = new();
@@ -51,7 +51,7 @@ public sealed class OpenCodeWorkspaceConnection(HttpClient client, ServerAddress
     private static string Escape(string value) => Uri.EscapeDataString(value);
     private static string PageQuery(string? cursor) => "&limit=50" + (cursor is null ? "&order=desc" : "&cursor=" + Escape(cursor));
 
-    private Task<T> RequestAsync<T>(HttpMethod method, string path, string? body, int limit, Func<JsonElement, T> map, CancellationToken cancellationToken)
+    private Task<T> RequestAsync<T>(HttpMethod method, string path, string? body, int limit, Func<JsonElement, T> map, CancellationToken cancellationToken, HttpStatusCode expected = HttpStatusCode.OK)
     {
         // Capture only the active credential, never expose it in public state or diagnostics.
         string credential;
@@ -81,10 +81,15 @@ public sealed class OpenCodeWorkspaceConnection(HttpClient client, ServerAddress
                         throw new WorkspaceException(WorkspaceFailure.Unauthorized, "Authorization was rejected. Reconnect in Settings.");
                     }
 
-                    if (response.StatusCode != HttpStatusCode.OK)
+                    if (response.StatusCode != expected)
                     {
                         throw new WorkspaceException(WorkspaceFailure.Http,
                         $"The server returned HTTP {(int)response.StatusCode}. Check the server directory or session and retry. Redirects are not followed.");
+                    }
+
+                    if (expected == HttpStatusCode.NoContent)
+                    {
+                        return map(default);
                     }
 
                     if (response.Content.Headers.ContentLength > limit)

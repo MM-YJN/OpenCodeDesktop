@@ -63,7 +63,7 @@ public sealed class LiveConnectionTests
         public string Password { get; } = password;
         internal string WorkspaceDirectory => Path.Combine(scratch, "workspace");
 
-        public static async Task<IsolatedServer> StartAsync(string executable)
+        public static async Task<IsolatedServer> StartAsync(string executable, string? configuration = null)
         {
             string scratch = Path.Combine(Path.GetTempPath(), "ocd-wi002-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(Path.Combine(scratch, "workspace"));
@@ -75,7 +75,8 @@ public sealed class LiveConnectionTests
                 RedirectStandardError = true,
                 WorkingDirectory = Path.Combine(scratch, "workspace"),
             };
-            foreach (string key in start.Environment.Keys.Where(k => k.StartsWith("OPENCODE_", StringComparison.Ordinal)).ToArray())
+            foreach (string key in start.Environment.Keys.Where(k => k.StartsWith("OPENCODE_", StringComparison.Ordinal) ||
+                System.Text.RegularExpressions.Regex.IsMatch(k, "API_?KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL", System.Text.RegularExpressions.RegexOptions.IgnoreCase)).ToArray())
             {
                 start.Environment.Remove(key);
             }
@@ -92,6 +93,11 @@ public sealed class LiveConnectionTests
             }
 
             string password = Guid.NewGuid().ToString("N");
+            if (configuration is not null)
+            {
+                await File.WriteAllTextAsync(Path.Combine(scratch, "config", "opencode", "opencode.json"), configuration, TestContext.Current.CancellationToken);
+            }
+
             start.Environment["OPENCODE_PASSWORD"] = password;
             start.Environment["OPENCODE_CONFIG_PROJECT_DISABLE"] = "1";
             start.Environment["OPENCODE_DISABLE_MODELS_FETCH"] = "1";

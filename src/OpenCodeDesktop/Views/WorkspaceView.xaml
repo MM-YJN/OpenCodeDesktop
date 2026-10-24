@@ -70,14 +70,23 @@
                                     <Button x:Name="ProjectsToggle" Content="Projects" Click="Projects_Click"/>
                                     <Button x:Name="DetailsToggle" Content="Details" Click="Details_Click"/>
                                     <Button x:Name="TerminalToggle" Content="Terminal unavailable" IsEnabled="False"/>
+                                    <Button x:Name="AttentionButton" Content="Attention (0)" Click="Attention_Click" IsEnabled="False"/>
                                 </StackPanel>
                             </ScrollViewer>
                             <TextBlock x:Name="SessionTitle" Text="Workspace" Style="{StaticResource ShellHeadingTextStyle}"/>
                             <TextBlock x:Name="SessionPath" Text="No server connected · No session selected" Style="{StaticResource ShellSecondaryTextStyle}"/>
+                            <TextBlock x:Name="TaskStatus" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                            <ProgressBar x:Name="TaskLoading" IsIndeterminate="True" Visibility="Collapsed" AutomationProperties.Name="Task operation in progress"/>
+                            <TextBlock x:Name="TaskError" TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive" IsTextSelectionEnabled="True"/>
+                            <TextBlock x:Name="CatalogNotice" TextWrapping="Wrap"/>
+                            <Button x:Name="RefreshTask" Content="Refresh live task state" Click="RefreshTask_ClickAsync" IsEnabled="False"/>
                         </StackPanel>
                     </Border>
                     <ScrollViewer x:Name="ConversationScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" IsTabStop="True" AutomationProperties.Name="Conversation history">
                         <StackPanel x:Name="Conversation" Padding="16" Spacing="16"/>
+                    </ScrollViewer>
+                    <ScrollViewer Grid.Row="2" MaxHeight="280" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Pending permissions and questions">
+                        <StackPanel x:Name="PendingRequests" Padding="12" Spacing="12"/>
                     </ScrollViewer>
                     <ScrollViewer x:Name="ComposerScroll" Grid.Row="3" MaxHeight="{StaticResource ShellComposerMaximumHeight}" VerticalScrollBarVisibility="Auto">
                         <StackPanel x:Name="Composer" Padding="12" Spacing="8"/>

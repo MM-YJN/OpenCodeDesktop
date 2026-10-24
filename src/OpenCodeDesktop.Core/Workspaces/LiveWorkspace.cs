@@ -25,6 +25,7 @@ public sealed class LiveWorkspace : IDisposable
     }
 
     public event EventHandler? Changed;
+    public LiveTaskWorkflow? Tasks { get; private set; }
     public bool HasConnected { get; private set; }
     public bool IsConnected => _connections.Context is not null;
     public ActiveServer? Server => _connections.Active;
@@ -72,6 +73,15 @@ public sealed class LiveWorkspace : IDisposable
         }
 
         _connectionGeneration = _connections.Generation;
+        if (_backend is { } previous && Tasks is { } previousTasks)
+        {
+            previous.TaskStates = previousTasks.Sessions.Select(s => s.Retain()).ToArray();
+        }
+
+        Tasks?.Dispose();
+        Tasks = _connections.Context is ITaskConnection tasks ? new LiveTaskWorkflow(_connections.Context, tasks) : null;
+        Tasks?.Changed += TaskChanged;
+
         CancelLoad();
         _project = null;
         _backend = null;
@@ -87,6 +97,7 @@ public sealed class LiveWorkspace : IDisposable
                 _backend = new(server.Profile);
                 _backends.Add(server.Profile.Id, _backend);
             }
+            Tasks?.Restore(_backend.TaskStates);
             Status = "Enter a server-side directory and choose Open.";
             string? remembered = _backend.Directory;
             Notify();
@@ -134,6 +145,16 @@ public sealed class LiveWorkspace : IDisposable
             }
             _project = project;
             _backend.Directory = location.Directory;
+            if (Tasks is { } tasks)
+            {
+                await tasks.OpenDirectoryAsync(location).ConfigureAwait(true);
+            }
+
+            if (!current())
+            {
+                return;
+            }
+
             History = [];
             HistoryLoaded = false;
             if (project.SelectedId is { } selected)
@@ -146,6 +167,21 @@ public sealed class LiveWorkspace : IDisposable
                 project.SelectedId = null;
             }
         }, () => OpenProjectAsync(directory));
+    }
+
+    public async Task SelectAttentionSessionAsync(string id)
+    {
+        if (_project is not { } project || Tasks?.Find(id) is not { } state || state.Directory != project.Location.Directory)
+        {
+            return;
+        }
+
+        if (!project.Sessions.Any(s => s.Id == id))
+        {
+            project.Sessions.Add(new(id, state.Directory, state.ProjectId, "Session requiring attention"));
+        }
+
+        await SelectSessionAsync(id).ConfigureAwait(true);
     }
 
     public Task SelectSessionAsync(string? id)
@@ -205,6 +241,10 @@ public sealed class LiveWorkspace : IDisposable
         project.HistoryCursors.Clear();
         project.HistoryCursor = page.Data.Count == 0 ? null : page.Next;
         HistoryLoaded = true;
+        if (Tasks is { } tasks)
+        {
+            await tasks.OpenAsync(session).ConfigureAwait(true);
+        }
     }
 
     public Task RefreshSessionsAsync() => SessionsPageAsync(false);
@@ -352,6 +392,24 @@ public sealed class LiveWorkspace : IDisposable
 
     public Task RetryAsync() => CanRetry ? _retry!() : Task.CompletedTask;
 
+    public async Task SendTaskAsync()
+    {
+        if (_project is not { SelectedId: { } id } project || Tasks is not { } workflow || workflow.Find(id) is not { CanSend: true } state)
+        {
+            return;
+        }
+
+        string text = project.Drafts.GetValueOrDefault(id) ?? "";
+        await workflow.SendAsync(state, text).ConfigureAwait(true);
+        // Only the admitted, unchanged draft is consumed. Navigation and later typing keep their own drafts.
+        if (state.Accepted && project.Drafts.GetValueOrDefault(id) == text)
+        {
+            project.Drafts[id] = "";
+        }
+
+        Notify();
+    }
+
     private async Task RunAsync(string status, Func<IWorkspaceConnection, CancellationToken, Func<bool>, Task> action, Func<Task> retry)
     {
         if (_disposed || _connections.Context is not { } context)
@@ -375,7 +433,7 @@ public sealed class LiveWorkspace : IDisposable
             await action(context, load.Token, Current).ConfigureAwait(true);
             if (Current())
             {
-                Status = "Ready. History is recorded activity; live execution and sending are unavailable.";
+                Status = Tasks is null ? "Ready. Live tasks are unavailable on this connection." : "Ready. Select a model and agent to run a task.";
             }
         }
         catch (WorkspaceException error)
@@ -448,6 +506,7 @@ public sealed class LiveWorkspace : IDisposable
         _load = null;
         IsLoading = false;
     }
+    private void TaskChanged(object? sender, EventArgs args) => Notify();
     private void Notify() => Changed?.Invoke(this, EventArgs.Empty);
     public void Dispose()
     {
@@ -457,6 +516,8 @@ public sealed class LiveWorkspace : IDisposable
         }
 
         _disposed = true;
+        Tasks?.Dispose();
+        Tasks = null;
         _connections.Changed -= ConnectionChangedAsync;
         CancelLoad();
         foreach (Backend backend in _backends.Values)
@@ -478,6 +539,7 @@ public sealed class LiveWorkspace : IDisposable
         public ServerProfile Profile { get; } = profile;
         public string? Directory { get; set; }
         public Dictionary<string, Project> Projects { get; } = new(StringComparer.Ordinal);
+        public IReadOnlyList<SessionTaskState> TaskStates { get; set; } = [];
     }
     private sealed class Project(ProjectLocation location)
     {

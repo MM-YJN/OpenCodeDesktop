@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
@@ -14,6 +17,12 @@ namespace OpenCodeDesktop.Views;
 public sealed partial class WorkspaceView
 {
     private LiveWorkspace? _live;
+    private bool _renderQueued;
+    private string _projectsProjection = "";
+    private string _historyOwner = "";
+    private string _historyNotice = "";
+    private bool _historyMore;
+    private IReadOnlyList<HistoryMessage> _renderedHistory = [];
 
     internal void Bind(LiveWorkspace workspace)
     {
@@ -25,11 +34,25 @@ public sealed partial class WorkspaceView
     internal void Unbind()
     {
         _live?.Changed -= LiveChanged;
+        _live = null;
     }
 
     private void LiveChanged(object? sender, EventArgs args)
     {
-        RenderLive();
+        if (_renderQueued)
+        {
+            return;
+        }
+
+        _renderQueued = true;
+        if (!DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            _renderQueued = false;
+            RenderLive();
+        }))
+        {
+            _renderQueued = false;
+        }
     }
 
     private Button LiveAction(string label, Func<Task> action, bool enabled = true)
@@ -80,6 +103,7 @@ public sealed partial class WorkspaceView
         RenderLiveProjects(live);
         RenderLiveHistory(live, presentation);
         RenderLiveComposer(live, presentation.DraftOwner);
+        RenderTaskControls();
         LiveDetails.Text = LiveWorkspacePresentation.UnavailableDetails;
         LiveDetails.Visibility = Visibility.Visible;
         TerminalToggle.IsEnabled = false;
@@ -87,6 +111,15 @@ public sealed partial class WorkspaceView
 
     private void RenderLiveProjects(LiveWorkspace live)
     {
+        string projection = live.Server?.Profile.Id + "|" + live.Location?.Directory + "|" + live.SelectedSessionId + "|" +
+            live.IsLoading + "|" + live.CanCreate + "|" + live.CreationUncertain + "|" + live.CanLoadSessions + "|" +
+            string.Join('|', live.OpenedDirectories) + "|" + string.Join('|', live.Sessions.Select(s => s.Id + ":" + s.Title));
+        if (_projectsProjection == projection)
+        {
+            return;
+        }
+
+        _projectsProjection = projection;
         ProjectList.Children.Clear();
         if (live.IsConnected)
         {
@@ -120,6 +153,18 @@ public sealed partial class WorkspaceView
 
     private void RenderLiveHistory(LiveWorkspace live, LiveWorkspacePresentation presentation)
     {
+        IReadOnlyList<HistoryMessage> history = CurrentTask is { Hydrated: true } state
+            ? live.History.Where(h => !state.Conversation.Any(m => m.Id == h.Id)).Concat(state.Conversation).ToArray() : live.History;
+        if (_historyOwner == presentation.DraftOwner && _historyNotice == presentation.ConversationNotice &&
+            _historyMore == live.CanLoadHistory && _renderedHistory.SequenceEqual(history))
+        {
+            return;
+        }
+
+        _historyOwner = presentation.DraftOwner;
+        _historyNotice = presentation.ConversationNotice;
+        _historyMore = live.CanLoadHistory;
+        _renderedHistory = history;
         Conversation.Children.Clear();
         if (presentation.ConversationNotice.Length > 0)
         {
@@ -131,9 +176,9 @@ public sealed partial class WorkspaceView
             Conversation.Children.Add(LiveAction("Load older messages", live.LoadOlderHistoryAsync));
         }
 
-        foreach (HistoryMessage message in live.History)
+        foreach (HistoryMessage message in history)
         {
-            Conversation.Children.Add(Message("Recorded " + message.Kind + "\n" + message.Text));
+            AddMessage(message);
         }
     }
 
@@ -147,12 +192,16 @@ public sealed partial class WorkspaceView
             _draft = null;
             if (live.Location is not null)
             {
-                TextBox draft = new() { Text = live.Draft, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 80, Header = "Unsent draft (sending unavailable)" };
-                AutomationProperties.SetName(draft, "Unsent session draft. Sending is unavailable.");
-                draft.TextChanged += (_, _) => live.Draft = draft.Text;
+                TextBox draft = new() { Text = live.Draft, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 80, Header = "Task request (Ctrl+Enter to send)" };
+                AutomationProperties.SetName(draft, "Task request. Control Enter to send. Draft retained.");
+                draft.TextChanged += (_, _) =>
+                {
+                    live.Draft = draft.Text;
+                    UpdateSend();
+                };
                 _draft = draft;
                 Composer.Children.Add(draft);
-                Composer.Children.Add(new Button { Content = "Send unavailable", IsEnabled = false });
+                AddTaskComposer(Composer);
             }
         }
     }

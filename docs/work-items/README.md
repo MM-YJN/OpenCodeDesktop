@@ -8,10 +8,9 @@ This is the active index for unfinished work, in intended execution order. Done 
 
 | ID | Task | Type | Status | Dependencies |
 | --- | --- | --- | --- | --- |
-| [WI-008](WI-008-implement-live-task-workflow.md) | Run tasks and respond to agent requests | Implementation | Ready | [WI-007](WI-007-verify-task-execution-workflow.md), [WI-006](WI-006-implement-live-projects-sessions.md) |
 | [WI-009](WI-009-implement-session-recovery.md) | Recover connections and reopen existing work | Implementation | Ready | [WI-008](WI-008-implement-live-task-workflow.md) |
 
-Next: WI-008, using the verified task contract. WI-006 is complete following user acceptance, and WI-007's isolated task-workflow investigation is complete; WI-008's dependencies are satisfied. WI-008 and WI-009 remain defined and unstarted. This completion update does not start either item.
+Next: WI-009. WI-008 was accepted for completion by the user on 2026-10-24, satisfying its dependency. WI-009 remains Ready and unstarted; this update does not start it.
 
 ## Working Agreements
 
