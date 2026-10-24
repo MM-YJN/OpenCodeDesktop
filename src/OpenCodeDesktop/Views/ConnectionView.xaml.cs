@@ -7,8 +7,6 @@ using Microsoft.UI.Xaml.Media;
 
 using OpenCodeDesktop.Core.Connections;
 
-using static OpenCodeDesktop.Views.WorkspaceControls;
-
 namespace OpenCodeDesktop.Views;
 
 public sealed partial class ConnectionView : UserControl
@@ -77,40 +75,29 @@ public sealed partial class ConnectionView : UserControl
         {
             bool active = _connections.Active?.Profile.Id == profile.Id;
             bool connecting = _connections.ConnectingId == profile.Id;
-            Grid row = new() { ColumnSpacing = 16 };
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            StackPanel description = Stack();
-            description.Spacing = 4;
-            description.Children.Add(Text(profile.Name));
-            description.Children.Add(Text(profile.Address.Display));
-            TextBlock state = Text(active ? "✓ Active · OpenCode " + _connections.Active!.Version
-                : connecting ? "Connecting…" : "Not connected");
-            description.Children.Add(state);
-            row.Children.Add(description);
-            StackPanel actions = Stack();
-            Button select = Button(active ? "View" : "Connect", () => Edit(profile));
+            var card = (Border)((DataTemplate)Resources["ServerProfileTemplate"]).LoadContent();
+            ((TextBlock)card.FindName("ProfileName")).Text = profile.Name;
+            ((TextBlock)card.FindName("Address")).Text = profile.Address.Display;
+            var state = (TextBlock)card.FindName("State");
+            state.Text = active ? "✓ Active · OpenCode " + _connections.Active!.Version
+                : connecting ? "Connecting…" : "Not connected";
+            var select = (Button)card.FindName("Select");
+            select.Content = active ? "View" : "Connect";
             select.IsEnabled = !busy;
+            select.Click += (_, _) => Edit(profile);
             AutomationProperties.SetName(select, (active ? "View " : "Connect to ") + profile.Name);
-            actions.Children.Add(select);
-            if (!active)
+            var remove = (Button)card.FindName("Remove");
+            remove.Visibility = active ? Visibility.Collapsed : Visibility.Visible;
+            remove.IsEnabled = !busy;
+            AutomationProperties.SetName(remove, "Remove " + profile.Name);
+            remove.Click += (_, _) =>
             {
-                Button remove = Button("Remove", () =>
+                if (_connections.Remove(profile.Id) && _editingId == profile.Id)
                 {
-                    if (_connections.Remove(profile.Id) && _editingId == profile.Id)
-                    {
-                        Edit(null);
-                    }
-                });
-                remove.IsEnabled = !busy;
-                AutomationProperties.SetName(remove, "Remove " + profile.Name);
-                actions.Children.Add(remove);
-            }
+                    Edit(null);
+                }
+            };
 
-            Grid.SetColumn(actions, 1);
-            row.Children.Add(actions);
-            Border card = Card(row);
-            card.Padding = new Thickness(16);
             if (active)
             {
                 card.BorderBrush = (Brush)Application.Current.Resources["ShellAccentBrush"];

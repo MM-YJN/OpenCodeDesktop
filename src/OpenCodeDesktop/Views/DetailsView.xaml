@@ -1,0 +1,60 @@
+<UserControl
+    x:Class="OpenCodeDesktop.Views.DetailsView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <TextBlock x:Name="EmptyState" Text="No session selected. Choose a session to inspect its details."
+                   Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+        <Pivot x:Name="Tabs" SelectionChanged="Tabs_Changed" Visibility="Collapsed">
+            <PivotItem Header="Info" AutomationProperties.Name="Info" Margin="0">
+                <ScrollViewer x:Name="InfoScroll" Style="{StaticResource ShellWorkspaceScrollStyle}" ViewChanged="Scroll_ViewChanged">
+                    <StackPanel Spacing="{StaticResource ShellSpaceSmall}">
+                        <TextBlock Text="Sample metadata" Style="{StaticResource ShellSelectableHeadingTextStyle}"/>
+                        <TextBlock x:Name="Metadata" Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+                        <Expander Header="Context · 24% (sample)">
+                            <TextBlock Text="24,000 / 100,000 sample tokens. No live usage is measured." Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+                        </Expander>
+                        <Expander Header="Activity &amp; usage (sample)">
+                            <TextBlock Text="Read 3 files · Edited 2 fixtures&#xA;Input: 1,200 tokens · Output: 480 tokens&#xA;Illustrative cost: $0.02 · No billing occurred."
+                                       Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+                        </Expander>
+                        <Expander Header="Instructions" HorizontalContentAlignment="Stretch">
+                            <StackPanel Spacing="{StaticResource ShellSpaceSmall}">
+                                <TextBox x:Name="Instructions" Header="Local sample instructions" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="100"/>
+                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource ShellSpaceSmall}">
+                                    <Button Content="Save sample" Click="SaveInstructions_Click"/>
+                                    <Button Content="Cancel edits" Click="CancelInstructions_Click"/>
+                                </StackPanel>
+                                <TextBlock x:Name="InstructionsFeedback" Text="Changes apply only to this sample session." Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+                            </StackPanel>
+                        </Expander>
+                    </StackPanel>
+                </ScrollViewer>
+            </PivotItem>
+            <PivotItem Header="Files" AutomationProperties.Name="Files" Margin="0">
+                <ScrollViewer x:Name="FilesScroll" Style="{StaticResource ShellWorkspaceScrollStyle}" ViewChanged="Scroll_ViewChanged">
+                    <StackPanel Spacing="{StaticResource ShellSpaceSmall}">
+                        <TextBox x:Name="FileSearch" Header="Search embedded files" PlaceholderText="Filter paths" TextChanged="FileSearch_Changed"/>
+                        <Button Content="Clear file search" Click="ClearSearch_Click"/>
+                        <ListView x:Name="FilesList" SelectionMode="Single" MaxHeight="180" SelectionChanged="File_Changed"/>
+                        <TextBlock x:Name="FilesFeedback" Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+                        <TextBlock x:Name="FilePath" Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+                        <TextBlock x:Name="FilePreview" Style="{StaticResource ShellCodeTextStyle}"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </PivotItem>
+            <PivotItem Header="Changes" AutomationProperties.Name="Changes" Margin="0">
+                <ScrollViewer x:Name="ChangesScroll" Style="{StaticResource ShellWorkspaceScrollStyle}" ViewChanged="Scroll_ViewChanged">
+                    <StackPanel Spacing="{StaticResource ShellSpaceSmall}">
+                        <ComboBox x:Name="Comparison" Header="Compare" AutomationProperties.Name="Compare" HorizontalAlignment="Stretch" SelectionChanged="Comparison_Changed">
+                            <x:String>Session turn</x:String><x:String>Working copy</x:String><x:String>Branch</x:String>
+                        </ComboBox>
+                        <TextBlock x:Name="ComparisonBasis" Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+                        <ListView x:Name="ChangedFiles" MaxHeight="160" SelectionChanged="ChangedFile_Changed"/>
+                        <TextBlock x:Name="Diff" Style="{StaticResource ShellCodeTextStyle}"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </PivotItem>
+        </Pivot>
+    </Grid>
+</UserControl>

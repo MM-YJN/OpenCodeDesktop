@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
@@ -10,14 +11,11 @@ using OpenCodeDesktop.Presentation;
 
 using Windows.System;
 
-using static OpenCodeDesktop.Views.WorkspaceControls;
-
 namespace OpenCodeDesktop.Views;
 
 public sealed partial class WorkspaceView : UserControl
 {
     private readonly SampleWorkspace _state = new();
-    private readonly DetailsView _details = new();
     private bool? _projectsInline;
     private bool? _detailsInline;
     private bool _expanded;
@@ -35,8 +33,24 @@ public sealed partial class WorkspaceView : UserControl
     public WorkspaceView()
     {
         InitializeComponent();
-        DetailsHost.Content = _details;
         Render();
+    }
+
+    private T LoadTemplate<T>(string key) where T : FrameworkElement => (T)((DataTemplate)Resources[key]).LoadContent();
+    private static T Part<T>(FrameworkElement root, string name) where T : FrameworkElement => (T)root.FindName(name);
+
+    private TextBlock BodyText(string text)
+    {
+        TextBlock block = LoadTemplate<TextBlock>("BodyTextTemplate");
+        block.Text = text;
+        return block;
+    }
+
+    private Border Message(string text)
+    {
+        Border card = LoadTemplate<Border>("MessageTemplate");
+        Part<TextBlock>(card, "Message").Text = text;
+        return card;
     }
 
     private void Render()
@@ -48,7 +62,7 @@ public sealed partial class WorkspaceView : UserControl
         UpdateSessionPath();
         RenderConversation();
         RenderComposer();
-        _details.Show(session);
+        Details.Show(session);
         double offset = session?.ConversationOffset ?? 0;
         ConversationScroll.UpdateLayout();
         ConversationScroll.ChangeView(null, offset, null, true);
@@ -66,6 +80,7 @@ public sealed partial class WorkspaceView : UserControl
     private void RenderProjects()
     {
         ProjectList.Children.Clear();
+        _selectedSessionItem = null;
         int count = 0;
         foreach (SampleProject project in _state.Projects)
         {
@@ -79,20 +94,18 @@ public sealed partial class WorkspaceView : UserControl
             }
 
             count += sessions.Length;
-            StackPanel group = Stack();
-            ListView list = new() { SelectionMode = ListViewSelectionMode.Single };
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(list, project.Name + " sessions");
+            Expander group = LoadTemplate<Expander>("ProjectGroupTemplate");
+            group.Header = project.Name;
+            group.IsExpanded = project.Expanded;
+            group.Expanding += (_, _) => project.Expanded = true;
+            group.Collapsed += (_, _) => project.Expanded = false;
+            ListView list = Part<ListView>(group, "Sessions");
+            AutomationProperties.SetName(list, project.Name + " sessions");
             foreach (SampleSession session in sessions)
             {
-                TextBlock label = Text(session.Title + "\n" + (session.Archived ? "Archived · " : "") + session.Execution);
-                // Session labels activate their list item; conversation text remains selectable.
-                label.IsTextSelectionEnabled = false;
-                ListViewItem item = new()
-                {
-                    Content = label,
-                    Tag = session,
-                    HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                };
+                ListViewItem item = LoadTemplate<ListViewItem>("SessionRowTemplate");
+                Part<TextBlock>(item, "Label").Text = session.Title + "\n" + (session.Archived ? "Archived · " : "") + session.Execution;
+                item.Tag = session;
                 MenuFlyout menu = new();
                 AddMenu(menu, "Rename sample", () => EditSessionAsync(session, false));
                 AddMenu(menu, "Fork sample", () =>
@@ -124,29 +137,26 @@ public sealed partial class WorkspaceView : UserControl
                     _selectedSessionItem?.Focus(FocusState.Programmatic);
                 }
             };
-            group.Children.Add(list);
             SampleSession worktreeSession = sessions.Contains(_state.Selected) ? _state.Selected! : sessions[0];
-            group.Children.Add(Choice("Sample worktree", ["main", "sample/recipe-tags-worktree"], worktreeSession.Worktree == "main" ? 0 : 1,
-                index =>
-                {
-                    worktreeSession.Worktree = index == 0 ? "main" : "sample/recipe-tags-worktree";
-                    _state.Selected = worktreeSession;
-                    Render();
-                }));
-            group.Children.Add(Button("New task here", () =>
+            ComboBox worktree = Part<ComboBox>(group, "Worktree");
+            worktree.SelectedIndex = worktreeSession.Worktree == "main" ? 0 : 1;
+            worktree.SelectionChanged += (_, _) =>
+            {
+                worktreeSession.Worktree = worktree.SelectedIndex == 0 ? "main" : "sample/recipe-tags-worktree";
+                _state.Selected = worktreeSession;
+                Render();
+            };
+            Part<Button>(group, "NewTask").Click += (_, _) =>
             {
                 _state.Create(project);
                 Render();
-            }));
-            Expander expander = new() { Header = project.Name, Content = group, IsExpanded = project.Expanded, HorizontalContentAlignment = HorizontalAlignment.Stretch };
-            expander.Expanding += (_, _) => project.Expanded = true;
-            expander.Collapsed += (_, _) => project.Expanded = false;
-            ProjectList.Children.Add(expander);
+            };
+            ProjectList.Children.Add(group);
         }
 
         if (count == 0)
         {
-            ProjectList.Children.Add(Text("No matching sessions."));
+            ProjectList.Children.Add(BodyText("No matching sessions."));
         }
     }
 
@@ -159,16 +169,14 @@ public sealed partial class WorkspaceView : UserControl
 
     private async void EditSessionAsync(SampleSession session, bool delete)
     {
-        TextBox title = new() { Header = "Sample session title", Text = session.Title };
-        ContentDialog dialog = new()
-        {
-            XamlRoot = XamlRoot,
-            Title = delete ? "Delete this in-memory session?" : "Rename sample session",
-            Content = delete ? Text("Only sample state is removed. Restarting the app restores the sample data.") : title,
-            PrimaryButtonText = delete ? "Delete sample" : "Save sample title",
-            CloseButtonText = "Cancel",
-            DefaultButton = ContentDialogButton.Close,
-        };
+        ContentDialog dialog = LoadTemplate<ContentDialog>("SessionDialogTemplate");
+        dialog.XamlRoot = XamlRoot;
+        dialog.Title = delete ? "Delete this in-memory session?" : "Rename sample session";
+        dialog.PrimaryButtonText = delete ? "Delete sample" : "Save sample title";
+        TextBox title = Part<TextBox>(dialog, "TitleEditor");
+        title.Text = session.Title;
+        title.Visibility = delete ? Visibility.Collapsed : Visibility.Visible;
+        Part<TextBlock>(dialog, "DeleteInformation").Visibility = delete ? Visibility.Visible : Visibility.Collapsed;
         title.TextChanged += (_, _) => dialog.IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(title.Text);
         if (await dialog.ShowAsync() == ContentDialogResult.Primary)
         {
@@ -191,67 +199,48 @@ public sealed partial class WorkspaceView : UserControl
         _requestCard = null;
         if (_state.Selected is not { } session)
         {
-            Conversation.Children.Add(Card(Text("No session selected. Choose a session or create a new task.")));
+            Conversation.Children.Add(Message("No session selected. Choose a session or create a new task."));
             return;
         }
 
         if (session.IsNew)
         {
-            Conversation.Children.Add(Text("New sample draft. Submitting appends a local message; no agent response will be generated."));
-            foreach (string message in session.Messages)
-            {
-                Conversation.Children.Add(Card(Text(message)));
-            }
-            return;
+            Conversation.Children.Add(BodyText("New sample draft. Submitting appends a local message; no agent response will be generated."));
         }
+        else
+        {
+            StackPanel recorded = LoadTemplate<StackPanel>("RecordedConversationTemplate");
+            Part<Button>(recorded, "OpenFile").Click += (_, _) => OpenReference(false);
+            Part<Button>(recorded, "ReviewChanges").Click += (_, _) => OpenReference(true);
+            Conversation.Children.Add(recorded);
+            if (session.PermissionPending || session.PermissionResult.Length > 0)
+            {
+                Border card = LoadTemplate<Border>("PermissionTemplate");
+                Part<StackPanel>(card, "Actions").Visibility = session.PermissionPending ? Visibility.Visible : Visibility.Collapsed;
+                TextBlock result = Part<TextBlock>(card, "Result");
+                result.Text = session.PermissionResult;
+                result.Visibility = session.PermissionPending ? Visibility.Collapsed : Visibility.Visible;
+                Part<Button>(card, "Reject").Click += (_, _) => RespondPermission("Rejected");
+                Part<Button>(card, "Allow").Click += (_, _) => RespondPermission("Allow once");
+                if (session.PermissionPending)
+                {
+                    _requestCard = card;
+                }
 
-        Conversation.Children.Add(Text("You · sample\nAdd category tags to the recipe collection."));
-        Conversation.Children.Add(Text("Assistant · recorded sample\nI will add recipe tags and update the ingredient filter. This conversation is illustrative; no agent is running."));
-        Conversation.Children.Add(Card(Code("// Sample recipe filter\nvar matches = recipes.Where(recipe =>\n    recipe.Tags.Contains(category));")));
-        Conversation.Children.Add(new Expander
-        {
-            Header = "Read files · Completed (sample)",
-            Content = Text("Read 3 embedded fixtures. No files were opened on your computer.\nRecipeList.xaml\nRecipeFilter.cs\ndocs/notes.md"),
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-        });
-        Conversation.Children.Add(Button("Open sample file: src/RecipeList.xaml", () => OpenReference(false)));
-        Conversation.Children.Add(Button("Review sample changes: 2 files, +4 / -2", () => OpenReference(true)));
-        if (session.PermissionPending || session.PermissionResult.Length > 0)
-        {
-            StackPanel permission = Stack();
-            permission.Children.Add(Text("Run verification? · sample permission", true));
-            permission.Children.Add(Text("Scope: once · sample server directory\nCommand: dotnet test\nChoices only update this sample workspace; no permission is sent."));
-            if (session.PermissionPending)
-            {
-                permission.Children.Add(Actions(Button("Reject sample", () => RespondPermission("Rejected")),
-                    Button("Allow once (sample)", () => RespondPermission("Allow once"))));
-            }
-            else
-            {
-                permission.Children.Add(Text(session.PermissionResult));
+                Conversation.Children.Add(card);
             }
 
-            Border card = Card(permission);
-            if (session.PermissionPending)
+            if (session.QuestionPending || session.QuestionResult.Length > 0)
             {
-                _requestCard = card;
-            }
-
-            Conversation.Children.Add(card);
-        }
-
-        if (session.QuestionPending || session.QuestionResult.Length > 0)
-        {
-            StackPanel question = Stack();
-            question.Children.Add(Text("Which quantity format should recipes use? · sample question", true));
-            if (session.QuestionPending)
-            {
-                TextBox answer = new() { Header = "Answer (required)", Text = session.Answer, AcceptsReturn = true };
+                Border card = LoadTemplate<Border>("QuestionTemplate");
+                Part<StackPanel>(card, "Pending").Visibility = session.QuestionPending ? Visibility.Visible : Visibility.Collapsed;
+                TextBlock result = Part<TextBlock>(card, "Result");
+                result.Text = session.QuestionResult;
+                result.Visibility = session.QuestionPending ? Visibility.Collapsed : Visibility.Visible;
+                TextBox answer = Part<TextBox>(card, "Answer");
+                answer.Text = session.Answer;
                 answer.TextChanged += (_, _) => session.Answer = answer.Text;
-                TextBlock feedback = Text("");
-                question.Children.Add(answer);
-                question.Children.Add(feedback);
-                question.Children.Add(Actions(Button("Submit sample answer", () =>
+                Part<Button>(card, "Submit").Click += (_, _) =>
                 {
                     if (session.RespondQuestion(false))
                     {
@@ -259,32 +248,27 @@ public sealed partial class WorkspaceView : UserControl
                     }
                     else
                     {
-                        feedback.Text = "Enter an answer before submitting.";
+                        Part<TextBlock>(card, "Feedback").Text = "Enter an answer before submitting.";
                         answer.Focus(FocusState.Programmatic);
                     }
-                }), Button("Cancel question", () =>
+                };
+                Part<Button>(card, "Cancel").Click += (_, _) =>
                 {
                     session.RespondQuestion(true);
                     Render();
-                })));
-            }
-            else
-            {
-                question.Children.Add(Text(session.QuestionResult));
-            }
+                };
+                if (session.QuestionPending)
+                {
+                    _requestCard = card;
+                }
 
-            Border card = Card(question);
-            if (session.QuestionPending)
-            {
-                _requestCard = card;
+                Conversation.Children.Add(card);
             }
-
-            Conversation.Children.Add(card);
         }
 
         foreach (string message in session.Messages)
         {
-            Conversation.Children.Add(Card(Text(message)));
+            Conversation.Children.Add(Message(message));
         }
     }
 
@@ -297,63 +281,79 @@ public sealed partial class WorkspaceView : UserControl
     private void RenderComposer()
     {
         Composer.Children.Clear();
+        _draft = null;
         if (_state.Selected is not { } session)
         {
-            Composer.Children.Add(Text("Select a session or create a new task to write a message."));
+            Composer.Children.Add(BodyText("Select a session or create a new task to write a message."));
             return;
         }
 
-        StackPanel pending = Stack();
+        StackPanel composer = LoadTemplate<StackPanel>("ComposerTemplate");
+        StackPanel pending = Part<StackPanel>(composer, "PendingList");
         foreach (SampleInput input in session.PendingInputs.ToArray())
         {
-            pending.Children.Add(Text(input.Text));
-            pending.Children.Add(Choice("Delivery for sample input", ["Queue", "Steer"], input.Mode == "Queue" ? 0 : 1,
-                index => input.Mode = index == 0 ? "Queue" : "Steer"));
-            pending.Children.Add(Button("Cancel sample input", () =>
+            StackPanel row = LoadTemplate<StackPanel>("PendingInputTemplate");
+            Part<TextBlock>(row, "Input").Text = input.Text;
+            ComboBox delivery = Part<ComboBox>(row, "Delivery");
+            delivery.SelectedIndex = input.Mode == "Queue" ? 0 : 1;
+            delivery.SelectionChanged += (_, _) => input.Mode = delivery.SelectedIndex == 0 ? "Queue" : "Steer";
+            Part<Button>(row, "Cancel").Click += (_, _) =>
             {
                 session.PendingInputs.Remove(input);
                 RenderComposer();
-            }));
+            };
+            pending.Children.Add(row);
         }
 
-        Expander pendingInputs = new() { Header = "Pending inputs (" + session.PendingInputs.Count + ")", Content = pending, HorizontalContentAlignment = HorizontalAlignment.Stretch };
-        TextBox draft = new() { Text = session.Draft, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 64, MaxHeight = 120, PlaceholderText = "Describe a sample task…", Header = "Draft" };
+        Part<Expander>(composer, "PendingInputs").Header = "Pending inputs (" + session.PendingInputs.Count + ")";
+        TextBox draft = Part<TextBox>(composer, "Draft");
         _draft = draft;
+        draft.Text = session.Draft;
         draft.TextChanged += (_, _) => session.Draft = draft.Text;
-        Composer.Children.Add(draft);
-        StackPanel tools = Stack();
-        tools.Children.Add(Choice("Sample directory / worktree", ["main", "sample/recipe-tags-worktree"], session.Worktree == "main" ? 0 : 1,
-            index =>
-            {
-                session.Worktree = index == 0 ? "main" : "sample/recipe-tags-worktree";
-                UpdateSessionPath();
-            }));
-        tools.Children.Add(Choice("Sample model", ["Sample reasoning model", "Sample fast model"], session.Model == "Sample reasoning model" ? 0 : 1,
-            index =>
-            {
-                session.Model = index == 0 ? "Sample reasoning model" : "Sample fast model";
-                _details.Show(session);
-            }));
-        tools.Children.Add(Choice("Sample agent", ["Build (sample)", "Plan (sample)"], session.Agent == "Build (sample)" ? 0 : 1,
-            index =>
-            {
-                session.Agent = index == 0 ? "Build (sample)" : "Plan (sample)";
-                _details.Show(session);
-            }));
+        ComboBox worktree = Part<ComboBox>(composer, "Worktree");
+        worktree.SelectedIndex = session.Worktree == "main" ? 0 : 1;
+        worktree.SelectionChanged += (_, _) =>
+        {
+            session.Worktree = worktree.SelectedIndex == 0 ? "main" : "sample/recipe-tags-worktree";
+            UpdateSessionPath();
+        };
+        ComboBox model = Part<ComboBox>(composer, "Model");
+        model.SelectedIndex = session.Model == "Sample reasoning model" ? 0 : 1;
+        model.SelectionChanged += (_, _) =>
+        {
+            session.Model = model.SelectedIndex == 0 ? "Sample reasoning model" : "Sample fast model";
+            Details.Show(session);
+        };
+        ComboBox agent = Part<ComboBox>(composer, "Agent");
+        agent.SelectedIndex = session.Agent == "Build (sample)" ? 0 : 1;
+        agent.SelectionChanged += (_, _) =>
+        {
+            session.Agent = agent.SelectedIndex == 0 ? "Build (sample)" : "Plan (sample)";
+            Details.Show(session);
+        };
+        StackPanel attachments = Part<StackPanel>(composer, "Attachments");
         foreach (string attachment in session.Attachments.ToArray())
         {
-            tools.Children.Add(Button("Remove reference: " + attachment, () =>
+            Button remove = LoadTemplate<Button>("ActionTemplate");
+            remove.Content = "Remove reference: " + attachment;
+            AutomationProperties.SetName(remove, (string)remove.Content);
+            remove.Click += (_, _) =>
             {
                 session.Attachments.Remove(attachment);
                 RenderComposer();
-            }));
+            };
+            attachments.Children.Add(remove);
         }
 
-        tools.Children.Add(Choice("Add embedded reference", ["Choose sample…", .. SampleFixtures.Files.Keys], 0, index =>
+        ComboBox reference = Part<ComboBox>(composer, "Reference");
+        string[] referencePaths = ["Choose sample…", .. SampleFixtures.Files.Keys];
+        reference.ItemsSource = referencePaths;
+        reference.SelectedIndex = 0;
+        reference.SelectionChanged += (_, _) =>
         {
-            if (index > 0)
+            if (reference.SelectedIndex > 0)
             {
-                string path = SampleFixtures.Files.Keys.ElementAt(index - 1);
+                string path = SampleFixtures.Files.Keys.ElementAt(reference.SelectedIndex - 1);
                 if (!session.Attachments.Contains(path))
                 {
                     session.Attachments.Add(path);
@@ -361,49 +361,53 @@ public sealed partial class WorkspaceView : UserControl
 
                 RenderComposer();
             }
-        }));
-        tools.Children.Add(Choice("Discover command / skill", ["Choose sample…", "/review — sample command", "$explain — sample skill"], 0, index =>
+        };
+        ComboBox command = Part<ComboBox>(composer, "Command");
+        command.SelectedIndex = 0;
+        command.SelectionChanged += (_, _) =>
         {
-            if (index > 0)
+            if (command.SelectedIndex > 0)
             {
-                session.Draft += index == 1 ? " /review " : " $explain ";
+                session.Draft += command.SelectedIndex == 1 ? " /review " : " $explain ";
                 draft.Text = session.Draft;
             }
-        }));
-        tools.Children.Add(Choice("Sample submission mode", ["Append locally", "Queue", "Steer"], session.SubmissionMode,
-            index => session.SubmissionMode = index));
-        TextBlock feedbackText = Text("");
-        Button interrupt = Button("Interrupt sample", () =>
+        };
+        ComboBox mode = Part<ComboBox>(composer, "SubmissionMode");
+        mode.SelectedIndex = session.SubmissionMode;
+        mode.SelectionChanged += (_, _) => session.SubmissionMode = mode.SelectedIndex;
+        Button interrupt = Part<Button>(composer, "Interrupt");
+        interrupt.IsEnabled = session.Execution == "Running";
+        interrupt.Click += (_, _) =>
         {
             session.Execution = "Interrupted (sample)";
             Render();
-        });
-        interrupt.IsEnabled = session.Execution == "Running";
-        ToolTipService.SetToolTip(interrupt, "Select the Running sample session to interrupt its local state.");
-        Composer.Children.Add(Actions(Button("Submit sample", () =>
+        };
+        Part<Button>(composer, "Submit").Click += (_, _) =>
         {
-            string mode = session.SubmissionMode == 0 ? "Append locally" : session.SubmissionMode == 1 ? "Queue" : "Steer";
-            if (session.Submit(mode))
+            string delivery = session.SubmissionMode == 0 ? "Append locally" : session.SubmissionMode == 1 ? "Queue" : "Steer";
+            if (session.Submit(delivery))
             {
                 Render();
             }
             else
             {
-                feedbackText.Text = "Write a draft or add a reference first.";
+                Part<TextBlock>(composer, "Feedback").Text = "Write a draft or add a reference first.";
             }
-        }), interrupt));
-        Composer.Children.Add(feedbackText);
-        Composer.Children.Add(pendingInputs);
-        Composer.Children.Add(new Expander { Header = "References, model, agent & commands", Content = tools, HorizontalContentAlignment = HorizontalAlignment.Stretch });
+        };
+        Composer.Children.Add(composer);
     }
 
     public async void ShowAttentionAsync()
     {
-        StackPanel list = Stack();
-        ContentDialog dialog = new() { Title = "Needs attention · sample requests", XamlRoot = XamlRoot, CloseButtonText = "Close" };
+        ContentDialog dialog = LoadTemplate<ContentDialog>("AttentionDialogTemplate");
+        dialog.XamlRoot = XamlRoot;
+        StackPanel list = Part<StackPanel>(dialog, "Requests");
         foreach (SampleSession session in _state.Attention.ToArray())
         {
-            list.Children.Add(Button(session.Title + (session.Archived ? " (archived)" : ""), () =>
+            Button select = LoadTemplate<Button>("ActionTemplate");
+            select.Content = session.Title + (session.Archived ? " (archived)" : "");
+            AutomationProperties.SetName(select, (string)select.Content);
+            select.Click += (_, _) =>
             {
                 dialog.Hide();
                 _state.Selected = session;
@@ -419,15 +423,15 @@ public sealed partial class WorkspaceView : UserControl
                 }
                 Render();
                 _requestCard?.StartBringIntoView();
-            }));
+            };
+            list.Children.Add(select);
         }
 
         if (list.Children.Count == 0)
         {
-            list.Children.Add(Text("No pending requests."));
+            list.Children.Add(BodyText("No pending requests."));
         }
 
-        dialog.Content = Scroll(list);
         await dialog.ShowAsync();
     }
 
@@ -445,7 +449,7 @@ public sealed partial class WorkspaceView : UserControl
             session.SelectedFile = "src/RecipeList.xaml";
         }
 
-        _details.Show(session);
+        Details.Show(session);
         DetailsLayout.IsPaneOpen = true;
     }
 

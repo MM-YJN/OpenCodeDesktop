@@ -2,6 +2,27 @@
     x:Class="OpenCodeDesktop.Views.ConnectionView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <DataTemplate x:Key="ServerProfileTemplate">
+            <Border Style="{StaticResource ShellCardStyle}" Padding="16">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Spacing="4">
+                        <TextBlock x:Name="ProfileName" Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+                        <TextBlock x:Name="Address" Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+                        <TextBlock x:Name="State" Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="{StaticResource ShellSpaceSmall}">
+                        <Button x:Name="Select" Content="Connect"/>
+                        <Button x:Name="Remove" Content="Remove"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
     <Grid MaxWidth="720" HorizontalAlignment="Stretch">
         <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">

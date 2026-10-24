@@ -1,0 +1,134 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Code-behind supplies session state and callbacks after loading each compiled template. -->
+    <DataTemplate x:Key="ProjectGroupTemplate">
+        <Expander x:Name="Project" HorizontalContentAlignment="Stretch">
+            <StackPanel Spacing="{StaticResource ShellSpaceSmall}">
+                <ListView x:Name="Sessions" SelectionMode="Single"/>
+                <ComboBox x:Name="Worktree" Header="Sample worktree" AutomationProperties.Name="Sample worktree" HorizontalAlignment="Stretch">
+                    <x:String>main</x:String><x:String>sample/recipe-tags-worktree</x:String>
+                </ComboBox>
+                <Button x:Name="NewTask" Content="New task here"/>
+            </StackPanel>
+        </Expander>
+    </DataTemplate>
+    <DataTemplate x:Key="SessionRowTemplate">
+        <ListViewItem HorizontalContentAlignment="Stretch">
+            <TextBlock x:Name="Label" Style="{StaticResource ShellBodyTextStyle}" IsTextSelectionEnabled="False"/>
+        </ListViewItem>
+    </DataTemplate>
+    <DataTemplate x:Key="BodyTextTemplate">
+        <TextBlock Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+    </DataTemplate>
+    <DataTemplate x:Key="MessageTemplate">
+        <Border Style="{StaticResource ShellCardStyle}">
+            <TextBlock x:Name="Message" Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+        </Border>
+    </DataTemplate>
+    <DataTemplate x:Key="RecordedConversationTemplate">
+        <StackPanel Spacing="16">
+            <TextBlock Text="You · sample&#xA;Add category tags to the recipe collection." Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+            <TextBlock Text="Assistant · recorded sample&#xA;I will add recipe tags and update the ingredient filter. This conversation is illustrative; no agent is running." Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+            <Border Style="{StaticResource ShellCardStyle}">
+                <TextBlock Text="// Sample recipe filter&#xA;var matches = recipes.Where(recipe =&gt;&#xA;    recipe.Tags.Contains(category));" Style="{StaticResource ShellCodeTextStyle}"/>
+            </Border>
+            <Expander Header="Read files · Completed (sample)" HorizontalContentAlignment="Stretch">
+                <TextBlock Text="Read 3 embedded fixtures. No files were opened on your computer.&#xA;RecipeList.xaml&#xA;RecipeFilter.cs&#xA;docs/notes.md" Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+            </Expander>
+            <Button x:Name="OpenFile" Content="Open sample file: src/RecipeList.xaml"/>
+            <Button x:Name="ReviewChanges" Content="Review sample changes: 2 files, +4 / -2"/>
+        </StackPanel>
+    </DataTemplate>
+    <DataTemplate x:Key="PermissionTemplate">
+        <Border Style="{StaticResource ShellCardStyle}">
+            <StackPanel Spacing="{StaticResource ShellSpaceSmall}">
+                <TextBlock Text="Run verification? · sample permission" Style="{StaticResource ShellSelectableHeadingTextStyle}"/>
+                <TextBlock Text="Scope: once · sample server directory&#xA;Command: dotnet test&#xA;Choices only update this sample workspace; no permission is sent." Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+                <StackPanel x:Name="Actions" Orientation="Horizontal" Spacing="{StaticResource ShellSpaceSmall}">
+                    <Button x:Name="Reject" Content="Reject sample"/>
+                    <Button x:Name="Allow" Content="Allow once (sample)"/>
+                </StackPanel>
+                <TextBlock x:Name="Result" Style="{StaticResource ShellSelectableBodyTextStyle}" Visibility="Collapsed"/>
+            </StackPanel>
+        </Border>
+    </DataTemplate>
+    <DataTemplate x:Key="QuestionTemplate">
+        <Border Style="{StaticResource ShellCardStyle}">
+            <StackPanel Spacing="{StaticResource ShellSpaceSmall}">
+                <TextBlock Text="Which quantity format should recipes use? · sample question" Style="{StaticResource ShellSelectableHeadingTextStyle}"/>
+                <StackPanel x:Name="Pending" Spacing="{StaticResource ShellSpaceSmall}">
+                    <TextBox x:Name="Answer" Header="Answer (required)" AcceptsReturn="True"/>
+                    <TextBlock x:Name="Feedback" Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource ShellSpaceSmall}">
+                        <Button x:Name="Submit" Content="Submit sample answer"/>
+                        <Button x:Name="Cancel" Content="Cancel question"/>
+                    </StackPanel>
+                </StackPanel>
+                <TextBlock x:Name="Result" Style="{StaticResource ShellSelectableBodyTextStyle}" Visibility="Collapsed"/>
+            </StackPanel>
+        </Border>
+    </DataTemplate>
+    <DataTemplate x:Key="ComposerTemplate">
+        <StackPanel Spacing="{StaticResource ShellSpaceSmall}">
+            <TextBox x:Name="Draft" Header="Draft" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" MaxHeight="120" PlaceholderText="Describe a sample task…"/>
+            <StackPanel Orientation="Horizontal" Spacing="{StaticResource ShellSpaceSmall}">
+                <Button x:Name="Submit" Content="Submit sample"/>
+                <Button x:Name="Interrupt" Content="Interrupt sample" ToolTipService.ToolTip="Select the Running sample session to interrupt its local state."/>
+            </StackPanel>
+            <TextBlock x:Name="Feedback" Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+            <Expander x:Name="PendingInputs" HorizontalContentAlignment="Stretch">
+                <StackPanel x:Name="PendingList" Spacing="{StaticResource ShellSpaceSmall}"/>
+            </Expander>
+            <Expander Header="References, model, agent &amp; commands" HorizontalContentAlignment="Stretch">
+                <StackPanel Spacing="{StaticResource ShellSpaceSmall}">
+                    <ComboBox x:Name="Worktree" Header="Sample directory / worktree" AutomationProperties.Name="Sample directory / worktree" HorizontalAlignment="Stretch">
+                        <x:String>main</x:String><x:String>sample/recipe-tags-worktree</x:String>
+                    </ComboBox>
+                    <ComboBox x:Name="Model" Header="Sample model" AutomationProperties.Name="Sample model" HorizontalAlignment="Stretch">
+                        <x:String>Sample reasoning model</x:String><x:String>Sample fast model</x:String>
+                    </ComboBox>
+                    <ComboBox x:Name="Agent" Header="Sample agent" AutomationProperties.Name="Sample agent" HorizontalAlignment="Stretch">
+                        <x:String>Build (sample)</x:String><x:String>Plan (sample)</x:String>
+                    </ComboBox>
+                    <StackPanel x:Name="Attachments" Spacing="{StaticResource ShellSpaceSmall}"/>
+                    <ComboBox x:Name="Reference" Header="Add embedded reference" AutomationProperties.Name="Add embedded reference" HorizontalAlignment="Stretch"/>
+                    <ComboBox x:Name="Command" Header="Discover command / skill" AutomationProperties.Name="Discover command / skill" HorizontalAlignment="Stretch">
+                        <x:String>Choose sample…</x:String><x:String>/review — sample command</x:String><x:String>$explain — sample skill</x:String>
+                    </ComboBox>
+                    <ComboBox x:Name="SubmissionMode" Header="Sample submission mode" AutomationProperties.Name="Sample submission mode" HorizontalAlignment="Stretch">
+                        <x:String>Append locally</x:String><x:String>Queue</x:String><x:String>Steer</x:String>
+                    </ComboBox>
+                </StackPanel>
+            </Expander>
+        </StackPanel>
+    </DataTemplate>
+    <DataTemplate x:Key="PendingInputTemplate">
+        <StackPanel Spacing="{StaticResource ShellSpaceSmall}">
+            <TextBlock x:Name="Input" Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+            <ComboBox x:Name="Delivery" Header="Delivery for sample input" AutomationProperties.Name="Delivery for sample input" HorizontalAlignment="Stretch">
+                <x:String>Queue</x:String><x:String>Steer</x:String>
+            </ComboBox>
+            <Button x:Name="Cancel" Content="Cancel sample input"/>
+        </StackPanel>
+    </DataTemplate>
+    <DataTemplate x:Key="ActionTemplate">
+        <Button/>
+    </DataTemplate>
+    <DataTemplate x:Key="SessionDialogTemplate">
+        <ContentDialog CloseButtonText="Cancel" DefaultButton="Close">
+            <StackPanel>
+                <TextBox x:Name="TitleEditor" Header="Sample session title"/>
+                <TextBlock x:Name="DeleteInformation" Text="Only sample state is removed. Restarting the app restores the sample data."
+                           Style="{StaticResource ShellSelectableBodyTextStyle}" Visibility="Collapsed"/>
+            </StackPanel>
+        </ContentDialog>
+    </DataTemplate>
+    <DataTemplate x:Key="AttentionDialogTemplate">
+        <ContentDialog Title="Needs attention · sample requests" CloseButtonText="Close">
+            <ScrollViewer Style="{StaticResource ShellWorkspaceScrollStyle}">
+                <StackPanel x:Name="Requests" Spacing="{StaticResource ShellSpaceSmall}"/>
+            </ScrollViewer>
+        </ContentDialog>
+    </DataTemplate>
+</ResourceDictionary>

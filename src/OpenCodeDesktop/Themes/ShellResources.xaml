@@ -88,6 +88,22 @@
         <Setter Property="Foreground" Value="{ThemeResource ShellTextPrimaryBrush}" />
         <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
+    <Style x:Key="ShellSelectableBodyTextStyle" TargetType="TextBlock" BasedOn="{StaticResource ShellBodyTextStyle}">
+        <Setter Property="IsTextSelectionEnabled" Value="True"/>
+    </Style>
+    <Style x:Key="ShellSelectableHeadingTextStyle" TargetType="TextBlock" BasedOn="{StaticResource ShellHeadingTextStyle}">
+        <Setter Property="IsTextSelectionEnabled" Value="True"/>
+    </Style>
+    <Style x:Key="ShellCodeTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Consolas"/>
+        <Setter Property="TextWrapping" Value="NoWrap"/>
+        <Setter Property="IsTextSelectionEnabled" Value="True"/>
+    </Style>
+    <Style x:Key="ShellWorkspaceScrollStyle" TargetType="ScrollViewer">
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="HorizontalScrollMode" Value="Auto"/>
+    </Style>
     <Style x:Key="ShellCardStyle" TargetType="Border">
         <Setter Property="Background" Value="{ThemeResource ShellContentSurfaceBrush}" />
         <Setter Property="BorderBrush" Value="{ThemeResource ShellBorderBrush}" />
