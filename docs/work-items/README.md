@@ -9,11 +9,10 @@ This is the active index for unfinished work, in intended execution order. Done 
 | ID | Task | Type | Status | Dependencies |
 | --- | --- | --- | --- | --- |
 | [WI-006](WI-006-implement-live-projects-sessions.md) | Open real projects and manage sessions | Implementation | Awaiting Acceptance | [WI-005](WI-005-verify-project-session-workflow.md), [WI-004](WI-004-implement-interactive-workspace-layout.md) |
-| [WI-007](WI-007-verify-task-execution-workflow.md) | Verify the complete task execution workflow | Investigation | Ready | [WI-006](WI-006-implement-live-projects-sessions.md) |
-| [WI-008](WI-008-implement-live-task-workflow.md) | Run tasks and respond to agent requests | Implementation | Draft | [WI-007](WI-007-verify-task-execution-workflow.md) |
-| [WI-009](WI-009-implement-session-recovery.md) | Recover connections and reopen existing work | Implementation | Draft | [WI-008](WI-008-implement-live-task-workflow.md) |
+| [WI-008](WI-008-implement-live-task-workflow.md) | Run tasks and respond to agent requests | Implementation | Ready — blocked pending WI-006 native acceptance | [WI-007](WI-007-verify-task-execution-workflow.md), [WI-006](WI-006-implement-live-projects-sessions.md) |
+| [WI-009](WI-009-implement-session-recovery.md) | Recover connections and reopen existing work | Implementation | Ready | [WI-008](WI-008-implement-live-task-workflow.md) |
 
-Current: WI-006 live workspace awaits native UI/manual acceptance. WI-010 local environment discovery is complete following user acceptance. Next after WI-006 acceptance: WI-007. No task-execution investigation or implementation has started. Later implementation items need their preceding investigation findings before being made Ready.
+Current: WI-006 remains Awaiting Acceptance for native UI/manual checks. WI-007's isolated task-workflow investigation is complete; the user explicitly selected it while WI-006 acceptance remained open. Next: accept WI-006, then implement WI-008 using the verified task contract. WI-008 and WI-009 are defined and unstarted; completing the investigation does not authorize starting them.
 
 ## Working Agreements
 
