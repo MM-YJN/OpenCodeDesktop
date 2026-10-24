@@ -1,0 +1,69 @@
+{
+  "verifiedAtUtc": "2026-10-24T02:57:14.5838426Z",
+  "serverVersion": "2.1.4",
+  "executableSha256": "B12B0613E9B4A491E5B12D90A5E9BBAE6D261FE9688C82BF73125A036963D399",
+  "environment": {
+    "os": "Microsoft Windows 10.0.26300",
+    "architecture": "X64",
+    "powershell": "7.6.7"
+  },
+  "request": {
+    "method": "GET",
+    "accept": "application/json",
+    "authorization": "Basic <redacted>",
+    "path": "/api/info"
+  },
+  "startupStatuses": [
+    200
+  ],
+  "cases": {
+    "missingCredentials": {
+      "status": 401,
+      "contentType": "application/json",
+      "challenge": "Basic realm=\"Secure Area\"",
+      "retryAfter": "",
+      "body": "{\"_tag\":\"UnauthorizedError\",\"message\":\"Authentication required\"}"
+    },
+    "wrongPassword": {
+      "status": 401,
+      "contentType": "application/json",
+      "challenge": "Basic realm=\"Secure Area\"",
+      "retryAfter": "",
+      "body": "{\"_tag\":\"UnauthorizedError\",\"message\":\"Authentication required\"}"
+    },
+    "wrongUsername": {
+      "status": 401,
+      "contentType": "application/json",
+      "challenge": "Basic realm=\"Secure Area\"",
+      "retryAfter": "",
+      "body": "{\"_tag\":\"UnauthorizedError\",\"message\":\"Authentication required\"}"
+    },
+    "bearer": {
+      "status": 401,
+      "contentType": "application/json",
+      "challenge": "Basic realm=\"Secure Area\"",
+      "retryAfter": "",
+      "body": "{\"_tag\":\"UnauthorizedError\",\"message\":\"Authentication required\"}"
+    },
+    "validCredentials": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": "{\"version\":\"2.1.4\",\"pid\":0,\"urls\":[\"http://127.0.0.1:<port>\"],\"paths\":{\"tmp\":\"<isolated-root>\\\\tmp\\\\opencode\"},\"capabilities\":{\"persistentPty\":true}}"
+    },
+    "localhost": {
+      "failure": "timeout",
+      "status": null
+    },
+    "controlledTimeout": {
+      "failure": "timeout"
+    },
+    "stoppedServer": {
+      "failure": "connectionRefused",
+      "socketError": "ConnectionRefused"
+    }
+  },
+  "runtimeConnectionContractMatchesSnapshot": true,
+  "sanitization": "Credentials omitted; port, PID, and temporary path replaced. Runtime PID was checked against the launched process."
+}

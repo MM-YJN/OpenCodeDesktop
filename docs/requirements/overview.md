@@ -125,8 +125,8 @@ The v2 migration documentation states that v2 does not currently run language se
 
 ## Open Questions and Validation Work
 
-- Which exact OpenCode v2 release and compatibility policy should the client support?
-- What are the verified authentication and service-registration contracts for Windows and remote connections?
+- Which additional releases should be validated beyond the accepted [WI-001 connection baseline](../work-items/WI-001-verify-connection-contract.md)?
+- Basic server-password authentication on explicit Windows IPv4 loopback is verified. What are the supported pairing, service-registration, and remote/TLS connection contracts for later increments?
 - Which event types and identifiers are needed to reconcile execution, tool activity, and messages reliably?
 - What are the supported form types, permission decision scopes, and expiry semantics?
 - How are input inbox entries correlated with resulting messages after uncertain delivery?
