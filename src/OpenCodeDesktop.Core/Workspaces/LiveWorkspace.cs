@@ -4,7 +4,7 @@ namespace OpenCodeDesktop.Core.Workspaces;
 
 /// <summary>UI-independent workspace use case. State and events belong to the caller's synchronization context.</summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = "Each RunAsync owns its CancellationTokenSource in a using scope until the pending operation exits; navigation only cancels it.")]
-public sealed class LiveWorkspace : IDisposable
+public sealed partial class LiveWorkspace : IDisposable
 {
     private readonly ServerConnections _connections;
     private readonly IRecoveryScheduler? _recoveryScheduler;
@@ -57,7 +57,17 @@ public sealed class LiveWorkspace : IDisposable
         }
     }
 
-    private async void ConnectionChangedAsync(object? sender, EventArgs args)
+    private void ConnectionChangedAsync(object? sender, EventArgs args)
+    {
+        if (!_disposed && _connectionGeneration != _connections.Generation)
+        {
+            ConnectionTransition = ApplyConnectionAsync();
+        }
+    }
+
+    public Task ConnectionTransition { get; private set; } = Task.CompletedTask;
+
+    private async Task ApplyConnectionAsync()
     {
         if (_disposed)
         {
@@ -111,7 +121,7 @@ public sealed class LiveWorkspace : IDisposable
             Notify();
             if (remembered is not null)
             {
-                await OpenProjectAsync(remembered).ConfigureAwait(true);
+                await OpenProjectCoreAsync(remembered).ConfigureAwait(true);
             }
             else if (Tasks is { } attention && _backend.Projects.Values.FirstOrDefault() is { } retained)
             {
@@ -128,6 +138,12 @@ public sealed class LiveWorkspace : IDisposable
 
     public Task OpenProjectAsync(string directory)
     {
+        UserNavigation?.Invoke(this, EventArgs.Empty);
+        return OpenProjectCoreAsync(directory);
+    }
+
+    private Task OpenProjectCoreAsync(string directory)
+    {
         if (string.IsNullOrWhiteSpace(directory) || !IsConnected)
         {
             return Task.CompletedTask;
@@ -140,22 +156,39 @@ public sealed class LiveWorkspace : IDisposable
             WorkspacePage<WorkspaceSession> page;
             WorkspaceSession? selected = null;
             WorkspacePage<HistoryMessage>? history = null;
+            bool missingSession = false;
             try
             {
                 location = await context.ResolveAsync(directory, token).ConfigureAwait(true);
                 await context.ValidateDirectoryAsync(location.Directory, token).ConfigureAwait(true);
+                if (backend.Projects.GetValueOrDefault(directory) is { } saved &&
+                    (saved.Location.ProjectId != location.ProjectId || saved.Location.Directory != location.Directory))
+                {
+                    throw Ownership();
+                }
+
                 page = await context.SessionsAsync(location.Directory, null, token).ConfigureAwait(true);
                 ValidateSessions(location, page.Data);
-                if (backend.Projects.GetValueOrDefault(location.Directory)?.SelectedId is { } id)
+                if (backend.Projects.GetValueOrDefault(location.Directory)?.ConfirmedId is { } id)
                 {
-                    selected = await context.SessionAsync(id, token).ConfigureAwait(true);
-                    ValidateSessions(location, [selected]);
-                    if (selected.Id != id)
+                    try
                     {
-                        throw Ownership();
+                        selected = await context.SessionAsync(id, token).ConfigureAwait(true);
                     }
+                    catch (WorkspaceException error) when (error.Failure == WorkspaceFailure.NotFound)
+                    {
+                        missingSession = true;
+                    }
+                    if (selected is not null)
+                    {
+                        ValidateSessions(location, [selected]);
+                        if (selected.Id != id)
+                        {
+                            throw Ownership();
+                        }
 
-                    history = await context.HistoryAsync(id, null, token).ConfigureAwait(true);
+                        history = await context.HistoryAsync(id, null, token).ConfigureAwait(true);
+                    }
                 }
 
                 token.ThrowIfCancellationRequested();
@@ -188,12 +221,19 @@ public sealed class LiveWorkspace : IDisposable
             {
                 project.Sessions.Add(selected);
             }
+            project.SelectedId = selected?.Id;
             _project = project;
             backend.Directory = location.Directory;
             History = history?.Data.DistinctBy(m => m.Id).Reverse().ToArray() ?? [];
             HistoryLoaded = history is not null;
             project.HistoryCursors.Clear();
             project.HistoryCursor = history is { Data.Count: > 0 } ? history.Next : null;
+            if (missingSession)
+            {
+                Error = "The remembered session no longer exists. Select another session, or Retry to check it again.";
+                _retry = () => OpenProjectAsync(directory);
+            }
+            NavigationChanged?.Invoke(this, EventArgs.Empty);
             Notify();
             if (Tasks is { } tasks)
             {
@@ -213,9 +253,14 @@ public sealed class LiveWorkspace : IDisposable
         {
             return;
         }
+        UserNavigation?.Invoke(this, EventArgs.Empty);
         CancelLoad();
         project.Listed = false;
         project.OpenError = null;
+        if (_backend.Directory == directory)
+        {
+            _backend.Directory = null;
+        }
         if (_project == project)
         {
             _project = null;
@@ -226,6 +271,7 @@ public sealed class LiveWorkspace : IDisposable
         Error = null;
         _retry = null;
         Status = _project is null ? "Add a server-side directory or select a listed project." : "Project removed from list. Server work is retained.";
+        NavigationChanged?.Invoke(this, EventArgs.Empty);
         Notify();
     }
 
@@ -246,6 +292,7 @@ public sealed class LiveWorkspace : IDisposable
 
     public Task SelectSessionAsync(string? id)
     {
+        UserNavigation?.Invoke(this, EventArgs.Empty);
         if (_project is null || !IsConnected || (id is not null && !Sessions.Any(s => s.Id == id)))
         {
             return Task.CompletedTask;
@@ -262,6 +309,8 @@ public sealed class LiveWorkspace : IDisposable
         if (id is null)
         {
             Status = "New-session draft. Create a session to keep this conversation on the server.";
+            _project.ConfirmedId = null;
+            NavigationChanged?.Invoke(this, EventArgs.Empty);
             Notify();
             return Task.CompletedTask;
         }
@@ -305,6 +354,8 @@ public sealed class LiveWorkspace : IDisposable
         project.HistoryCursors.Clear();
         project.HistoryCursor = page.Data.Count == 0 ? null : page.Next;
         HistoryLoaded = true;
+        project.ConfirmedId = id;
+        NavigationChanged?.Invoke(this, EventArgs.Empty);
         if (Tasks is { } tasks)
         {
             await tasks.OpenAsync(session).ConfigureAwait(true);
@@ -427,6 +478,8 @@ public sealed class LiveWorkspace : IDisposable
 
             project.Sessions.Insert(0, created);
             project.SelectedId = created.Id;
+            project.ConfirmedId = created.Id;
+            NavigationChanged?.Invoke(this, EventArgs.Empty);
             History = [];
             HistoryLoaded = false;
             Notify();
@@ -497,7 +550,7 @@ public sealed class LiveWorkspace : IDisposable
             await action(context, load.Token, Current).ConfigureAwait(true);
             if (Current())
             {
-                Status = Tasks is null ? "Ready. Live tasks are unavailable on this connection." : "Ready. Select a model and agent to run a task.";
+                Status = Error is not null ? "Selection unavailable. Retry or select another session." : Tasks is null ? "Ready. Live tasks are unavailable on this connection." : "Ready. Select a model and agent to run a task.";
             }
         }
         catch (WorkspaceException error)
@@ -583,6 +636,8 @@ public sealed class LiveWorkspace : IDisposable
             HistoryLoaded = true;
             project.HistoryCursor = state.HistoryCursor;
             project.HistoryCursors.Clear();
+            project.ConfirmedId = id;
+            NavigationChanged?.Invoke(this, EventArgs.Empty);
             Error = null;
             _retry = null;
             Status = "Ready. Server state refreshed.";
@@ -631,6 +686,7 @@ public sealed class LiveWorkspace : IDisposable
         public List<WorkspaceSession> Sessions { get; } = [];
         public Dictionary<string, string> Drafts { get; } = new(StringComparer.Ordinal);
         public string? SelectedId { get; set; }
+        public string? ConfirmedId { get; set; }
         public string? SessionCursor { get; set; }
         public string? HistoryCursor { get; set; }
         public HashSet<string> SessionCursors { get; } = new(StringComparer.Ordinal);

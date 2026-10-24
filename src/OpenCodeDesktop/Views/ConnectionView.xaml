@@ -35,7 +35,8 @@
                     </StackPanel>
                     <Button x:Name="AddServerButton" Grid.Column="1" Content="+ Add server" Click="Add_Click" VerticalAlignment="Center"/>
                 </Grid>
-                <TextBlock Text="Profiles last for this app session. Only local OpenCode 2.1.4 servers are supported." Style="{StaticResource ShellSecondaryTextStyle}"/>
+                <TextBlock Text="Profiles and project selections are saved on this device. Only local OpenCode 2.1.4 servers are supported." Style="{StaticResource ShellSecondaryTextStyle}"/>
+                <CheckBox x:Name="RememberCredentials" Content="Remember credentials on this device" IsChecked="True"/>
                 <Border Style="{StaticResource ShellCardStyle}" Padding="16">
                     <StackPanel Spacing="8">
                         <TextBlock Text="Local environment" Style="{StaticResource ShellHeadingTextStyle}"/>
@@ -65,7 +66,7 @@
                             <PasswordBox x:Name="ServerPassword" Grid.Row="2" Grid.Column="1" MaxLength="4096" PasswordRevealMode="Peek" AutomationProperties.Name="Server password"/>
                         </Grid>
                         <TextBlock x:Name="DefaultAddressHint" Style="{StaticResource ShellSecondaryTextStyle}"/>
-                        <TextBlock Text="Password is used for this connection only. It is never saved." Style="{StaticResource ShellSecondaryTextStyle}"/>
+                        <TextBlock Text="Leave the password blank to use a saved credential. Remembered passwords are protected for your Windows user." Style="{StaticResource ShellSecondaryTextStyle}"/>
                         <InfoBar x:Name="SwitchInformation" IsOpen="True" IsClosable="False" Severity="Informational"
                                  Message="Your current server stays active until the new connection is ready."/>
                         <InfoBar x:Name="ResultBar" IsOpen="False" IsClosable="False" AutomationProperties.LiveSetting="Polite"/>

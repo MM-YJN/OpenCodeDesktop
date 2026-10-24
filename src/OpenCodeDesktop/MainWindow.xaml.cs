@@ -23,11 +23,15 @@ public sealed partial class MainWindow : Window
     private readonly ServerConnections _connections;
     private readonly LiveWorkspace _liveWorkspace;
     private double _rasterizationScale;
+    private readonly WorkspacePersistence _persistence;
+    private bool _closeReady;
+    private bool _closing;
 
-    public MainWindow(ServerConnections connections, ILocalServerDiscovery localDiscovery)
+    public MainWindow(ServerConnections connections, ILocalServerDiscovery localDiscovery, IWorkspaceSettingsStore settings, ICredentialStore credentials)
     {
         _connections = connections;
         _liveWorkspace = new LiveWorkspace(connections);
+        _persistence = new(connections, _liveWorkspace, settings, credentials);
         _workspaceView.Bind(_liveWorkspace);
         _settingsView = new SettingsView(connections, localDiscovery);
         InitializeComponent();
@@ -40,6 +44,8 @@ public sealed partial class MainWindow : Window
         ShellRoot.ActualThemeChanged += (_, _) => UpdateConnectionStatus();
         UpdateConnectionStatus();
         Closed += MainWindow_Closed;
+        _persistence.Changed += PersistenceChanged;
+        AppWindow.Closing += AppWindow_ClosingAsync;
     }
 
     private void ShowSettings(bool show)
@@ -80,15 +86,16 @@ public sealed partial class MainWindow : Window
         });
     }
 
-    private void ShellRoot_Loaded(object sender, RoutedEventArgs args)
+    private async void ShellRoot_LoadedAsync(object sender, RoutedEventArgs args)
     {
-        ShellRoot.Loaded -= ShellRoot_Loaded;
+        ShellRoot.Loaded -= ShellRoot_LoadedAsync;
         ShellRoot.XamlRoot.Changed += XamlRoot_Changed;
         UpdateWindowMinimumSize();
         AppWindow.ResizeClient(new SizeInt32(
             ScaleDimension("ShellWindowInitialWidth"),
             ScaleDimension("ShellWindowInitialHeight")));
         _workspaceView.Focus(FocusState.Programmatic);
+        await _persistence.StartAsync().ConfigureAwait(true);
     }
 
     private void XamlRoot_Changed(XamlRoot sender, XamlRootChangedEventArgs args)
@@ -111,8 +118,49 @@ public sealed partial class MainWindow : Window
 
     private int ScaleDimension(string key) => (int)Math.Ceiling((double)Application.Current.Resources[key] * _rasterizationScale);
 
+    private void PersistenceChanged(object? sender, EventArgs args)
+    {
+        var state = Presentation.WorkspacePersistencePresentation.From(_persistence);
+        PersistenceNotice.IsOpen = state.Message is not null;
+        PersistenceNotice.Message = state.Message ?? "";
+        PersistenceNotice.Severity = state.IsError ? InfoBarSeverity.Warning : InfoBarSeverity.Informational;
+        RestoreProgress.IsActive = state.IsRestoring;
+        RestoreRetry.Visibility = state.CanRetry ? Visibility.Visible : Visibility.Collapsed;
+        SaveRetry.Visibility = state.CanSave ? Visibility.Visible : Visibility.Collapsed;
+        SettingsReset.Visibility = state.CanReset ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private async void RestoreRetry_ClickAsync(object sender, RoutedEventArgs args) => await _persistence.RetryAsync().ConfigureAwait(true);
+    private void SaveRetry_Click(object sender, RoutedEventArgs args) => _persistence.RetrySave();
+    private async void SettingsReset_ClickAsync(object sender, RoutedEventArgs args) => await _persistence.ResetAsync().ConfigureAwait(true);
+    private void Connections_Click(object sender, RoutedEventArgs args) => ShowSettings(true);
+
+    private async void AppWindow_ClosingAsync(AppWindow sender, AppWindowClosingEventArgs args)
+    {
+        if (_closeReady)
+        {
+            return;
+        }
+
+        args.Cancel = true;
+        if (_closing)
+        {
+            return;
+        }
+
+        _closing = true;
+        _persistence.Dispose();
+        _connections.Cancel();
+        await _persistence.FlushAsync().ConfigureAwait(true);
+        _closeReady = true;
+        Close();
+    }
+
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
+        _persistence.Changed -= PersistenceChanged;
+        _persistence.Dispose();
+        AppWindow.Closing -= AppWindow_ClosingAsync;
         _settingsView.ClearPassword();
         _settingsView.Shutdown();
         _workspaceView.Unbind();

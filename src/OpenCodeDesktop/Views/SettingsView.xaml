@@ -10,7 +10,7 @@
         <StackPanel Spacing="{StaticResource ShellSpaceSmall}">
             <Button Content="Return to Workspace" Click="Return_Click"/>
             <TextBlock Text="Settings" Style="{StaticResource ShellSelectableHeadingTextStyle}"/>
-            <TextBlock x:Name="FeedbackText" Text="Connection checks contact the selected server. Profiles and preferences last for this app session only."
+            <TextBlock x:Name="FeedbackText" Text="Connections and workspace selections are saved on this device. Other preference previews remain in memory."
                        Style="{StaticResource ShellSelectableBodyTextStyle}"/>
             <ComboBox x:Name="Sections" Header="Section" AutomationProperties.Name="Section" HorizontalAlignment="Stretch" SelectionChanged="Sections_Changed">
                 <x:String>Connections</x:String>

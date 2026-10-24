@@ -16,6 +16,7 @@ using Microsoft.UI.Xaml.Shapes;
 
 using OpenCodeDesktop.Core.Connections;
 using OpenCodeDesktop.Infrastructure.Connections;
+using OpenCodeDesktop.Infrastructure.Persistence;
 
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
@@ -50,9 +51,12 @@ public partial class App : Application
     {
         HttpClient client = OpenCodeConnectionService.CreateHttpClient();
         OpenCodeConnectionService connectionService = new(client);
-        ServerConnections connections = new(connectionService);
+        using var appData = Microsoft.Windows.Storage.ApplicationData.GetDefault();
+        DpapiCredentialStore credentials = new(System.IO.Path.Combine(appData.LocalCachePath, "Credentials"));
+        JsonWorkspaceSettingsStore settings = new(appData.LocalPath);
+        ServerConnections connections = new(connectionService, credentials);
         ILocalServerDiscovery localDiscovery = new LocalServerDiscovery(connectionService, new LocalOpenCodeCommands());
-        _window = new MainWindow(connections, localDiscovery);
+        _window = new MainWindow(connections, localDiscovery, settings, credentials);
         _window.Closed += (_, _) => client.Dispose();
         _window.Activate();
     }

@@ -38,9 +38,9 @@ public sealed class LocalEnvironment : IDisposable
     public bool CanAdd => !_disposed && !IsBusy && !_connections.IsConnecting && Detected is not null && !IsAlreadyConnected;
 
     public Task DetectAsync() => RunAsync(false);
-    public Task AddAsync() => CanAdd ? RunAsync(true) : Task.CompletedTask;
+    public Task AddAsync(bool rememberCredentials = true) => CanAdd ? RunAsync(true, rememberCredentials) : Task.CompletedTask;
 
-    private async Task RunAsync(bool add)
+    private async Task RunAsync(bool add, bool rememberCredentials = true)
     {
         if (_disposed || IsBusy || _connections.IsConnecting)
         {
@@ -91,8 +91,7 @@ public sealed class LocalEnvironment : IDisposable
                         Message = "The local environment changed or its password could not be verified. Detect again or enter a server manually.";
                         return;
                     }
-                    ServerProfile? profile = _connections.Profiles.FirstOrDefault(p => p.Address.Display == target.Address.Display)
-                        ?? _connections.Save(null, "Local OpenCode", target.Address.Display);
+                    ServerProfile? profile = SaveLocalProfile(target, rememberCredentials);
                     if (profile is null)
                     {
                         Message = "The local profile could not be added. Finish the current connection and retry.";
@@ -140,6 +139,12 @@ public sealed class LocalEnvironment : IDisposable
                 Notify();
             }
         }
+    }
+
+    private ServerProfile? SaveLocalProfile(LocalServerInfo target, bool rememberCredentials)
+    {
+        ServerProfile? existing = _connections.Profiles.FirstOrDefault(p => p.Address.Display == target.Address.Display);
+        return _connections.Save(existing?.Id, existing?.Name ?? "Local OpenCode", target.Address.Display, rememberCredentials);
     }
 
     private bool IsCurrent(long generation, CancellationToken token) => !_disposed && generation == _generation && !token.IsCancellationRequested;

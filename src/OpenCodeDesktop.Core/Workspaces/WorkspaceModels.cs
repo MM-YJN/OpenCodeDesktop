@@ -6,7 +6,7 @@ public sealed record WorkspaceSession(string Id, string Directory, string Projec
 public sealed record HistoryMessage(string Id, string Kind, string Text);
 public sealed record WorkspacePage<T>(IReadOnlyList<T> Data, string? Next);
 
-public enum WorkspaceFailure { Cancelled, Unauthorized, Timeout, Transport, Http, Protocol, Size }
+public enum WorkspaceFailure { Cancelled, Unauthorized, Timeout, Transport, NotFound, Http, Protocol, Size }
 
 /// <summary>Only client-authored text belongs in an operation failure.</summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1032:Implement standard exception constructors", Justification = "Failures require a classified outcome and client-authored safe text; arbitrary exception wrapping is intentionally excluded.")]

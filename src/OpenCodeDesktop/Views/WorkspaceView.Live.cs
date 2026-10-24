@@ -76,10 +76,10 @@ public sealed partial class WorkspaceView
 
         var presentation = LiveWorkspacePresentation.From(live);
         LiveProjectControls.Visibility = Visibility.Visible;
-        OpenDirectoryButton.IsEnabled = live.IsConnected && !live.IsLoading;
+        OpenDirectoryButton.IsEnabled = live.IsConnected;
         ServerDirectory.IsEnabled = live.IsConnected;
         NewTaskButton.Content = "New-session draft";
-        NewTaskButton.IsEnabled = live.Location is not null && !live.IsLoading;
+        NewTaskButton.IsEnabled = live.Location is not null;
         WorkspaceLoading.Visibility = live.IsLoading ? Visibility.Visible : Visibility.Collapsed;
         bool statusChanged = WorkspaceStatus.Text != live.Status;
         bool errorChanged = WorkspaceError.Text != (live.Error ?? "");
@@ -130,7 +130,7 @@ public sealed partial class WorkspaceView
             foreach (ProjectListPresentation project in LiveWorkspacePresentation.ProjectList(live))
             {
                 string path = project.Path;
-                Button select = LiveAction(project.Label, () => live.OpenProjectAsync(path), !live.IsLoading);
+                Button select = LiveAction(project.Label, () => live.OpenProjectAsync(path), live.IsConnected);
                 ToolTipService.SetToolTip(select, path);
                 AutomationProperties.SetItemStatus(select, project.IsSelected ? "Selected project" : "Project");
                 ProjectList.Children.Add(select);
@@ -138,7 +138,7 @@ public sealed partial class WorkspaceView
                 {
                     live.RemoveProject(path);
                     return Task.CompletedTask;
-                }, !live.IsLoading);
+                }, live.IsConnected);
                 AutomationProperties.SetName(remove, "Remove from list: " + path);
                 ToolTipService.SetToolTip(remove, "Forget " + path + ". Server work and drafts are retained.");
                 ProjectList.Children.Add(remove);

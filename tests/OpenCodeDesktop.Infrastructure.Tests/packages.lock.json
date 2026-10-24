@@ -69,6 +69,11 @@
         "resolved": "6.0.1",
         "contentHash": "IQ4NXP/B3Ayzvw0rDQzVTYsCKyy0Jp9KI6aYcK7UnGVlR9+Awz++TIPCQtPYfLJfOpm8ajowMR09V7quD3sEHw=="
       },
+      "System.Security.Cryptography.ProtectedData": {
+        "type": "Transitive",
+        "resolved": "10.0.0",
+        "contentHash": "qy6C3gQRTrfhFfuiIYU1jNwWfFdJpBVo1BARW7jgMm1zTEm3LRzLLyOLJGaAuKE+nZCGkEP71y4rj9NWjqLGdQ=="
+      },
       "xunit.analyzers": {
         "type": "Transitive",
         "resolved": "2.2.0",
@@ -133,7 +138,8 @@
       "opencodedesktop.infrastructure": {
         "type": "Project",
         "dependencies": {
-          "OpenCodeDesktop.Core": "[1.0.0, )"
+          "OpenCodeDesktop.Core": "[1.0.0, )",
+          "System.Security.Cryptography.ProtectedData": "[10.0.0, )"
         }
       }
     }

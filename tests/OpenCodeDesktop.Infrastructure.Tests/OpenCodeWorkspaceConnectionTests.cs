@@ -74,7 +74,7 @@ public sealed class OpenCodeWorkspaceConnectionTests
     [Theory]
     [InlineData(400, WorkspaceFailure.Http)]
     [InlineData(401, WorkspaceFailure.Unauthorized)]
-    [InlineData(404, WorkspaceFailure.Http)]
+    [InlineData(404, WorkspaceFailure.NotFound)]
     [InlineData(500, WorkspaceFailure.Http)]
     [InlineData(503, WorkspaceFailure.Http)]
     [InlineData(302, WorkspaceFailure.Http)]

@@ -58,7 +58,7 @@ public sealed partial class ConnectionView : UserControl
     {
         ClearPassword();
         long activation = _activation;
-        await _local.AddAsync().ConfigureAwait(true);
+        await _local.AddAsync(RememberCredentials.IsChecked == true).ConfigureAwait(true);
         if (activation == _activation && IsLoaded && _local.IsAlreadyConnected && _connections.Active is { } active)
         {
             Edit(active.Profile);
@@ -69,11 +69,12 @@ public sealed partial class ConnectionView : UserControl
     {
         if (_connections.IsConnecting)
         {
-            return;
+            _connections.Cancel();
         }
 
         ClearPassword();
         _editingId = profile?.Id;
+        RememberCredentials.IsChecked = profile?.RememberCredentials ?? true;
         ServerName.Text = profile?.Name ?? "";
         ServerOrigin.Text = profile?.Address.Display ?? ServerAddress.DefaultOrigin;
         _showFeedback = false;
@@ -102,19 +103,25 @@ public sealed partial class ConnectionView : UserControl
 
         EditorHeading.Text = editingActive ? "Active server" : _editingId.HasValue ? "Edit server" : "Add server";
         ServerName.IsEnabled = ServerOrigin.IsEnabled = ServerPassword.IsEnabled = !busy && !editingActive;
+        RememberCredentials.IsEnabled = !busy && !editingActive;
         AddServerButton.IsEnabled = !busy;
         SaveButton.IsEnabled = ConnectButton.IsEnabled = !busy && !editingActive;
         ConnectButton.Content = _connections.Active is null ? "Connect" : "Connect & switch";
         CancelButton.Content = _local.IsBusy ? "Cancel local operation" : busy ? "Cancel connection" : "Cancel";
-        DisconnectButton.Visibility = _connections.Active is null ? Visibility.Collapsed : Visibility.Visible;
-        DisconnectButton.IsEnabled = !busy;
+        DisconnectButton.Visibility = _connections.Active is null && !_connections.IsConnecting ? Visibility.Collapsed : Visibility.Visible;
+        DisconnectButton.IsEnabled = true;
         SwitchInformation.Message = editingActive ? "Disconnect this server before editing or removing it."
             : _connections.Active is null ? "Enter an existing local server address and its password to check readiness."
             : "Your current server stays active until the new connection is ready.";
         ConnectingProgress.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
-        ResultBar.IsOpen = _showFeedback;
-        ResultBar.Message = _connections.Message;
-        ResultBar.Severity = _connections.LastResult is { } result
+        RefreshResult();
+    }
+
+    private void RefreshResult()
+    {
+        ResultBar.IsOpen = _showFeedback || _connections.CredentialError is not null;
+        ResultBar.Message = _connections.CredentialError ?? _connections.Message;
+        ResultBar.Severity = _connections.CredentialError is not null ? InfoBarSeverity.Warning : _connections.LastResult is { } result
             ? result.IsReady ? InfoBarSeverity.Success : result.Outcome == ConnectionOutcome.Cancelled ? InfoBarSeverity.Informational : InfoBarSeverity.Error
             : InfoBarSeverity.Informational;
     }
@@ -134,7 +141,7 @@ public sealed partial class ConnectionView : UserControl
                 : connecting ? "Connecting…" : "Not connected";
             var select = (Button)card.FindName("Select");
             select.Content = active ? "View" : "Connect";
-            select.IsEnabled = !busy;
+            select.IsEnabled = true;
             select.Click += (_, _) => Edit(profile);
             AutomationProperties.SetName(select, (active ? "View " : "Connect to ") + profile.Name);
             var remove = (Button)card.FindName("Remove");
@@ -162,7 +169,7 @@ public sealed partial class ConnectionView : UserControl
     private ServerProfile? Save()
     {
         _showFeedback = true;
-        ServerProfile? profile = _connections.Save(_editingId, ServerName.Text, ServerOrigin.Text);
+        ServerProfile? profile = _connections.Save(_editingId, ServerName.Text, ServerOrigin.Text, RememberCredentials.IsChecked == true);
         if (profile is not null)
         {
             _editingId = profile.Id;

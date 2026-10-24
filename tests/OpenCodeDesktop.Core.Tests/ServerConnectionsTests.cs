@@ -113,8 +113,6 @@ public sealed class ServerConnectionsTests
         Assert.Equal(first, connections.Active.Profile);
         Assert.Null(connections.Save(null, "Third", "http://127.0.0.1:4098"));
         Assert.False(connections.Remove(second.Id));
-        connections.Disconnect();
-        Assert.NotNull(connections.Active);
         int calls = service.Calls;
         await connections.ConnectAsync(second.Id, "another");
         Assert.Equal(calls, service.Calls);

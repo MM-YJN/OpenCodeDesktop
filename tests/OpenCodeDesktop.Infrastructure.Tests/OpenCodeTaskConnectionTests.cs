@@ -28,7 +28,7 @@ public sealed partial class OpenCodeTaskConnectionTests
         WorkspaceException error = await Assert.ThrowsAsync<WorkspaceException>(() => api.ReplyFormAsync("s", "frm", new Dictionary<string, object>(), TestContext.Current.CancellationToken));
         Assert.Equal(1, calls);
         Assert.DoesNotContain("secret", error.Message, StringComparison.Ordinal);
-        Assert.Equal(status == HttpStatusCode.Unauthorized ? WorkspaceFailure.Unauthorized : WorkspaceFailure.Http, error.Failure);
+        Assert.Equal(status == HttpStatusCode.Unauthorized ? WorkspaceFailure.Unauthorized : status == HttpStatusCode.NotFound ? WorkspaceFailure.NotFound : WorkspaceFailure.Http, error.Failure);
     }
     [Theory]
     [InlineData(1)]

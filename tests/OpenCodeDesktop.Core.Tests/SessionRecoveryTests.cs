@@ -72,11 +72,16 @@ public sealed partial class LiveTaskWorkflowTests
         ServerProfile profile = connections.Save(null, "Test", "http://127.0.0.1:4096")!;
         await connections.ConnectAsync(profile.Id, "secret", TestContext.Current.CancellationToken);
         using LiveWorkspace workspace = new(connections, scheduler);
+        RecoveryStore store = new();
+        using WorkspacePersistence persistence = new(connections, workspace, store, store);
+        await persistence.StartAsync();
         await workspace.OpenProjectAsync("/dir");
         api.HistoryFailure = new WorkspaceException(WorkspaceFailure.Transport, "offline");
         await workspace.SelectSessionAsync("s");
         workspace.Draft = "keep this unsent";
         Assert.False(workspace.HistoryLoaded);
+        await persistence.FlushAsync();
+        Assert.Null(store.Value!.Connections[0].Projects[0].SessionId);
         DelayRequest delay = await scheduler.NextAsync();
         api.HistoryFailure = null;
         api.History = [new("missed", "assistant", "server history")];
@@ -87,6 +92,8 @@ public sealed partial class LiveTaskWorkflowTests
         Assert.Single(workspace.History);
         Assert.Equal("keep this unsent", workspace.Draft);
         Assert.Equal(0, api.Submissions);
+        await persistence.FlushAsync();
+        Assert.Equal("s", store.Value.Connections[0].Projects[0].SessionId);
     }
 
     [Fact]
@@ -335,6 +342,21 @@ public sealed partial class LiveTaskWorkflowTests
         {
             workflow.Changed -= Changed;
         }
+    }
+
+    private sealed class RecoveryStore : IWorkspaceSettingsStore, ICredentialStore
+    {
+        public WorkspaceSettings? Value { get; private set; }
+        public Task<WorkspaceSettings?> LoadAsync(CancellationToken cancellationToken) => Task.FromResult<WorkspaceSettings?>(null);
+        public Task SaveAsync(WorkspaceSettings settings, CancellationToken cancellationToken)
+        {
+            Value = settings;
+            return Task.CompletedTask;
+        }
+        public Task ResetAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<string> SaveAsync(string password, CancellationToken cancellationToken) => throw new InvalidOperationException();
+        public Task<string> ReadAsync(string reference, CancellationToken cancellationToken) => throw new InvalidOperationException();
+        public Task DeleteAsync(string reference, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class Scheduler : IRecoveryScheduler

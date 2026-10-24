@@ -4,14 +4,26 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="OpenCode Desktop">
-    <Grid x:Name="ShellRoot" Background="{ThemeResource ShellSurfaceBrush}" Loaded="ShellRoot_Loaded">
+    <Grid x:Name="ShellRoot" Background="{ThemeResource ShellSurfaceBrush}" Loaded="ShellRoot_LoadedAsync">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <Grid x:Name="ShellContentHost" />
+        <InfoBar x:Name="PersistenceNotice" IsOpen="False" IsClosable="False" AutomationProperties.LiveSetting="Polite">
+            <InfoBar.Content>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <ProgressRing x:Name="RestoreProgress" IsActive="False" Width="20" Height="20"/>
+                    <Button x:Name="RestoreRetry" Content="Retry restoration" Click="RestoreRetry_ClickAsync"/>
+                    <Button x:Name="SaveRetry" Content="Retry saving" Click="SaveRetry_Click"/>
+                    <Button x:Name="SettingsReset" Content="Reset saved settings" Click="SettingsReset_ClickAsync"/>
+                    <Button Content="Connections" Click="Connections_Click"/>
+                </StackPanel>
+            </InfoBar.Content>
+        </InfoBar>
+        <Grid x:Name="ShellContentHost" Grid.Row="1" />
         <Border
-            Grid.Row="1"
+            Grid.Row="2"
             Background="{ThemeResource ShellStatusSurfaceBrush}"
             BorderBrush="{ThemeResource ShellBorderBrush}"
             BorderThickness="{StaticResource ShellStatusBorderThickness}"

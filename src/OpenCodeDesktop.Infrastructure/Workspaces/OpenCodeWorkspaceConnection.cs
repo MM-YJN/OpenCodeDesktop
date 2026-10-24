@@ -83,7 +83,7 @@ public sealed partial class OpenCodeWorkspaceConnection(HttpClient client, Serve
 
                     if (response.StatusCode != expected)
                     {
-                        throw new WorkspaceException(WorkspaceFailure.Http,
+                        throw new WorkspaceException(response.StatusCode == HttpStatusCode.NotFound ? WorkspaceFailure.NotFound : WorkspaceFailure.Http,
                         $"The server returned HTTP {(int)response.StatusCode}. Check the server directory or session and retry. Redirects are not followed.");
                     }
 
