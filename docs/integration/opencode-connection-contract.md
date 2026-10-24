@@ -70,7 +70,7 @@ The application need not fetch OpenAPI on each connection. Version plus shape is
 | Invalid or outside-scope address | Reject locally before any request; explain the accepted format | Client design; deterministic validation tests required in WI-002 |
 | Socket connection refused | Show that no service is accepting connections at the address/port | Observed after terminating the owned server: `SocketError.ConnectionRefused` |
 | Request deadline elapsed | Show timeout, keep address/input available for manual retry | Observed using a loopback TCP fixture that accepted a connection but sent no HTTP response |
-| User cancellation | Stop the attempt and return to disconnected; do not show timeout | Client design; WI-002 test required |
+| User cancellation | Stop the attempt without showing timeout; remain disconnected on an initial attempt, or retain the existing active backend when cancelling a switch | Client design; covered by WI-002 controlled tests |
 | HTTP 401 | Authentication failed; allow password correction without logging it | Runtime-observed for four invalid/missing authentication cases |
 | HTTP 200 with unsupported version | Unsupported server; display reported and supported versions | Version policy; WI-002 fixture test required |
 | HTTP 200 with malformed/missing required fields, non-JSON, or wrong types | Invalid/incompatible response; never enter Ready | Client design informed by retained schema; WI-002 fixture tests required |

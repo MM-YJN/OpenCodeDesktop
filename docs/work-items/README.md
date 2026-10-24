@@ -8,9 +8,10 @@ This is the active index for unfinished work, in intended execution order. Done 
 
 | ID | Task | Type | Status | Dependencies |
 | --- | --- | --- | --- | --- |
-| [WI-002](WI-002-implement-server-connection.md) | Connect to the pinned existing OpenCode server | Implementation | Ready | [WI-001](WI-001-verify-connection-contract.md), [WI-003](WI-003-implement-application-shell.md), [WI-004](WI-004-implement-interactive-workspace-layout.md) |
 
-Next: WI-002. WI-004 is complete with user acceptance; implement the connection UI inside Settings. WI-002 has not started.
+No active work items.
+
+Next: None defined. WI-002 was completed with user acceptance on 2026-10-24.
 
 ## Working Agreements
 

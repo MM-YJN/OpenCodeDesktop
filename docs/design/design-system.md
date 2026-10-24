@@ -12,7 +12,7 @@ The App-only `Presentation/SampleWorkspace.cs` owns transient projects, sessions
 
 `DetailsView` uses native Info, Files, and Changes Pivot tabs. Each sample session remembers its active tab, selected file, comparison, selected change, and conversation/Details vertical offsets. Closing the pane retains its view; expand/restore resizes the existing content. Text and code are selectable. Unified diffs use `+`, `-`, space prefixes and file/hunk headers so changes do not rely on color.
 
-`SettingsView` retains a scrollable surface for each of Connections, Models & Providers, Extensions, Permissions, Appearance, and Notifications. The section selector remains outside the section scroll area. Controls report local sample feedback. Appearance continues following the system theme; no preference is persisted. Service-dependent operations have explicit explanations. Connections is a layout-only form with a read-only example address and disabled password field, so it cannot retain a real secret.
+`SettingsView` retains a scrollable surface for each of Connections, Models & Providers, Extensions, Permissions, Appearance, and Notifications. The section selector remains outside the section scroll area. Non-connection controls report local sample feedback. Appearance continues following the system theme; no preference is persisted. Connections now performs real identity probes; the other service-dependent operations remain samples.
 
 ## Semantic resources
 
@@ -78,9 +78,15 @@ Window dimensions are converted to physical pixels with `XamlRoot.RasterizationS
 
 ## WI-002 integration point
 
-`Views/ConnectionView.xaml` is instantiated inside the Connections section of `SettingsView`; WI-002 replaces this layout-only form with real connection presentation and a use case. Do not introduce a Connection rail destination. Compose Core interfaces and Infrastructure implementations at application startup, not in sample models.
+The accepted [multiple-server concept](server-connections-concept.png) adds a quick selector above Projects and profile management inside Settings > Connections. The PNG and [generation prompt](server-connections-concept.prompt.txt) are retained in the repository. Implementation follows the system theme; the light concept does not override the user's Windows theme or accent.
 
-`MainWindow.ConnectionStatusText` remains the persistent connection presentation seam. WI-002 must update its visible text, accessible name, and semantic brush together on the UI thread using real connection state. Keep session execution independent and sample fixtures separate from future service composition. No real server path is read through a local file API by the sample workspace.
+`App.OnLaunched` composes one Core `ServerConnections` use case, an Infrastructure `OpenCodeConnectionService`, and its redirect-disabled/cookie-free/proxy-free `HttpClient`. Window shutdown cancels the attempt and disposes owned resources. Core owns validated local origins, named in-memory profiles, version policy, attempt gating, and atomic active-server promotion. Infrastructure owns Basic authentication, the bounded identity response, five-second total deadline, cancellation, and safe failure mapping.
+
+`ConnectionView` owns the native profile cards and editor. Profiles start empty; names and addresses survive only for this app lifetime. Inactive profiles can be edited or removed; disconnect before changing an active profile. Save server works without a probe. Connect (or Connect & switch when already active) saves the validated target and explicitly probes it. An active card uses an accent border and a written checkmark/state, with `ShellConnectedBrush` for success (system success color in light/dark, system window text in high contrast). Failed and cancelled switches preserve the previous active identity; unprobed profiles never imply availability. The editor scrolls, while Save/Connect/Cancel remain in a separate bottom row. Busy state disables profile mutation and additional attempts. Name/address remain available for correction. The masked password clears when submitted, saved, cancelled, an editor changes, leaving Connections/Settings, or closing the window; it is never stored in a profile.
+
+`ServerSelectorPresenter` renders the Projects button and its native MenuFlyout. Menu entries show profile name, origin, and Active/Not connected. Choosing a target opens Settings > Connections for password entry; Manage connections opens the add form. The selector label does not select text, so pointer activation reaches the button. Settings still has one footer entry and no application navigation rail.
+
+`MainWindow.ConnectionStatusText` updates visible text, accessible name, and semantic brush together using real identity-probe state. It includes active name/origin/version and target progress independently of sample execution state. Its sample-workspace label remains visible after success. No live projects or sessions are loaded, no sample request is sent to a server, and no returned server path is read through a local file API. Sample drafts and selections survive Settings navigation and backend changes. Actual server-scoped workspace restoration and task-switching semantics await later integrations.
 
 ## Verification
 

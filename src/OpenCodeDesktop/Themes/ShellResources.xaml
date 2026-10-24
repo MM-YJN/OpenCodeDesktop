@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
+            <SolidColorBrush x:Key="ShellConnectedBrush" Color="{StaticResource SystemFillColorSuccess}" />
             <SolidColorBrush x:Key="ShellSurfaceBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
             <SolidColorBrush x:Key="ShellContentSurfaceBrush" Color="{StaticResource LayerFillColorDefault}" />
             <SolidColorBrush x:Key="ShellStatusSurfaceBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
@@ -14,6 +15,7 @@
             <SolidColorBrush x:Key="ShellDisconnectedBrush" Color="{StaticResource TextFillColorSecondary}" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
+            <SolidColorBrush x:Key="ShellConnectedBrush" Color="{StaticResource SystemFillColorSuccess}" />
             <SolidColorBrush x:Key="ShellSurfaceBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
             <SolidColorBrush x:Key="ShellContentSurfaceBrush" Color="{StaticResource LayerFillColorDefault}" />
             <SolidColorBrush x:Key="ShellStatusSurfaceBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
@@ -24,6 +26,7 @@
             <SolidColorBrush x:Key="ShellDisconnectedBrush" Color="{StaticResource TextFillColorSecondary}" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="HighContrast">
+            <SolidColorBrush x:Key="ShellConnectedBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
             <SolidColorBrush x:Key="ShellSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
             <SolidColorBrush x:Key="ShellContentSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
             <SolidColorBrush x:Key="ShellStatusSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />

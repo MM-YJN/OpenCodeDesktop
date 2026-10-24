@@ -10,6 +10,8 @@
                 <Grid Width="{StaticResource ShellProjectsPanelWidth}" Padding="12">
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                     <StackPanel Spacing="8">
+                        <Button x:Name="ServerSelector" Content="Select server ▾" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                AutomationProperties.Name="Switch server"/>
                         <TextBlock Text="Projects" Style="{StaticResource ShellHeadingTextStyle}"/>
                         <Button Content="Close Projects" Click="CloseProjects_Click"/>
                         <Button x:Name="NewTaskButton" Content="New task" Click="NewTask_Click"/>

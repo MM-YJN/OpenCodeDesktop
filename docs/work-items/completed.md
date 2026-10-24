@@ -9,3 +9,4 @@ This index records Done items, grouped by completion year. Read the [active inde
 | [WI-001](WI-001-verify-connection-contract.md) | Establish and verify the initial OpenCode v2 connection contract | Investigation | Done | None | 2026-10-24 |
 | [WI-003](WI-003-implement-application-shell.md) | Define design tokens and implement the application shell | Implementation | Done | None | 2026-10-24 |
 | [WI-004](WI-004-implement-interactive-workspace-layout.md) | Implement the interactive workspace layout and Settings navigation | Implementation | Done | [WI-003](WI-003-implement-application-shell.md) | 2026-10-24 |
+| [WI-002](WI-002-implement-server-connection.md) | Connect to and switch between OpenCode server backends | Implementation | Done | [WI-001](WI-001-verify-connection-contract.md), [WI-003](WI-003-implement-application-shell.md), [WI-004](WI-004-implement-interactive-workspace-layout.md) | 2026-10-24 |

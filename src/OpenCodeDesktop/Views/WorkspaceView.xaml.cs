@@ -28,6 +28,7 @@ public sealed partial class WorkspaceView : UserControl
     private FrameworkElement? _requestCard;
 
     public event EventHandler? SettingsRequested;
+    internal Button ConnectionSelector => ServerSelector;
     public event EventHandler? AttentionChanged;
     public int AttentionCount => _state.AttentionCount;
 

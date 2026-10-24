@@ -17,6 +17,7 @@ This document records the initial product direction derived from the official v2
 - Preserve continuity when users switch sessions, restart the app, or reconnect.
 - Use OpenCode for agent execution, model access, and tools while focusing this client on Windows interaction and task presentation.
 - Support server-owned projects and paths without assuming that every file exists on the client machine.
+- Allow users to connect to different OpenCode server backends and switch the active backend. Make server identity visible and keep projects and sessions scoped to their owning server. This product direction does not establish remote-host support or a profile/credential persistence contract.
 
 ## Workspace Layout
 
@@ -59,7 +60,7 @@ The following resource groups describe the documented capabilities relevant to p
 
 | ID | Requirement |
 | --- | --- |
-| CON-01 | Connect to an existing OpenCode v2 server using the supported authentication mechanism and display connection readiness and actionable errors. |
+| CON-01 | Manage multiple named existing OpenCode v2 server backends, connect using the supported authentication mechanism, and explicitly switch the active backend. Display active-server identity, readiness, and actionable errors; a failed or cancelled switch retains the previous active backend. Initial profiles are in memory and use the verified local-address boundary. |
 | CON-02 | Detect and communicate an unsupported server version or contract instead of silently continuing with incompatible behavior. |
 | PRJ-01 | Select a server-side project directory and show the active server and directory clearly. |
 | SES-01 | List sessions, create a session, switch between sessions, and load message history with pagination where required. |

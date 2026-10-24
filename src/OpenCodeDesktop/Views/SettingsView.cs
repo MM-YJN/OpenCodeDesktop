@@ -3,6 +3,8 @@ using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
+using OpenCodeDesktop.Core.Connections;
+
 using static OpenCodeDesktop.Views.WorkspaceControls;
 
 namespace OpenCodeDesktop.Views;
@@ -10,11 +12,14 @@ namespace OpenCodeDesktop.Views;
 internal sealed class SettingsView : UserControl
 {
     private readonly Grid _pages = new();
-    private readonly TextBlock _feedback = Text("Settings controls below change memory only. Nothing is persisted.");
+    private readonly TextBlock _feedback = Text("Connection checks contact the selected server. Profiles and preferences last for this app session only.");
+    private readonly ConnectionView _connectionsView;
+    private readonly ComboBox _sections;
     public event EventHandler? ReturnRequested;
 
-    public SettingsView()
+    public SettingsView(ServerConnections connections)
     {
+        _connectionsView = new ConnectionView(connections);
         Grid root = new() { Padding = new Thickness(16) };
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -22,12 +27,12 @@ internal sealed class SettingsView : UserControl
         header.Children.Add(Button("Return to Workspace", () => ReturnRequested?.Invoke(this, EventArgs.Empty)));
         header.Children.Add(Text("Settings", true));
         header.Children.Add(_feedback);
-        ComboBox sections = Choice("Section", ["Connections", "Models & Providers", "Extensions", "Permissions", "Appearance", "Notifications"], 0, SelectSection);
-        header.Children.Add(sections);
+        _sections = Choice("Section", ["Connections", "Models & Providers", "Extensions", "Permissions", "Appearance", "Notifications"], 0, SelectSection);
+        header.Children.Add(_sections);
         root.Children.Add(header);
         Grid.SetRow(_pages, 1);
         root.Children.Add(_pages);
-        AddPage(new ConnectionView());
+        _pages.Children.Add(_connectionsView);
         AddPage(Models());
         AddPage(Extensions());
         AddPage(Permissions());
@@ -39,8 +44,21 @@ internal sealed class SettingsView : UserControl
 
     private void AddPage(UIElement content) => _pages.Children.Add(Scroll(content));
 
+    public void ClearPassword() => _connectionsView.ClearPassword();
+
+    public void ShowConnections(ServerProfile? profile)
+    {
+        _sections.SelectedIndex = 0;
+        _connectionsView.Edit(profile);
+    }
+
     private void SelectSection(int selected)
     {
+        if (selected != 0)
+        {
+            ClearPassword();
+        }
+
         for (int index = 0; index < _pages.Children.Count; index++)
         {
             _pages.Children[index].Visibility = index == selected ? Visibility.Visible : Visibility.Collapsed;
