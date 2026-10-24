@@ -18,6 +18,10 @@ This document records the initial product direction derived from the official v2
 - Use OpenCode for agent execution, model access, and tools while focusing this client on Windows interaction and task presentation.
 - Support server-owned projects and paths without assuming that every file exists on the client machine.
 
+## Workspace Layout
+
+The [desktop concept](desktop-concept.png) establishes the intended workspace layout: a collapsible project/session panel, a central task header, conversation and composer, and a collapsible session-info pane. App navigation remains separate; the project/session panel belongs to Workspace and is visible only when that destination is selected. The shell prepares these regions before their features are implemented. Example content in the image is illustrative and must not imply selected data or live capabilities in the disconnected client.
+
 ## Integration Direction
 
 Use the OpenCode v2 HTTP API and event stream through Infrastructure implementations. The official v2 network client is `@opencode/client`; legacy examples using `@opencode-ai/sdk/v2` must not be treated as the OpenCode 2 contract.

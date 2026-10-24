@@ -7,3 +7,4 @@ This index records Done items, grouped by completion year. Read the [active inde
 | ID | Task | Type | Status | Dependencies | Completed on |
 | --- | --- | --- | --- | --- | --- |
 | [WI-001](WI-001-verify-connection-contract.md) | Establish and verify the initial OpenCode v2 connection contract | Investigation | Done | None | 2026-10-24 |
+| [WI-003](WI-003-implement-application-shell.md) | Define design tokens and implement the application shell | Implementation | Done | None | 2026-10-24 |

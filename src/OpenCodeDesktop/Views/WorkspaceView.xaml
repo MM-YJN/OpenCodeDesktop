@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="OpenCodeDesktop.Views.WorkspaceView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <SplitView x:Name="ProjectsLayout" PanePlacement="Left" DisplayMode="Inline" IsPaneOpen="True"
+               OpenPaneLength="{StaticResource ShellProjectsPanelWidth}" SizeChanged="ProjectsLayout_SizeChanged"
+               PaneBackground="{ThemeResource ShellSurfaceBrush}">
+        <SplitView.Pane>
+            <Border Width="{StaticResource ShellProjectsPanelWidth}" HorizontalAlignment="Left"
+                    BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="{StaticResource ShellProjectsBorderThickness}">
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Stretch">
+                    <StackPanel x:Name="ProjectsRegion" Padding="{StaticResource ShellSidebarPadding}" Spacing="{StaticResource ShellSpaceMedium}">
+                        <Grid ColumnSpacing="{StaticResource ShellSpaceSmall}">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="Projects" Style="{StaticResource ShellHeadingTextStyle}" AutomationProperties.HeadingLevel="Level2" />
+                            <Button Grid.Column="1" Content="Close" Click="CloseProjects_Click" AutomationProperties.Name="Close projects panel" />
+                        </Grid>
+                        <TextBlock Text="No projects selected" Style="{StaticResource ShellBodyTextStyle}" />
+                        <TextBlock Text="Your projects and their sessions will appear here after setup." Style="{StaticResource ShellSecondaryTextStyle}" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </SplitView.Pane>
+        <SplitView x:Name="WorkspaceLayout" PanePlacement="Right" DisplayMode="Inline" IsPaneOpen="True"
+                   OpenPaneLength="{StaticResource ShellInspectorWidth}" SizeChanged="WorkspaceLayout_SizeChanged"
+                   PaneBackground="{ThemeResource ShellSurfaceBrush}">
+            <SplitView.Pane>
+                <Border BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="{StaticResource ShellInspectorBorderThickness}">
+                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Stretch">
+                        <StackPanel Padding="{StaticResource ShellContentPadding}" Spacing="{StaticResource ShellSpaceLarge}">
+                            <Grid ColumnSpacing="{StaticResource ShellSpaceSmall}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <TextBlock Text="Session info" Style="{StaticResource ShellHeadingTextStyle}" AutomationProperties.HeadingLevel="Level2" />
+                                <Button Grid.Column="1" Content="Close" Click="CloseSessionInfo_Click" AutomationProperties.Name="Close session info" />
+                            </Grid>
+                            <StackPanel Spacing="{StaticResource ShellSpaceSmall}">
+                                <TextBlock Text="Session" Style="{StaticResource ShellSecondaryTextStyle}" />
+                                <TextBlock Text="No session selected" Style="{StaticResource ShellBodyTextStyle}" />
+                            </StackPanel>
+                            <Grid ColumnSpacing="{StaticResource ShellSpaceMedium}" RowSpacing="{StaticResource ShellSpaceSmall}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                <TextBlock Text="Provider" Style="{StaticResource ShellSecondaryTextStyle}" />
+                                <TextBlock Grid.Column="1" Text="Model" Style="{StaticResource ShellSecondaryTextStyle}" />
+                                <TextBlock Grid.Row="1" Text="Not selected" Style="{StaticResource ShellBodyTextStyle}" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="Not selected" Style="{StaticResource ShellBodyTextStyle}" />
+                                <TextBlock Grid.Row="2" Text="Agent" Style="{StaticResource ShellSecondaryTextStyle}" />
+                                <TextBlock Grid.Row="3" Text="Not selected" Style="{StaticResource ShellBodyTextStyle}" />
+                            </Grid>
+                            <StackPanel Spacing="{StaticResource ShellSpaceSmall}">
+                                <TextBlock Text="Context" Style="{StaticResource ShellHeadingTextStyle}" AutomationProperties.HeadingLevel="Level3" />
+                                <TextBlock Text="Context usage will be available when a session is loaded." Style="{StaticResource ShellSecondaryTextStyle}" />
+                            </StackPanel>
+                            <StackPanel Spacing="{StaticResource ShellSpaceSmall}">
+                                <TextBlock Text="Activity" Style="{StaticResource ShellHeadingTextStyle}" AutomationProperties.HeadingLevel="Level3" />
+                                <TextBlock Text="No session activity to display." Style="{StaticResource ShellSecondaryTextStyle}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </SplitView.Pane>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Border Padding="{StaticResource ShellWorkspaceHeaderPadding}" BorderBrush="{ThemeResource ShellBorderBrush}"
+                        BorderThickness="{StaticResource ShellHeaderBorderThickness}">
+                    <Grid ColumnSpacing="{StaticResource ShellSpaceMedium}">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <StackPanel Spacing="{StaticResource ShellSpaceSmall}">
+                            <ToggleButton x:Name="ProjectsToggle" Content="Projects" HorizontalAlignment="Left"
+                                          IsChecked="{Binding IsPaneOpen, ElementName=ProjectsLayout, Mode=TwoWay}"
+                                          AutomationProperties.Name="Projects panel" />
+                            <TextBlock Text="Workspace" Style="{StaticResource ShellTitleTextStyle}" AutomationProperties.HeadingLevel="Level1" />
+                            <TextBlock Text="No project or session selected" Style="{StaticResource ShellSecondaryTextStyle}" />
+                        </StackPanel>
+                        <ToggleButton x:Name="SessionInfoToggle" Grid.Column="1" Content="Session info" VerticalAlignment="Top"
+                                      IsChecked="{Binding IsPaneOpen, ElementName=WorkspaceLayout, Mode=TwoWay}"
+                                      AutomationProperties.Name="Session info pane" />
+                    </Grid>
+                </Border>
+                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Stretch">
+                    <StackPanel Padding="{StaticResource ShellContentPadding}" MaxWidth="{StaticResource ShellContentMaximumWidth}"
+                                Spacing="{StaticResource ShellSpaceLarge}">
+                        <Border Style="{StaticResource ShellCardStyle}">
+                            <StackPanel Spacing="{StaticResource ShellSpaceMedium}">
+                                <TextBlock Text="Connect to get started" Style="{StaticResource ShellHeadingTextStyle}" AutomationProperties.HeadingLevel="Level2" />
+                                <TextBlock Text="No OpenCode server is connected. Your conversation and task activity will appear here after setup."
+                                           Style="{StaticResource ShellBodyTextStyle}" />
+                                <TextBlock Text="Open Connection in the navigation pane to see where server setup will be available."
+                                           Style="{StaticResource ShellSecondaryTextStyle}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+                <Border Grid.Row="2" Margin="{StaticResource ShellComposerMargin}" Style="{StaticResource ShellCardStyle}">
+                    <StackPanel Spacing="{StaticResource ShellSpaceSmall}">
+                        <TextBlock Text="Task input" Style="{StaticResource ShellHeadingTextStyle}" AutomationProperties.HeadingLevel="Level2" />
+                        <TextBlock Text="Task input will be available after connection and session setup are implemented."
+                                   Style="{StaticResource ShellSecondaryTextStyle}" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </SplitView>
+    </SplitView>
+</UserControl>

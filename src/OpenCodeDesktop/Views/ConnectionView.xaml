@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="OpenCodeDesktop.Views.ConnectionView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Stretch">
+        <StackPanel Padding="{StaticResource ShellContentPadding}" Spacing="{StaticResource ShellSpaceLarge}"
+                    MaxWidth="{StaticResource ShellContentMaximumWidth}" HorizontalAlignment="Stretch">
+            <TextBlock Text="Connection" Style="{StaticResource ShellTitleTextStyle}" AutomationProperties.HeadingLevel="Level1" />
+            <Border Style="{StaticResource ShellCardStyle}">
+                <StackPanel Spacing="{StaticResource ShellSpaceMedium}">
+                    <TextBlock Text="Server connection is coming next" Style="{StaticResource ShellHeadingTextStyle}" AutomationProperties.HeadingLevel="Level2" />
+                    <TextBlock Text="Connection functionality is not yet implemented. You cannot connect to an OpenCode server in this version."
+                               Style="{StaticResource ShellBodyTextStyle}" />
+                    <TextBlock Text="The app currently runs without a server. No server, project, session, or model is selected."
+                               Style="{StaticResource ShellSecondaryTextStyle}" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
