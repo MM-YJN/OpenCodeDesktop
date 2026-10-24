@@ -36,7 +36,9 @@ public sealed class LiveWorkspace : IDisposable
     public string? Error { get; private set; }
     public bool CanRetry => _retry is not null && !IsLoading;
     public ProjectLocation? Location => IsConnected ? _project?.Location : null;
-    public IReadOnlyList<string> OpenedDirectories => _backend?.Projects.Keys.ToArray() ?? [];
+    public IReadOnlyList<WorkspaceProject> Projects => _backend?.Projects.Values.Where(p => p.Listed)
+        .Select(p => new WorkspaceProject(p.Location, p == _project, p.OpenError)).ToArray() ?? [];
+    public IReadOnlyList<string> OpenedDirectories => Projects.Select(p => p.Location.Directory).ToArray();
     public IReadOnlyList<WorkspaceSession> Sessions => IsConnected ? _project?.Sessions.AsReadOnly() ?? (IReadOnlyList<WorkspaceSession>)[] : [];
     public WorkspaceSession? Selected => Sessions.FirstOrDefault(s => s.Id == _project?.SelectedId);
     public string? SelectedSessionId => _project?.SelectedId;
@@ -64,7 +66,7 @@ public sealed class LiveWorkspace : IDisposable
 
         foreach (Guid id in _backends.Keys.ToArray())
         {
-            if (!_connections.Profiles.Any(p => p == _backends[id].Profile))
+            if (!_connections.Profiles.Any(p => p.Id == id && p.Address.Display == _backends[id].Profile.Address.Display))
             {
                 _backends.Remove(id);
             }
@@ -104,12 +106,17 @@ public sealed class LiveWorkspace : IDisposable
             {
                 Tasks?.RememberDirectory(project.Location);
             }
-            Status = "Enter a server-side directory and choose Open.";
+            Status = "Add a server-side directory or select a listed project.";
             string? remembered = _backend.Directory;
             Notify();
             if (remembered is not null)
             {
                 await OpenProjectAsync(remembered).ConfigureAwait(true);
+            }
+            else if (Tasks is { } attention && _backend.Projects.Values.FirstOrDefault() is { } retained)
+            {
+                // Removed entries still own server work and may acquire new requests while disconnected.
+                await attention.OpenDirectoryAsync(retained.Location).ConfigureAwait(true);
             }
         }
         else
@@ -128,51 +135,98 @@ public sealed class LiveWorkspace : IDisposable
 
         return RunAsync("Opening server directory…", async (context, token, current) =>
         {
-            ProjectLocation location = await context.ResolveAsync(directory, token).ConfigureAwait(true);
-            await context.ValidateDirectoryAsync(location.Directory, token).ConfigureAwait(true);
-            WorkspacePage<WorkspaceSession> page = await context.SessionsAsync(location.Directory, null, token).ConfigureAwait(true);
-            ValidateSessions(location, page.Data);
+            Backend backend = _backend!;
+            ProjectLocation location;
+            WorkspacePage<WorkspaceSession> page;
+            WorkspaceSession? selected = null;
+            WorkspacePage<HistoryMessage>? history = null;
+            try
+            {
+                location = await context.ResolveAsync(directory, token).ConfigureAwait(true);
+                await context.ValidateDirectoryAsync(location.Directory, token).ConfigureAwait(true);
+                page = await context.SessionsAsync(location.Directory, null, token).ConfigureAwait(true);
+                ValidateSessions(location, page.Data);
+                if (backend.Projects.GetValueOrDefault(location.Directory)?.SelectedId is { } id)
+                {
+                    selected = await context.SessionAsync(id, token).ConfigureAwait(true);
+                    ValidateSessions(location, [selected]);
+                    if (selected.Id != id)
+                    {
+                        throw Ownership();
+                    }
+
+                    history = await context.HistoryAsync(id, null, token).ConfigureAwait(true);
+                }
+
+                token.ThrowIfCancellationRequested();
+            }
+            catch
+            {
+                if (current() && backend.Projects.GetValueOrDefault(directory) is { Listed: true } failed)
+                {
+                    failed.OpenError = "Unavailable. Select to retry, or remove from list.";
+                }
+
+                throw;
+            }
+
             if (!current())
             {
                 return;
             }
 
-            if (!_backend!.Projects.TryGetValue(location.Directory, out Project? project))
+            if (!backend.Projects.TryGetValue(location.Directory, out Project? project))
             {
                 project = new(location);
-                _backend.Projects.Add(location.Directory, project);
+                backend.Projects.Add(location.Directory, project);
             }
             project.Location = location;
-            WorkspaceSession? rememberedSession = project.Sessions.FirstOrDefault(s => s.Id == project.SelectedId);
+            project.Listed = true;
+            project.OpenError = null;
             SetSessions(project, page);
-            if (rememberedSession is not null && !project.Sessions.Any(s => s.Id == rememberedSession.Id))
+            if (selected is not null && !project.Sessions.Any(s => s.Id == selected.Id))
             {
-                project.Sessions.Add(rememberedSession);
+                project.Sessions.Add(selected);
             }
             _project = project;
-            _backend.Directory = location.Directory;
+            backend.Directory = location.Directory;
+            History = history?.Data.DistinctBy(m => m.Id).Reverse().ToArray() ?? [];
+            HistoryLoaded = history is not null;
+            project.HistoryCursors.Clear();
+            project.HistoryCursor = history is { Data.Count: > 0 } ? history.Next : null;
+            Notify();
             if (Tasks is { } tasks)
             {
                 await tasks.OpenDirectoryAsync(location).ConfigureAwait(true);
-            }
-
-            if (!current())
-            {
-                return;
-            }
-
-            History = [];
-            HistoryLoaded = false;
-            if (project.SelectedId is { } selected)
-            {
-                Notify();
-                await ReadHistoryAsync(context, project, selected, current, token).ConfigureAwait(true);
-            }
-            else
-            {
-                project.SelectedId = null;
+                if (current() && selected is not null)
+                {
+                    await tasks.OpenAsync(selected).ConfigureAwait(true);
+                }
             }
         }, () => OpenProjectAsync(directory));
+    }
+
+    /// <summary>Forget navigation only; retain drafts and task attention for this app lifetime.</summary>
+    public void RemoveProject(string directory)
+    {
+        if (_backend?.Projects.GetValueOrDefault(directory) is not { Listed: true } project)
+        {
+            return;
+        }
+        CancelLoad();
+        project.Listed = false;
+        project.OpenError = null;
+        if (_project == project)
+        {
+            _project = null;
+            _backend.Directory = null;
+            History = [];
+            HistoryLoaded = false;
+        }
+        Error = null;
+        _retry = null;
+        Status = _project is null ? "Add a server-side directory or select a listed project." : "Project removed from list. Server work is retained.";
+        Notify();
     }
 
     public async Task SelectAttentionSessionAsync(string id)
@@ -448,7 +502,7 @@ public sealed class LiveWorkspace : IDisposable
         }
         catch (WorkspaceException error)
         {
-            if (error.Failure == WorkspaceFailure.Unauthorized)
+            if (Current() && error.Failure == WorkspaceFailure.Unauthorized)
             {
                 _connections.RejectAuthorization(connection);
             }
@@ -572,6 +626,8 @@ public sealed class LiveWorkspace : IDisposable
     private sealed class Project(ProjectLocation location)
     {
         public ProjectLocation Location { get; set; } = location;
+        public bool Listed { get; set; } = true;
+        public string? OpenError { get; set; }
         public List<WorkspaceSession> Sessions { get; } = [];
         public Dictionary<string, string> Drafts { get; } = new(StringComparer.Ordinal);
         public string? SelectedId { get; set; }

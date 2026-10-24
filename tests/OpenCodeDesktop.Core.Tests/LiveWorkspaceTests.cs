@@ -233,6 +233,124 @@ public sealed class LiveWorkspaceTests
         Assert.Empty(h.Workspace.Draft);
     }
 
+    [Fact]
+    public async Task CanonicalDirectoriesDeduplicateWithoutClientPathNormalization()
+    {
+        using Harness h = await Harness.StartAsync();
+        h.Api.Resolve = path => new(path == "alias" ? "/项目 with spaces" : path, "global");
+        await h.Workspace.OpenProjectAsync("alias");
+        h.Workspace.Draft = "canonical draft";
+        await h.Workspace.OpenProjectAsync("/项目 with spaces");
+        Assert.Single(h.Workspace.Projects);
+        Assert.Equal("canonical draft", h.Workspace.Draft);
+        await h.Workspace.OpenProjectAsync("/项目 with spaces/../other");
+        Assert.Equal(2, h.Workspace.Projects.Count);
+        Assert.Single(h.Workspace.Projects, p => p.IsSelected);
+    }
+
+    [Fact]
+    public async Task RemovalRetainsDraftsAndInactiveRemovalKeepsCurrentWorkspace()
+    {
+        using Harness h = await Harness.StartAsync();
+        await h.Workspace.OpenProjectAsync("/one");
+        await h.Workspace.SelectSessionAsync("a");
+        h.Workspace.Draft = "retained session";
+        await h.Workspace.OpenProjectAsync("/two");
+        h.Workspace.Draft = "retained new draft";
+        h.Workspace.RemoveProject("/one");
+        Assert.Equal("/two", h.Workspace.Location!.Directory);
+        Assert.Equal("retained new draft", h.Workspace.Draft);
+        h.Workspace.RemoveProject("/two");
+        Assert.Null(h.Workspace.Location);
+        Assert.Empty(h.Workspace.Projects);
+        Assert.Empty(h.Workspace.History);
+        Assert.False(h.Workspace.CanCreate);
+        await h.Workspace.OpenProjectAsync("/one");
+        Assert.Equal("a", h.Workspace.SelectedSessionId);
+        Assert.Equal("retained session", h.Workspace.Draft);
+        await h.Workspace.OpenProjectAsync("/two");
+        Assert.Null(h.Workspace.Selected);
+        Assert.Equal("retained new draft", h.Workspace.Draft);
+        Assert.Equal(0, h.Api.CreateCalls);
+    }
+
+    [Fact]
+    public async Task FailedRememberedHistorySwitchRetainsPreviousWorkspaceAndExposesRetry()
+    {
+        using Harness h = await Harness.StartAsync();
+        await h.Workspace.OpenProjectAsync("/one");
+        await h.Workspace.SelectSessionAsync("a");
+        h.Workspace.Draft = "one";
+        await h.Workspace.OpenProjectAsync("/two");
+        h.Workspace.Draft = "two";
+        h.Api.History = (_, _, _) => throw Failure();
+        await h.Workspace.OpenProjectAsync("/one");
+        Assert.Equal("/two", h.Workspace.Location!.Directory);
+        Assert.Equal("two", h.Workspace.Draft);
+        Assert.NotNull(h.Workspace.Projects.Single(p => p.Location.Directory == "/one").Error);
+        h.Api.History = null;
+        await h.Workspace.RetryAsync();
+        Assert.Equal("/one", h.Workspace.Location!.Directory);
+        Assert.Equal("one", h.Workspace.Draft);
+        Assert.Null(h.Workspace.Projects.Single(p => p.IsSelected).Error);
+        h.Api.Validate = (_, _) => throw Failure();
+        await h.Workspace.OpenProjectAsync("/broken");
+        Assert.Equal(2, h.Workspace.Projects.Count);
+    }
+
+    [Fact]
+    public async Task RemovedEntryCannotBeResurrectedByLateLoadOrObsoleteAuthorizationFailure()
+    {
+        using Harness h = await Harness.StartAsync();
+        await h.Workspace.OpenProjectAsync("/one");
+        h.Workspace.Draft = "keep";
+        TaskCompletionSource<WorkspacePage<WorkspaceSession>> held = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        h.Api.List = (_, _, _) => held.Task;
+        Task old = h.Workspace.OpenProjectAsync("/two");
+        h.Workspace.RemoveProject("/one");
+        held.SetResult(new([], null));
+        await old;
+        Assert.Empty(h.Workspace.Projects);
+        Assert.Null(h.Workspace.Location);
+        h.Api.List = (_, _, _) => held.Task;
+        held = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        old = h.Workspace.OpenProjectAsync("/two");
+        h.Api.List = null;
+        await h.Workspace.OpenProjectAsync("/one");
+        held.SetException(new WorkspaceException(WorkspaceFailure.Unauthorized, "Obsolete"));
+        await old;
+        Assert.True(h.Workspace.IsConnected);
+        Assert.Equal("/one", h.Workspace.Location!.Directory);
+        Assert.Equal("keep", h.Workspace.Draft);
+    }
+
+    [Fact]
+    public async Task RenamePreservesListAndRemovalDiscardsOwnershipAcrossReconnects()
+    {
+        using Harness h = await Harness.StartAsync();
+        await h.Workspace.OpenProjectAsync("/one");
+        h.Workspace.Draft = "first";
+        h.Connections.Disconnect();
+        h.Connections.Save(h.First.Id, "Renamed", h.First.Address.Display);
+        await h.Connections.ConnectAsync(h.First.Id, "secret", TestContext.Current.CancellationToken);
+        await WaitIdleAsync(h.Workspace);
+        Assert.Equal("first", h.Workspace.Draft);
+        Assert.Equal("Renamed", h.Workspace.Server!.Profile.Name);
+        ServerProfile second = h.Connections.Save(null, "Second", "http://127.0.0.1:4097")!;
+        await h.Connections.ConnectAsync(second.Id, "secret", TestContext.Current.CancellationToken);
+        Assert.Empty(h.Workspace.Projects);
+        await h.Workspace.OpenProjectAsync("/two");
+        await h.Connections.ConnectAsync(h.First.Id, "secret", TestContext.Current.CancellationToken);
+        await WaitIdleAsync(h.Workspace);
+        Assert.Equal("/one", Assert.Single(h.Workspace.Projects).Location.Directory);
+        h.Connections.Disconnect();
+        Assert.True(h.Connections.Remove(h.First.Id));
+        ServerProfile replacement = h.Connections.Save(null, "Replacement", h.First.Address.Display)!;
+        await h.Connections.ConnectAsync(replacement.Id, "secret", TestContext.Current.CancellationToken);
+        Assert.Empty(h.Workspace.Projects);
+        Assert.Null(h.Workspace.Location);
+    }
+
     private static async Task WaitIdleAsync(LiveWorkspace workspace)
     {
         for (int i = 0; i < 100 && workspace.IsLoading; i++)
@@ -288,6 +406,7 @@ public sealed class LiveWorkspaceTests
     private sealed class FakeConnection : IWorkspaceConnection
     {
         private string _directory = "";
+        public Func<string, ProjectLocation>? Resolve { get; set; }
         public bool Disposed { get; private set; }
         public int HistoryCalls { get; private set; }
         public int CreateCalls { get; private set; }
@@ -298,8 +417,9 @@ public sealed class LiveWorkspaceTests
         public Func<string, string?, CancellationToken, Task<WorkspacePage<HistoryMessage>>>? History { get; set; }
         public Task<ProjectLocation> ResolveAsync(string directory, CancellationToken cancellationToken)
         {
-            _directory = directory;
-            return Task.FromResult(new ProjectLocation(directory, "global"));
+            ProjectLocation location = Resolve?.Invoke(directory) ?? new ProjectLocation(directory, "global");
+            _directory = location.Directory;
+            return Task.FromResult(location);
         }
         public Task ValidateDirectoryAsync(string directory, CancellationToken cancellationToken) => Validate?.Invoke(directory, cancellationToken) ?? Task.CompletedTask;
         public Task<WorkspacePage<WorkspaceSession>> SessionsAsync(string directory, string? cursor, CancellationToken cancellationToken) => List?.Invoke(directory, cursor, cancellationToken)

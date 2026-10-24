@@ -7,6 +7,33 @@ namespace OpenCodeDesktop.Presentation.Tests;
 public sealed class LiveWorkspacePresentationTests
 {
     [Fact]
+    public async Task ProjectListShowsNamesFullServerPathsSelectionErrorsAndEmptyState()
+    {
+        Service service = new();
+        using ServerConnections connections = new(service);
+        using LiveWorkspace workspace = new(connections);
+        ServerProfile profile = connections.Save(null, "Projects server", "http://127.0.0.1:4096")!;
+        await connections.ConnectAsync(profile.Id, "secret", TestContext.Current.CancellationToken);
+        Assert.Empty(LiveWorkspacePresentation.ProjectList(workspace));
+        Assert.Contains("Add", LiveWorkspacePresentation.EmptyProjects, StringComparison.Ordinal);
+        await workspace.OpenProjectAsync("/server/项目 with spaces");
+        await workspace.OpenProjectAsync("C:\\server\\other");
+        IReadOnlyList<ProjectListPresentation> rows = LiveWorkspacePresentation.ProjectList(workspace);
+        Assert.Equal("项目 with spaces", rows[0].Name);
+        Assert.Equal("/server/项目 with spaces", rows[0].Path);
+        Assert.False(rows[0].IsSelected);
+        Assert.Equal("other", rows[1].Name);
+        Assert.Contains("Selected project", rows[1].Label, StringComparison.Ordinal);
+        Assert.Contains("Projects server", LiveWorkspacePresentation.From(workspace).Path, StringComparison.Ordinal);
+        service.Api.Unavailable = true;
+        await workspace.OpenProjectAsync(rows[0].Path);
+        Assert.Contains("retry", LiveWorkspacePresentation.ProjectList(workspace)[0].Label, StringComparison.Ordinal);
+        Assert.True(LiveWorkspacePresentation.ProjectList(workspace)[1].IsSelected);
+        workspace.RemoveProject(rows[1].Path);
+        Assert.All(LiveWorkspacePresentation.ProjectList(workspace), row => Assert.False(row.IsSelected));
+    }
+
+    [Fact]
     public async Task LiveStatesShowOwnershipLoadingFailureEmptyHistoryAndDisconnectedWithoutSampleContent()
     {
         Service service = new();
@@ -49,9 +76,11 @@ public sealed class LiveWorkspacePresentationTests
     }
     private sealed class Api : IWorkspaceConnection
     {
+        public bool Unavailable { get; set; }
         public TaskCompletionSource<WorkspacePage<HistoryMessage>> Pending { get; set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public Task<ProjectLocation> ResolveAsync(string directory, CancellationToken cancellationToken) => Task.FromResult(new ProjectLocation(directory, "global"));
-        public Task ValidateDirectoryAsync(string directory, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task ValidateDirectoryAsync(string directory, CancellationToken cancellationToken) => Unavailable
+            ? throw new WorkspaceException(WorkspaceFailure.Http, "Unavailable") : Task.CompletedTask;
         public Task<WorkspacePage<WorkspaceSession>> SessionsAsync(string directory, string? cursor, CancellationToken cancellationToken) => Task.FromResult(new WorkspacePage<WorkspaceSession>([new("a", directory, "global", "Real session")], null));
         public Task<WorkspaceSession> CreateAsync(string directory, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<WorkspaceSession> SessionAsync(string id, CancellationToken cancellationToken) => Task.FromResult(new WorkspaceSession(id, "/real", "global", "Real session"));

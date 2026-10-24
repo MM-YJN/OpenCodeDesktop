@@ -113,7 +113,7 @@ public sealed partial class WorkspaceView
     {
         string projection = live.Server?.Profile.Id + "|" + live.Location?.Directory + "|" + live.SelectedSessionId + "|" +
             live.IsLoading + "|" + live.CanCreate + "|" + live.CreationUncertain + "|" + live.CanLoadSessions + "|" +
-            string.Join('|', live.OpenedDirectories) + "|" + string.Join('|', live.Sessions.Select(s => s.Id + ":" + s.Title));
+            string.Join('|', LiveWorkspacePresentation.ProjectList(live).Select(p => p.Label)) + "|" + string.Join('|', live.Sessions.Select(s => s.Id + ":" + s.Title));
         if (_projectsProjection == projection)
         {
             return;
@@ -123,10 +123,25 @@ public sealed partial class WorkspaceView
         ProjectList.Children.Clear();
         if (live.IsConnected)
         {
-            foreach (string directory in live.OpenedDirectories)
+            if (live.Projects.Count == 0)
             {
-                string path = directory;
-                ProjectList.Children.Add(LiveAction(path, () => live.OpenProjectAsync(path), !live.IsLoading));
+                ProjectList.Children.Add(BodyText(LiveWorkspacePresentation.EmptyProjects));
+            }
+            foreach (ProjectListPresentation project in LiveWorkspacePresentation.ProjectList(live))
+            {
+                string path = project.Path;
+                Button select = LiveAction(project.Label, () => live.OpenProjectAsync(path), !live.IsLoading);
+                ToolTipService.SetToolTip(select, path);
+                AutomationProperties.SetItemStatus(select, project.IsSelected ? "Selected project" : "Project");
+                ProjectList.Children.Add(select);
+                Button remove = LiveAction("Remove from list: " + project.Name, () =>
+                {
+                    live.RemoveProject(path);
+                    return Task.CompletedTask;
+                }, !live.IsLoading);
+                AutomationProperties.SetName(remove, "Remove from list: " + path);
+                ToolTipService.SetToolTip(remove, "Forget " + path + ". Server work and drafts are retained.");
+                ProjectList.Children.Add(remove);
             }
             if (live.Location is not null)
             {

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 using OpenCodeDesktop.Core.Workspaces;
 
@@ -7,6 +9,15 @@ namespace OpenCodeDesktop.Presentation;
 /// <summary>Honest labels shared by the live view and UI-independent presentation tests.</summary>
 internal sealed record LiveWorkspacePresentation(string Title, string Path, string ConversationNotice, string DraftOwner)
 {
+    internal const string EmptyProjects = "No projects listed. Add a server-side directory to get started.";
+    internal static IReadOnlyList<ProjectListPresentation> ProjectList(LiveWorkspace workspace) => workspace.Projects.Select(project =>
+    {
+        string path = project.Location.Directory;
+        string trimmed = path.TrimEnd('/', '\\');
+        int separator = trimmed.LastIndexOfAny(['/', '\\']);
+        string name = trimmed[(separator + 1)..];
+        return new ProjectListPresentation(name.Length == 0 ? path : name, path, project.IsSelected, project.Error);
+    }).ToArray();
     internal const string UnavailableDetails = "Details, files, changes and terminal are unavailable in this increment. Task activity and pending requests appear in the conversation.";
 
     internal static LiveWorkspacePresentation From(LiveWorkspace workspace)
@@ -22,4 +33,10 @@ internal sealed record LiveWorkspacePresentation(string Title, string Path, stri
         return new(workspace.Selected?.Title ?? (workspace.Location is null ? "Server workspace" : "New-session draft"), path, notice,
             (workspace.Server?.Profile.Id.ToString() ?? "") + "\n" + workspace.Location?.Directory + "\n" + workspace.SelectedSessionId);
     }
+}
+
+internal sealed record ProjectListPresentation(string Name, string Path, bool IsSelected, string? Error)
+{
+    internal string Label => (IsSelected ? "Selected project: " : "Project: ") + Name + "\n" + Path +
+        (Error is null ? "" : "\n" + Error);
 }

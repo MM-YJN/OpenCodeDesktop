@@ -8,6 +8,41 @@ namespace OpenCodeDesktop.Core.Tests;
 public sealed partial class LiveTaskWorkflowTests
 {
     [Fact]
+    public async Task RemovingProjectRetainsRunningTaskAndPendingAttentionForReopening()
+    {
+        using Api api = new();
+        api.Snapshot = api.Snapshot with { Active = true, Forms = [new("pending", "s", "Question", [])] };
+        using ServerConnections connections = new(new Service(api));
+        ServerProfile profile = connections.Save(null, "Test", "http://127.0.0.1:4096")!;
+        await connections.ConnectAsync(profile.Id, "secret", TestContext.Current.CancellationToken);
+        using LiveWorkspace workspace = new(connections);
+        await workspace.OpenProjectAsync("/dir");
+        await workspace.SelectSessionAsync("s");
+        workspace.Draft = "keep";
+        SessionTaskState state = workspace.Tasks!.Find("s")!;
+        workspace.RemoveProject("/dir");
+        Assert.Empty(workspace.Projects);
+        Assert.Null(workspace.Selected);
+        Assert.Same(state, workspace.Tasks.Find("s"));
+        Assert.True(state.Active);
+        Assert.Single(state.Forms);
+        await workspace.OpenProjectAsync(state.Directory);
+        await workspace.SelectAttentionSessionAsync(state.Id);
+        Assert.Equal("keep", workspace.Draft);
+        Assert.Single(workspace.Projects);
+        Assert.Single(state.Forms);
+        Assert.Equal(0, api.Submissions);
+        workspace.RemoveProject("/dir");
+        connections.Disconnect();
+        api.PendingSessions = ["s"];
+        api.Snapshot = api.Snapshot with { Forms = [new("later", "s", "New question", [])] };
+        await connections.ConnectAsync(profile.Id, "secret", TestContext.Current.CancellationToken);
+        await ObserveAsync(workspace.Tasks!, () => workspace.Tasks!.Find("s")!.Forms.Any(f => f.Id == "later"));
+        Assert.Null(workspace.Location);
+        Assert.Empty(workspace.Projects);
+    }
+
+    [Fact]
     public async Task HealthyBackgroundReadDoesNotPreventInterruptAndReconcilesItsResult()
     {
         using Api api = new();

@@ -8,11 +8,10 @@ This is the active index for unfinished work, in intended execution order. Done 
 
 | ID | Task | Type | Status | Dependencies |
 | --- | --- | --- | --- | --- |
-| [WI-011](WI-011-multi-project-support.md) | Manage a project list for each connection | Implementation | Ready | [WI-006](WI-006-implement-live-projects-sessions.md), [WI-009](WI-009-implement-session-recovery.md) |
 | [WI-012](WI-012-persist-connections-workspace.md) | Persist connections and restore the last workspace on launch | Implementation | Ready | [WI-011](WI-011-multi-project-support.md), [WI-010](WI-010-detect-local-environment.md), [WI-009](WI-009-implement-session-recovery.md) |
 | [WI-013](WI-013-polish-shell-feature-ux.md) | Polish the application shell and implemented feature UX | Implementation | Ready | [WI-012](WI-012-persist-connections-workspace.md); existing shell and live workflows through WI-010 |
 
-Next: [WI-011 Manage a project list for each connection](WI-011-multi-project-support.md).
+Next: [WI-012 Persist connections and restore the last workspace on launch](WI-012-persist-connections-workspace.md).
 
 ## Working Agreements
 

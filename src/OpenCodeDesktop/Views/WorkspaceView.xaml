@@ -28,7 +28,7 @@
                         <Button x:Name="NewTaskButton" Content="New-session draft" IsEnabled="False" Click="NewTask_ClickAsync"/>
                         <StackPanel x:Name="LiveProjectControls" Spacing="8">
                             <TextBox x:Name="ServerDirectory" IsEnabled="False" Header="Server-side directory" PlaceholderText="Path on the selected server" AutomationProperties.Name="Server-side project directory"/>
-                            <Button x:Name="OpenDirectoryButton" Content="Open directory" IsEnabled="False" Click="OpenDirectory_ClickAsync"/>
+                            <Button x:Name="OpenDirectoryButton" Content="Add project" IsEnabled="False" Click="OpenDirectory_ClickAsync"/>
                             <ProgressBar x:Name="WorkspaceLoading" IsIndeterminate="True" Visibility="Collapsed" AutomationProperties.Name="Loading server workspace"/>
                             <TextBlock x:Name="WorkspaceStatus" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
                             <TextBlock x:Name="RecoveryStatus" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" Visibility="Collapsed"/>
