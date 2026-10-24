@@ -1,113 +1,87 @@
 # OpenCode Desktop design system
 
-This initial visual foundation is delivered by [WI-003](../work-items/WI-003-implement-application-shell.md). It covers the disconnected application shell. Server connection and task workflows extend it in later work items.
+The [desktop concept](../requirements/desktop-concept.png) and [workspace requirements](../requirements/overview.md#workspace-layout) define the hierarchy. WI-004 replaces the WI-003 application rail with a workspace and Settings. The native title bar, system theme, window controls, and minimum-size foundation remain.
 
-The revised [desktop concept](../requirements/desktop-concept.png) and [workspace requirements](../requirements/overview.md#workspace-layout) supersede the application-navigation and single-inspector layout described below. [WI-004](../work-items/WI-004-implement-interactive-workspace-layout.md) will remove the rail, move Connections and Extensions into Settings, and introduce the interactive tabbed Details pane. Until that item is implemented, the token catalog and implementation descriptions below describe the existing WI-003 shell. WI-004 must update them to match the delivered layout.
+## Regions and ownership
 
-## Visual direction
+`MainWindow` retains one `WorkspaceView` and one `SettingsView`. Settings replaces workspace content through visibility, rather than destroying and recreating the workspace. Its Return to Workspace action restores the existing view. Connection status and Needs attention occupy a separate bottom row visible in both destinations. Execution state appears in the selected session's header, independently of Disconnected connection state.
 
-Use [the desktop concept](../requirements/desktop-concept.png) as the layout reference: a left project/session sidebar, a central task workspace with header, conversation, and bottom input area, and a right session inspector. Use native WinUI controls, system typography, quiet layered surfaces, and restrained borders. Content headings establish hierarchy; explanatory text wraps rather than truncates. The native title bar supplies application identity and standard window controls. No custom branding or control templates are introduced.
+`WorkspaceView` owns a left Projects SplitView and a right Details SplitView around the central conversation. The central grid contains a header, independently scrolling conversation, optional bottom terminal, and anchored composer with its own bounded scroll region. File previews and diffs only appear in Details. Header actions provide Projects, Details, and Terminal. Settings has a single entry in the Projects footer; reopen Projects when hidden to reach it. There is no outer application navigation rail or sample-mode toolbar.
 
-The shell prepares these regions with explicit disconnected/empty states. Project/session trees, model/agent selectors, messages, tool cards, permission requests, an editable composer, usage metrics, and Settings become real controls only when their behavior is implemented. The concept's sample project, session, provider, model, costs, and execution status are not application defaults.
+The App-only `Presentation/SampleWorkspace.cs` owns transient projects, sessions, drafts, attachments, pending inputs, attention ownership, and selected Details state. `SampleFixtures.cs` contains embedded text, diff, and terminal fixtures. It has no service composition, disk, credential, transport, or process dependency. Startup immediately selects a sample session; there is no sample-mode flag, entry/exit flow, or global reset control. Restarting the app recreates fixtures. Projects use fictional names (Cinder Orchard and Lunar Postbox), invented paths, and unrelated recipe/delivery task text. The persistent status strip identifies sample data and truthfully reports Disconnected, including while Settings is open.
 
-The application follows the Windows system theme (no `RequestedTheme` override or saved theme preference). All authored brushes are accessed with `ThemeResource`. Light and dark colors map to WinUI semantic resources; explicit high-contrast overrides use Windows system colors. Native controls retain their own focus, hover, pressed, selected, and disabled states.
+`DetailsView` uses native Info, Files, and Changes Pivot tabs. Each sample session remembers its active tab, selected file, comparison, selected change, and conversation/Details vertical offsets. Closing the pane retains its view; expand/restore resizes the existing content. Text and code are selectable. Unified diffs use `+`, `-`, space prefixes and file/hunk headers so changes do not rely on color.
 
-## Resource catalog
+`SettingsView` retains a scrollable surface for each of Connections, Models & Providers, Extensions, Permissions, Appearance, and Notifications. The section selector remains outside the section scroll area. Controls report local sample feedback. Appearance continues following the system theme; no preference is persisted. Service-dependent operations have explicit explanations. Connections is a layout-only form with a read-only example address and disabled password field, so it cannot retain a real secret.
 
-Resources live in `src/OpenCodeDesktop/Themes/ShellResources.xaml`, merged after `XamlControlsResources` in `App.xaml`. Dimensions below are effective pixels (DIPs), except where noted.
+## Semantic resources
 
-### Semantic brushes
+`Themes/ShellResources.xaml` is merged after WinUI control resources. Use `ThemeResource` for authored brushes and `StaticResource` for styles and dimensions. Native controls supply focus, hover, selected, disabled, and high-contrast behavior without replacement templates.
 
-| Token | Light/dark platform color | High-contrast system color | Use |
+| Brush | Light/dark platform mapping | High-contrast mapping | Role |
 | --- | --- | --- | --- |
-| `ShellSurfaceBrush` | `SolidBackgroundFillColorBase` | `SystemColorWindowColor` | Shell background |
-| `ShellContentSurfaceBrush` | `LayerFillColorDefault` | `SystemColorWindowColor` | Empty-state card surface |
-| `ShellStatusSurfaceBrush` | `SolidBackgroundFillColorBase` | `SystemColorWindowColor` | Persistent connection region |
-| `ShellTextPrimaryBrush` | `TextFillColorPrimary` | `SystemColorWindowTextColor` | Headings and body |
-| `ShellTextSecondaryBrush` | `TextFillColorSecondary` | `SystemColorWindowTextColor` | Supporting explanation |
-| `ShellBorderBrush` | `CardStrokeColorDefault` | `SystemColorWindowTextColor` | Card and region boundaries |
-| `ShellAccentBrush` | `SystemAccentColor` | `SystemColorHotlightColor` | Future feature emphasis; native navigation uses its own accent states |
-| `ShellDisconnectedBrush` | `TextFillColorSecondary` | `SystemColorWindowTextColor` | Neutral disconnected status, always accompanied by text |
+| `ShellSurfaceBrush` | `SolidBackgroundFillColorBase` | `SystemColorWindowColor` | Window background |
+| `ShellContentSurfaceBrush` | `LayerFillColorDefault` | `SystemColorWindowColor` | Cards |
+| `ShellStatusSurfaceBrush` | `SolidBackgroundFillColorBase` | `SystemColorWindowColor` | Persistent status |
+| `ShellTextPrimaryBrush` | `TextFillColorPrimary` | `SystemColorWindowTextColor` | Body and headings |
+| `ShellTextSecondaryBrush` | `TextFillColorSecondary` | `SystemColorWindowTextColor` | Supporting text |
+| `ShellBorderBrush` | `CardStrokeColorDefault` | `SystemColorWindowTextColor` | Dividers and cards |
+| `ShellAccentBrush` | `SystemAccentColor` | `SystemColorHotlightColor` | Available emphasis token |
+| `ShellDisconnectedBrush` | `TextFillColorSecondary` | `SystemColorWindowTextColor` | Disconnected label |
 
-Only Disconnected is represented in this increment. Add other semantic status tokens with actual feature behavior; do not imply a successful connection or active task through decoration.
+Sample execution and extension states are always written in text. Sample success/output never changes connection state or claims actual verification.
 
-### Typography and styles
+## Typography, spacing, and sizing
 
-Font family, weight, and automatic system text scaling come from the corresponding native WinUI text styles.
+All dimensions are DIPs. System text scaling remains enabled. Shared body, secondary, heading, and title styles derive from WinUI text styles. Code uses Consolas, with selection and horizontal scrolling for long lines.
 
-| Token/style | Value or platform base | Use |
-| --- | --- | --- |
-| `ShellTitleFontSize` / `ShellTitleTextStyle` | 28 / `TitleTextBlockStyle` | Destination title (accessibility heading level 1) |
-| `ShellHeadingFontSize` / `ShellHeadingTextStyle` | 20 / `SubtitleTextBlockStyle` | Empty-state title (heading level 2) |
-| `ShellBodyFontSize` / `ShellBodyTextStyle` | 14 / `BodyTextBlockStyle` | Wrapped body and status text |
-| `ShellSecondaryTextStyle` | Body style with secondary brush | Supporting explanation |
-| `ShellCardStyle` | Content surface, border, radius, and padding tokens | Empty-state container |
+| Resources | Value / purpose |
+| --- | --- |
+| `ShellBodyFontSize`, `ShellHeadingFontSize`, `ShellTitleFontSize` | 14, 20, 28 |
+| `ShellBodyTextStyle`, `ShellSecondaryTextStyle` | Wrapped primary and secondary body text |
+| `ShellHeadingTextStyle`, `ShellTitleTextStyle` | Wrapped headings |
+| `ShellSpaceSmall`, `ShellSpaceMedium`, `ShellSpaceLarge` | 8, 16, 24 |
+| `ShellContentPadding`, `ShellCardPadding` | 24 all sides |
+| `ShellStatusPadding` | 16 horizontal, 8 vertical |
+| `ShellSidebarPadding` | 16 horizontal, 24 vertical; available foundation token |
+| `ShellWorkspaceHeaderPadding` | 24 horizontal, 16 vertical; available foundation token |
+| `ShellComposerMargin` | 16; available foundation token |
+| `ShellHairlineThickness` | 1 all sides |
+| `ShellStatusBorderThickness`, `ShellHeaderBorderThickness` | Top-only / bottom-only 1 |
+| `ShellInspectorBorderThickness`, `ShellProjectsBorderThickness` | Left-only / right-only 1 |
+| `ShellCardCornerRadius`, `ShellCardStyle` | 8; semantic surface, border, radius and padding |
+| `ShellContentMaximumWidth` | 720; bounded connection form |
+| `ShellWindowInitialWidth`, `ShellWindowInitialHeight` | 1440 × 900 client area |
+| `ShellWindowMinimumWidth`, `ShellWindowMinimumHeight` | 640 × 480 outer minimum |
+| `ShellProjectsPanelWidth`, `ShellProjectsInlineThreshold` | 240; inline at 1000 workspace DIPs |
+| `ShellDetailsWidth`, `ShellDetailsMinimumWidth` | Initial 420; resize minimum 320 |
+| `ShellInspectorInlineThreshold` | Details inline at 1000 DIPs remaining after Projects |
+| `ShellConversationMinimumWidth` | 420; limit when dragging Details wider |
+| `ShellComposerMaximumHeight` | 220, additionally capped at 35% of available workspace height |
+| `ShellTerminalHeight` | 180, additionally capped at 25% of available workspace height |
 
-### Spacing, shape, and dimensions
+The obsolete `ShellNavigationWidth`, `ShellNavigationCompactWidth`, and single-inspector `ShellInspectorWidth` tokens were removed. Structural grid lengths, 8-DIP resize grip, 12-DIP compact region padding, native control sizes, file-list limits, and local editor minimum/maximum heights remain view layout choices rather than separate style systems. Repeated cards and text use shared styles through `WorkspaceControls`.
 
-| Token | Value | Use |
-| --- | --- | --- |
-| `ShellSpaceSmall` | 8 | Header/inspector label and value spacing |
-| `ShellSpaceMedium` | 16 | Empty-state text spacing |
-| `ShellSpaceLarge` | 24 | Destination section spacing |
-| `ShellContentPadding` | 24 on all sides | Scrollable destination padding |
-| `ShellCardPadding` | 24 on all sides | Empty-state inner padding |
-| `ShellStatusPadding` | 16 horizontal, 8 vertical | Connection region padding |
-| `ShellSidebarPadding` | 16 horizontal, 24 vertical | Project/session sidebar empty state |
-| `ShellWorkspaceHeaderPadding` | 24 horizontal, 16 vertical | Workspace header |
-| `ShellComposerMargin` | 16 on all sides | Reserved bottom task-input region |
-| `ShellHairlineThickness` | 1 on all sides | Card border |
-| `ShellStatusBorderThickness` | 0,1,0,0 | Status top divider |
-| `ShellHeaderBorderThickness` | 0,0,0,1 | Workspace header divider |
-| `ShellInspectorBorderThickness` | 1,0,0,0 | Session inspector divider |
-| `ShellProjectsBorderThickness` | 0,0,1,0 | Workspace Projects panel divider |
-| `ShellCardCornerRadius` | 8 | Empty-state card corners |
-| `ShellContentMaximumWidth` | 720 | Readable destination content width, including outer padding |
-| `ShellWindowInitialWidth` / `ShellWindowInitialHeight` | 1440 / 900 | Initial client area, showing the three concept columns |
-| `ShellWindowMinimumWidth` / `ShellWindowMinimumHeight` | 640 / 480 | Minimum outer window dimensions |
-| `ShellNavigationWidth` | 280 | App navigation overlay with destination labels |
-| `ShellNavigationCompactWidth` | 48 | Compact navigation rail |
-| `ShellProjectsPanelWidth` | 240 | Fixed content width of the Workspace-only project/session panel |
-| `ShellProjectsInlineThreshold` | 1000 | At or above this Workspace width, open Projects inline by default |
-| `ShellInspectorWidth` | 320 | Session-info pane, bounded by available workspace width |
-| `ShellInspectorInlineThreshold` | 1000 | At or above this workspace width, show the inspector inline by default |
+## Responsive behavior and input
 
-Thickness tokens intentionally repeat spacing-unit values: XAML requires typed `Thickness` resources, while `StackPanel.Spacing` requires a double. Structural grid star/auto sizing, status row index, heading levels, and native control internals are not design tokens. Do not replace native templates just to match shell spacing values.
+Projects retains a fixed 240-DIP content width during pane animation. At or above 1000 workspace DIPs it defaults to open/inline; below that threshold it defaults to closed/overlay. Crossing the threshold selects the responsive default; resizing within the same range preserves the user's choice.
 
-## Shell regions and responsive behavior
+Details uses the width remaining after Projects. At 1000 DIPs or above it defaults to inline/open, initially 420 wide; at smaller sizes it defaults to closed/overlay, capped to leave 48 DIPs for dismissal. Native overlay light dismissal and Close are available. Expand fills the available workspace content area; Restore reuses the previous split width. The left-edge Thumb supports pointer dragging and Left/Right keys in 24-DIP steps, bounded by Details and conversation minimums. It is disabled in overlay/expanded modes. Closing either side pane restores focus to its header toggle.
 
-- Native title bar: application identity and Windows window controls.
-- `ShellNavigation`: a compact app-navigation rail containing Workspace and Connection only. Its native toggle opens destination labels in an overlay. It contains no project/session content, so collapsing it cannot squeeze project text into the rail. Settings and back navigation remain hidden.
-- `ProjectsLayout`: a left-hand native `SplitView` inside `WorkspaceView`, containing the project/session empty state in `ProjectsRegion`. The panel is part of Workspace and disappears when Connection is selected. The panel's content keeps a fixed 240-DIP width while the pane animates, preventing text reflow during collapse.
-- `ShellContentHost`: the selected destination's view. Connection retains its bounded, scrollable setup placeholder. Workspace fills the available height and width with the regions below.
-- `WorkspaceLayout`: a native right-hand `SplitView` separates the central workspace from session info. The central grid has an auto-height header, a flexible vertically scrollable conversation region, and an auto-height bottom task-input region. These rows let future messages scroll independently of the header and composer.
-- Workspace header: destination identity, explicit no-project/no-session state, and independent Projects and Session info toggles. Closing either panel returns focus to its toggle. Later session title/path and model/agent/execution controls belong here; connection readiness stays separate.
-- Task-input region: a styled, noninteractive reservation for the future composer. It explains why input is unavailable, with no send, attach, or model actions implying implemented behavior.
-- Session-info pane: scrollable session, provider/model/agent, context, and activity sections. Values explicitly show that no session/model/provider/agent is selected. No fabricated counts, token usage, cost, or system prompt are shown.
-- Connection status: a separate auto-height bottom row outside navigation. It stays visible across destinations and when the pane is expanded or collapsed. The full text is `Connection: Disconnected`; color alone never carries state. It is a polite accessibility live region for future state changes.
+Details uses the local `PaneOnlySplitView` subclass. The bundled WinUI default template animates both `PaneTransform` and `ContentTransform` when opening/closing inline. On template application, this control removes only transition timelines targeting `ContentTransform`, retaining native pane movement/clipping, layout changes, accessibility, and light dismissal. The central workspace adjusts its available width without sliding in or recreating content. The override is scoped to Details, not Projects or other controls. When upgrading WinUI, recheck the bundled template's target names and the pane-only animation; do not assume its internal storyboard names are a stable public contract.
 
-`NavigationView` uses `LeftCompact` at all widths. It starts closed as a 48-DIP icon rail; opening the destination labels overlays the content rather than resizing it. Selecting a destination closes the overlay. The toggle stays inside the rail and cannot overlap a destination heading; no minimal-mode content inset is needed.
+The header toolbar scrolls horizontally at narrow widths. Conversation, composer, terminal output, project list, Settings content, and Details tabs scroll independently. Composer and terminal height caps reserve space for conversation at small heights. Submit follows the multiline draft; optional input queue and reference/model/command controls are expandable. At very small heights or enlarged text, the composer itself scrolls to keep all controls reachable.
 
-Projects defaults to inline/open at 1000 DIPs of Workspace width after the app rail. Below this threshold it defaults to closed/overlay, accessible through the Projects toggle. The panel remains independently collapsible at desktop sizes. Crossing the threshold chooses the responsive default; resizing within the same range preserves the user's choice. Neither switching destinations nor collapsing app navigation changes project content width.
+Session list context menus expose rename, fork, archive/restore, and delete; Shift+F10 provides the native keyboard path. Rename and delete use cancellable ContentDialogs, with delete defaulting to Cancel. Needs attention opens a cross-session dialog; selecting a request restores the conversation if Details was expanded, selects its owner, and brings the card into view. Permission and form responses affect only sample state.
 
-At 1000 DIPs of workspace width remaining after the Projects panel, session info defaults to inline/open, leaving at least 680 DIPs for the central workspace. Below that threshold it defaults to closed/overlay so the central content retains its width. The native Session info toggle can open or close it at either size. Pane width is capped at 320 DIPs and leaves at least the compact-rail width of workspace visible. Crossing the threshold resets the pane to its appropriate default; ordinary resizing within the same range preserves the user's open/closed choice. Both project and inspector panels can scroll with enlarged text.
+Window dimensions are converted to physical pixels with `XamlRoot.RasterizationScale`. Monitor scaling changes refresh native `OverlappedPresenter` minimum constraints. There is no custom title bar or resize interception.
 
-Startup puts programmatic focus on the selected Workspace destination. Keyboard focus visuals and subsequent Tab/arrow-key navigation remain native WinUI behavior.
+## WI-002 integration point
 
-Initial client dimensions and outer minimum dimensions are converted to physical pixels using `XamlRoot.RasterizationScale`. Minimum constraints are refreshed when that scale changes (for example, moving between monitors). Standard `OverlappedPresenter` constraints preserve native resizing; no resize interception or custom title bar is used. Destinations scroll vertically when enlarged text exceeds the available height. Text scaling remains enabled, including in the status strip.
+`Views/ConnectionView.xaml` is instantiated inside the Connections section of `SettingsView`; WI-002 replaces this layout-only form with real connection presentation and a use case. Do not introduce a Connection rail destination. Compose Core interfaces and Infrastructure implementations at application startup, not in sample models.
 
-## WI-002 integration and extension conventions
-
-`MainWindow` creates `WorkspaceView` and `ConnectionView` once and switches `ShellContentHost.Content` from `NavigationView.SelectionChanged`. There is no navigation service or business state in the shell. WI-002 replaces the contents of `Views/ConnectionView.xaml` and connects an App presentation model to its connection use case. This view is the integration point, not a second window or another destination.
-
-Later task work replaces the Workspace conversation empty state and task-input reservation in their existing grid rows. Project/session navigation replaces `ProjectsRegion`; session metadata populates the existing right-hand pane. This preserves the concept's region boundaries as functionality grows, without requiring a replacement shell or introducing a generalized plugin framework.
-
-WI-002 should bind `ConnectionStatusText` to the same presentation state used by the connection view, updating visible text, accessible name, and semantic brush together on the UI thread. Its initial state must remain Disconnected. Core abstractions and Infrastructure implementations continue to own connection behavior; the shell must not acquire HTTP or persistence details. Future session execution state belongs in the workspace, independently of connection status.
-
-Feature views should consume the shared text/card styles, spacing resources, and semantic brushes. Use `StaticResource` for sizes and styles and `ThemeResource` for brushes, including brush setters in styles. Introduce a semantic `Shell...` token when a repeated visual value or meaningful role is needed; document the platform mapping and high-contrast behavior here in the same change. Add navigation destinations only when their feature is usable.
+`MainWindow.ConnectionStatusText` remains the persistent connection presentation seam. WI-002 must update its visible text, accessible name, and semantic brush together on the UI thread using real connection state. Keep session execution independent and sample fixtures separate from future service composition. No real server path is read through a local file API by the sample workspace.
 
 ## Verification
 
-Implementation and actual verification evidence are recorded in WI-003. Resource definitions and a successful build do not establish that theme, scaling, or assistive-technology acceptance checks have passed.
-
-Platform references: [XAML theme resources](https://learn.microsoft.com/en-us/windows/apps/develop/platform/xaml/xaml-theme-resources), [contrast themes](https://learn.microsoft.com/en-us/windows/apps/design/accessibility/high-contrast-themes), and [OverlappedPresenter minimum width](https://learn.microsoft.com/en-us/windows/windows-app-sdk/api/winrt/microsoft.ui.windowing.overlappedpresenter.preferredminimumwidth).
+Actual builds, launch commands, runtime observations, external screenshots, and remaining acceptance checks belong in [WI-004](../work-items/WI-004-implement-interactive-workspace-layout.md). Implemented theme resources and authored accessibility names do not establish manual theme, scaling, screen-reader, or keyboard acceptance.

@@ -14,25 +14,36 @@ namespace OpenCodeDesktop;
 public sealed partial class MainWindow : Window
 {
     private readonly WorkspaceView _workspaceView = new();
-    private readonly ConnectionView _connectionView = new();
+    private readonly SettingsView _settingsView = new();
     private double _rasterizationScale;
 
     public MainWindow()
     {
         InitializeComponent();
-        ShellNavigation.SelectedItem = WorkspaceDestination;
+        ShellContentHost.Children.Add(_workspaceView);
+        ShellContentHost.Children.Add(_settingsView);
+        _settingsView.Visibility = Visibility.Collapsed;
+        _workspaceView.SettingsRequested += (_, _) => ShowSettings(true);
+        _settingsView.ReturnRequested += (_, _) => ShowSettings(false);
+        _workspaceView.AttentionChanged += (_, _) =>
+        {
+            AttentionButton.Content = "Needs attention: " + _workspaceView.AttentionCount;
+        };
+        AttentionButton.Content = "Needs attention: " + _workspaceView.AttentionCount;
         Closed += MainWindow_Closed;
     }
 
-    private void ShellNavigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+    private void ShowSettings(bool show)
     {
-        ShellContentHost.Content = ReferenceEquals(args.SelectedItem, ConnectionDestination) ? _connectionView : _workspaceView;
+        _workspaceView.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
+        _settingsView.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        (show ? (Control)_settingsView : _workspaceView).Focus(FocusState.Programmatic);
+    }
 
-        // Release the content area after selecting a destination in compact/overlay modes.
-        if (ShellRoot.IsLoaded && sender.DisplayMode != NavigationViewDisplayMode.Expanded)
-        {
-            sender.IsPaneOpen = false;
-        }
+    private void Attention_Click(object sender, RoutedEventArgs args)
+    {
+        ShowSettings(false);
+        _workspaceView.ShowAttentionAsync();
     }
 
     private void ShellRoot_Loaded(object sender, RoutedEventArgs args)
@@ -43,7 +54,7 @@ public sealed partial class MainWindow : Window
         AppWindow.ResizeClient(new SizeInt32(
             ScaleDimension("ShellWindowInitialWidth"),
             ScaleDimension("ShellWindowInitialHeight")));
-        WorkspaceDestination.Focus(FocusState.Programmatic);
+        _workspaceView.Focus(FocusState.Programmatic);
     }
 
     private void XamlRoot_Changed(XamlRoot sender, XamlRootChangedEventArgs args)

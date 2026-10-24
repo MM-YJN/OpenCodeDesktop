@@ -9,40 +9,25 @@
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <NavigationView
-            x:Name="ShellNavigation"
-            AutomationProperties.Name="Main navigation"
-            PaneTitle="OpenCode Desktop"
-            PaneDisplayMode="LeftCompact"
-            IsPaneOpen="False"
-            OpenPaneLength="{StaticResource ShellNavigationWidth}"
-            CompactPaneLength="{StaticResource ShellNavigationCompactWidth}"
-            IsBackButtonVisible="Collapsed"
-            IsSettingsVisible="False"
-            SelectionChanged="ShellNavigation_SelectionChanged">
-            <NavigationView.MenuItems>
-                <NavigationViewItem x:Name="WorkspaceDestination" Content="Workspace" AutomationProperties.Name="Workspace">
-                    <NavigationViewItem.Icon><SymbolIcon Symbol="Home" /></NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem x:Name="ConnectionDestination" Content="Connection" AutomationProperties.Name="Connection">
-                    <NavigationViewItem.Icon><SymbolIcon Symbol="Link" /></NavigationViewItem.Icon>
-                </NavigationViewItem>
-            </NavigationView.MenuItems>
-            <ContentControl x:Name="ShellContentHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
-        </NavigationView>
+        <Grid x:Name="ShellContentHost" />
         <Border
             Grid.Row="1"
             Background="{ThemeResource ShellStatusSurfaceBrush}"
             BorderBrush="{ThemeResource ShellBorderBrush}"
             BorderThickness="{StaticResource ShellStatusBorderThickness}"
             Padding="{StaticResource ShellStatusPadding}">
-            <TextBlock
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <TextBlock
                 x:Name="ConnectionStatusText"
-                Text="Connection: Disconnected"
+                Text="Connection: Disconnected · Sample data"
                 AutomationProperties.Name="Server connection: Disconnected"
                 AutomationProperties.LiveSetting="Polite"
                 Foreground="{ThemeResource ShellDisconnectedBrush}"
-                Style="{StaticResource ShellBodyTextStyle}" />
+                Style="{StaticResource ShellBodyTextStyle}" VerticalAlignment="Center" />
+                <Button x:Name="AttentionButton" Grid.Column="1" Content="Needs attention: 0" Click="Attention_Click"
+                        AutomationProperties.LiveSetting="Polite"/>
+            </Grid>
         </Border>
     </Grid>
 </Window>

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3.mtp-v2" Version="4.0.2" />
+    <!-- Test the UI-independent App preview state without moving sample concerns into Core. -->
+    <Compile Include="../../src/OpenCodeDesktop/Presentation/*.cs" Link="Presentation/%(Filename)%(Extension)" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

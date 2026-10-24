@@ -58,12 +58,14 @@
     <x:Double x:Key="ShellWindowInitialHeight">900</x:Double>
     <x:Double x:Key="ShellWindowMinimumWidth">640</x:Double>
     <x:Double x:Key="ShellWindowMinimumHeight">480</x:Double>
-    <x:Double x:Key="ShellNavigationWidth">280</x:Double>
-    <x:Double x:Key="ShellNavigationCompactWidth">48</x:Double>
     <x:Double x:Key="ShellProjectsPanelWidth">240</x:Double>
     <x:Double x:Key="ShellProjectsInlineThreshold">1000</x:Double>
-    <x:Double x:Key="ShellInspectorWidth">320</x:Double>
     <x:Double x:Key="ShellInspectorInlineThreshold">1000</x:Double>
+    <x:Double x:Key="ShellDetailsWidth">420</x:Double>
+    <x:Double x:Key="ShellDetailsMinimumWidth">320</x:Double>
+    <x:Double x:Key="ShellConversationMinimumWidth">420</x:Double>
+    <x:Double x:Key="ShellComposerMaximumHeight">220</x:Double>
+    <x:Double x:Key="ShellTerminalHeight">180</x:Double>
 
     <Style x:Key="ShellBodyTextStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyTextBlockStyle}">
         <Setter Property="FontSize" Value="{StaticResource ShellBodyFontSize}" />
