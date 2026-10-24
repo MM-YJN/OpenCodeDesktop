@@ -8,10 +8,13 @@ This is the active index for unfinished work, in intended execution order. Done 
 
 | ID | Task | Type | Status | Dependencies |
 | --- | --- | --- | --- | --- |
+| [WI-005](WI-005-verify-project-session-workflow.md) | Verify how users open projects and sessions | Investigation | Ready | [WI-001](WI-001-verify-connection-contract.md), [WI-002](WI-002-implement-server-connection.md) |
+| [WI-006](WI-006-implement-live-projects-sessions.md) | Open real projects and manage sessions | Implementation | Draft | [WI-005](WI-005-verify-project-session-workflow.md), [WI-004](WI-004-implement-interactive-workspace-layout.md) |
+| [WI-007](WI-007-verify-task-execution-workflow.md) | Verify the complete task execution workflow | Investigation | Ready | [WI-006](WI-006-implement-live-projects-sessions.md) |
+| [WI-008](WI-008-implement-live-task-workflow.md) | Run tasks and respond to agent requests | Implementation | Draft | [WI-007](WI-007-verify-task-execution-workflow.md) |
+| [WI-009](WI-009-implement-session-recovery.md) | Recover connections and reopen existing work | Implementation | Draft | [WI-008](WI-008-implement-live-task-workflow.md) |
 
-No active work items.
-
-Next: None defined. WI-002 was completed with user acceptance on 2026-10-24.
+Next: WI-005. Its dependencies are complete. Later implementation items need their preceding investigation findings before being made Ready; no item in this sequence has started.
 
 ## Working Agreements
 
