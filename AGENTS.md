@@ -78,6 +78,19 @@ This is the intended architecture. App is the composition root; Core defines abs
 - Project files currently declare their own package versions. Preserve that convention unless intentionally migrating to central package management.
 - Preserve package lock files and update them when dependencies change.
 
+## Work Item Workflow
+
+Track requirements and progress in the repository. Use [the requirements overview](docs/requirements/overview.md) for product scope and [the work item index](docs/work-items/README.md) as the single source of task status and execution order. Write work items and their updates in English.
+
+1. **Select and understand the work.** Read the index, the selected work item, its related requirements, and relevant existing code before making changes. Follow the user's requested item; when asked to continue with the next task, use the index and check that its dependencies are satisfied. Work on one item at a time.
+2. **Make the task executable.** Before implementation, ensure the item has a clear goal, scope, exclusions, deliverables, observable acceptance criteria, and verification requirements. Use an investigation item when essential facts or external contracts must first be verified. Resolve routine implementation choices independently; ask about unresolved product decisions that materially affect scope or behavior.
+3. **Record the start.** Change the index status from Ready to In Progress when execution begins. Keep status in the index rather than duplicating it in task files. Draft means the task still needs definition; Ready means it is sufficiently defined to execute.
+4. **Implement within scope.** Follow the module boundaries in this guide and preserve unrelated changes. Keep internal execution steps in the work item or agent plan. Create separate work items only for independently verifiable increments, with stable IDs and explicit dependencies or parent links. Record material decisions in the work item and update the requirements overview if product scope changes.
+5. **Verify and record evidence.** Run the checks appropriate to the change and the item's acceptance criteria. Record the actual commands, results, relevant manual checks, and remaining limitations in the work item. Check off only criteria supported by evidence; an unavailable check is not a passing check. Documentation-only changes do not require an App build or test run unless the item specifically requires them.
+6. **Update the outcome.** Use Awaiting Acceptance when implementation is complete but required review or manual confirmation remains. Use Done only when all acceptance criteria are satisfied. If blocked, record the reason and unblock condition in the item and annotate the index without marking it complete. Summarize the deliverables, verification, and outstanding issues in the handoff.
+
+Keep deliverables and their work item records consistent and, when committing, include related updates in the same commit where practical. Maintain concise decision and verification records rather than daily activity logs. Creating or updating a work item does not itself mean that its execution has started, and completing one item does not authorize starting unrelated work.
+
 ## Working Guidelines
 
 - Inspect existing code before editing and preserve unrelated work.
