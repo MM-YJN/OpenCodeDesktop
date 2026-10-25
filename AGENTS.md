@@ -97,7 +97,7 @@ Keep deliverables and their work item records consistent and, when committing, i
 
 ## Working Guidelines
 
-- For XAML, Windows API, startup, or native UI verification work, use the repository-local [winapp-workflow skill](.agents/skills/winapp-workflow/SKILL.md). It covers sample/API discovery, packaged launch, UI Automation, and crash diagnostics alongside the build/test checks below.
+- For XAML, Windows API, startup, or native UI verification work, use the repository-local [winapp-workflow skill](.agents/skills/winapp-workflow/SKILL.md). It adds project-specific build, launch, and evidence requirements and routes to the vendored Microsoft skills for discovery, design, UI Automation, live XAML inspection, and diagnostics. See the [skill source and maintenance notes](.agents/skills/README.md).
 
 - Inspect existing code before editing and preserve unrelated work.
 - Place code in the module that owns its responsibility; introduce folders when there is actual code to organize.

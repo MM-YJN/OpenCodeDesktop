@@ -6,9 +6,40 @@ This is the active index for unfinished work, in intended execution order. Done 
 
 ## Active Work
 
-No active work items.
+| ID | Task | Type | Status | Dependencies |
+| --- | --- | --- | --- | --- |
+| [WI-014](WI-014-verify-native-reliability-accessibility.md) | Resolve native reliability and accessibility verification gaps | Implementation / verification | Ready | WI-013 |
+| [WI-015](WI-015-browse-preview-project-files.md) | Browse and preview project files | Implementation | Ready | WI-014, WI-011 |
+| [WI-016](WI-016-review-repository-session-changes.md) | Review repository and session changes | Implementation | Ready | WI-015, WI-008 |
+| [WI-017](WI-017-reference-attach-prompt-files.md) | Reference and attach files to prompts | Implementation | Ready | WI-015, WI-008, WI-009 |
+| [WI-018](WI-018-organize-session-history.md) | Search, rename, archive and restore sessions | Implementation | Ready | WI-014, WI-011, WI-012 |
+| [WI-019](WI-019-notify-completion-attention.md) | Notify on completion and required attention | Implementation | Ready | WI-014, WI-009, WI-012 |
+| [WI-020](WI-020-manage-queued-inputs.md) | Inspect and manage queued inputs | Implementation | Ready | WI-014, WI-008, WI-009 |
+| [WI-021](WI-021-fork-revert-session-history.md) | Fork sessions and expose staged revert | Implementation | Ready | WI-016, WI-018, WI-020 |
 
-Next: no implementation item is active. New work requires a new work item.
+Next: WI-014. All eight items are defined only; execution has not started. Follow the row order, checking dependencies before starting each item. Dependencies express required foundations rather than an artificial dependency on every preceding row.
+
+## Shared execution and verification requirements
+
+The items below continue the OpenCode v2 / server 2.1.4 baseline; they do not authorize a version migration. For new backend operations, inspect the retained [contract provenance](../integration/contracts/README.md), verify the relevant contract against the pinned isolated binary, retain the required runtime OpenAPI slice and sanitized evidence, and document observed semantics and unobserved cases within the selected item. Do not assume the latest website matches 2.1.4. Contract verification is part of each feature, not a separate investigation item.
+
+Keep application rules and abstractions in Core, HTTP/DTO/persistence implementations in Infrastructure, and native controls/presentation in App. Preserve connection/project/session ownership, cancellation generations, drafts, protected credentials and authoritative recovery. Do not retry mutations automatically after uncertain delivery.
+
+When executing an item, run the following checks for changed behavior and native UI; record actual commands, counts, failures/skips, evidence paths and limitations in that item. Run suites sequentially to avoid shared build-output locks. A skipped live test or unavailable manual check is not passing evidence.
+
+```powershell
+dotnet test --project tests/OpenCodeDesktop.Core.Tests/OpenCodeDesktop.Core.Tests.csproj
+dotnet test --project tests/OpenCodeDesktop.Infrastructure.Tests/OpenCodeDesktop.Infrastructure.Tests.csproj
+dotnet test --project tests/OpenCodeDesktop.Presentation.Tests/OpenCodeDesktop.Presentation.Tests.csproj
+dotnet build OpenCodeDesktop.slnx -p:Platform=x64
+git diff --check
+```
+
+Use the repository-local [winapp workflow](../../.agents/skills/winapp-workflow/SKILL.md) for native implementation and verification, including API/control discovery, current packaged-binary launch, UI Automation, screenshots and crash diagnostics as applicable. Exercise new UI in light, dark and high contrast, at 1440x900 and 640x480 effective sizes, with keyboard access and accessible names/focus. Keep fixtures disposable and screenshots/dumps outside source control; exclude credentials and private content. Preserve package locks if dependencies change. Leave an item Awaiting Acceptance while required native or user review remains outstanding.
+
+## Planning validation (2026-10-25)
+
+Created WI-014 through WI-021 in the recommended order and marked them Ready without starting execution. Verified eight unique new IDs against both indexes and existing filenames, required definition sections, unchecked acceptance criteria and 56 local link targets. `git diff --check` passed. Requirements and completed-item records were unchanged. No application build, behavior tests, runtime probes or native checks were run for this documentation-only planning change.
 
 ## Working Agreements
 
