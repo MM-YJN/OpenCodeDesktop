@@ -2,7 +2,7 @@
 
 Status: Initial draft for discussion
 
-Last updated: 2026-10-24
+Last updated: 2026-10-25
 
 ## Purpose
 
@@ -21,9 +21,13 @@ This document records the initial product direction derived from the official v2
 
 ## Workspace Layout
 
-The [desktop concept](desktop-concept.png) establishes the intended workspace layout: a collapsible project/session panel, a central task header, conversation and composer, and a collapsible, resizable Details pane. There is no separate application navigation rail. Settings is accessible from the projects-panel footer; when Projects is hidden, reopen it to reach Settings. The workspace header contains Projects, Details, and Terminal without a duplicate Settings entry. Connections and Extensions are sections inside Settings, alongside Models & Providers, Permissions, Appearance, and Notifications. Returning from Settings restores the workspace context. Opening or closing Details animates only that pane, without a fly-in transition on the main conversation or composer.
+The [tab-based workspace and project Files concept](../design/project-files-tabs-concept.png) is the reference for central workspace navigation and file browsing, superseding the Files placement in the [earlier desktop concept](desktop-concept.png). Keep a collapsible project/session panel and a central workspace with a tab strip below the application title bar. Each open session and each project Files view occupies its own closable tab. Session tabs contain the task header, conversation, pending interactions and composer; a Files tab contains the project's file browser and preview. Selecting a session in the project tree opens or activates its existing tab. Tabs show distinguishable session/project identities and preserve their reading and draft state during switches. Closing a tab closes the view without deleting a session/project, discarding an unsent draft or interrupting server execution. Reopening the same session or project Files view reuses its retained in-memory state. Tab and preview restoration after restart is outside WI-015; existing validated project/session restoration remains required.
 
-Details has Info, Files, and Changes tabs. Info contains session metadata, context, instructions, usage, and activity. Files combines navigation/search with a selected-file preview. Changes combines a changed-file list with an expanded diff and an explicit comparison selector. Conversation file references and change summaries open the corresponding Details tab. Each tab retains its selection and scroll position; the pane supports expand/restore for larger previews. File previews and diffs live in Details rather than below the conversation. A collapsible terminal surface can occupy the bottom of the central workspace. Connection status and pending-attention access remain visible outside Settings.
+There is no separate application navigation rail. Settings is accessible from the projects-panel footer; when Projects is hidden, reopen it to reach Settings. Keep the Projects toggle available for both session and Files tabs. Details and Terminal controls belong to the session view. Connections and Extensions are sections inside Settings, alongside Models & Providers, Permissions, Appearance, and Notifications. Returning from Settings restores the active workspace tab. Opening or closing Details animates only that pane, without a fly-in transition on the main conversation or composer.
+
+Each project's overflow menu includes a Files entry alongside its existing project actions. Files opens or activates one Files tab per connection and resolved project directory, without requiring a selected or existing session. The tab shows server/project identity and the server directory, with directory navigation, filename search and refresh beside a read-only selected-file preview. Files state belongs to the project, not to a session. Selecting another session in that project does not reset the file selection or scroll position. Verified conversation file references open or activate the owning project's Files tab and select the matching preview; ambiguous references remain non-actionable. Switching tabs replaces a separate Back to conversation action. A Files tab has no session Details pane or composer.
+
+Session Details has Info and Changes tabs. Info contains session metadata, context, instructions, usage, and activity. Changes combines a changed-file list with an expanded diff and an explicit comparison selector. Conversation change summaries open Changes in the owning session tab. Details retains its selection and scroll position per session and supports expand/restore for larger diffs. Diffs remain in Details; file previews belong to the central project Files tab. A collapsible terminal surface can occupy the bottom of a session view. Connection status and pending-attention access remain visible across workspace tabs and outside Settings. Tabs and asynchronous results remain scoped to the active connection; switching servers must not expose or apply another backend's content.
 
 On first launch, or after an explicit disconnect, the app opens with an empty, disconnected workspace and guidance to Settings > Connections. With saved active connection information, launch automatically reconnects and restores the last selected project/session after validation and authoritative server refresh. Saved project lists may be shown while disconnected, with connection state clear; live sessions and conversation history require a real connection. Do not populate the workspace, Details, terminal, composer or attention surfaces with illustrative data. Features without a live integration remain explicitly unavailable.
 
@@ -64,7 +68,7 @@ The following resource groups describe the documented capabilities relevant to p
 | CON-02 | Detect and communicate an unsupported server version or contract instead of silently continuing with incompatible behavior. |
 | CON-04 | Persist connection profiles, protected credentials and each connection's project list/navigation selections. On launch automatically reconnect to the last active connection and restore its validated project/session using authoritative server state. Respect explicit disconnect and provide actionable recovery for unavailable servers, invalid credentials or missing selections. |
 | PRJ-01 | Maintain a project list per connection, add validated server-side directories, switch between listed projects, and remove navigation entries without deleting server work. Show the active server and directory clearly and retain each project's session selection and in-memory drafts during navigation. |
-| SES-01 | List sessions, create a session, switch between sessions, and load message history with pagination where required. |
+| SES-01 | List sessions, create a session, open or activate each session in its own central workspace tab, switch between tabs, and load message history with pagination where required. Preserve drafts and reading state during tab navigation; closing a tab does not delete or interrupt its session. |
 | SES-02 | Select an available model and agent for a task and show the current selection. |
 | MSG-01 | Submit a text prompt and render user messages, assistant content, code blocks, tool activity, and execution errors. |
 | EXE-01 | Distinguish submission from completion and represent queued, running, waiting for user input, completed, interrupted, and failed states where supported by the contract. |
@@ -84,7 +88,7 @@ The following resource groups describe the documented capabilities relevant to p
 | SES-04 | Fork a session from supported history boundaries and expose supported revert operations with clear effects. |
 | MSG-02 | Attach or reference files using the supported v2 input contract. |
 | EXE-03 | Display queued inputs and allow supported queue updates or cancellation. |
-| REV-01 | Browse project files and preview relevant content. |
+| REV-01 | Open or activate a project-scoped Files tab from the project's overflow menu without requiring a session. Browse/search server-owned files and preview content read-only beside directory navigation. Retain selection/scroll per connection and resolved directory during tab navigation, and route verified conversation file references to the owning project's preview. |
 | REV-02 | Review repository changes and session-turn diffs with their comparison basis clearly identified. |
 | WIN-01 | Notify users when a task completes or requires attention, subject to notification preferences. |
 

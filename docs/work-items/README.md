@@ -38,6 +38,8 @@ Use the repository-local [winapp workflow](../../.agents/skills/winapp-workflow/
 
 ## Planning validation (2026-10-25)
 
+Revised WI-015 and the workspace requirements to use the approved tab-based workspace and project Files overflow-menu entry. Saved the reference image and generation prompt in docs/design and linked them from WI-015 and the design system. WI-015 remains Ready; this documentation revision does not start implementation. Verification: PowerShell checked all 28 local document links across the four updated Markdown files and confirmed the saved concept image exists; git diff --check passed. No application build, behavior tests or runtime checks were run for this documentation-only revision.
+
 Created WI-014 through WI-021 in the recommended order and marked them Ready without starting execution. Verified eight unique new IDs against both indexes and existing filenames, required definition sections, unchecked acceptance criteria and 56 local link targets. `git diff --check` passed. Requirements and completed-item records were unchanged. No application build, behavior tests, runtime probes or native checks were run for this documentation-only planning change.
 
 ## Working Agreements
