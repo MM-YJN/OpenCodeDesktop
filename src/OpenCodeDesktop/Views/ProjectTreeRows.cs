@@ -37,7 +37,8 @@ internal sealed class ProjectRowView : IProjectTreeRow
         Root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         Root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         Root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        Root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        // Fill the minimum row height so the header stays centered beside the native chevron.
+        Root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         Root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         _folder = ShellUi.Icon("ShellIconFolder", ShellUi.Dimension("ShellIconSmall"));
