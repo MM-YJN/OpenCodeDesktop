@@ -203,7 +203,10 @@ public sealed partial class OpenCodeWorkspaceConnection(HttpClient client, Serve
             failure = Optional(error, "type") == "aborted" ? HistoryFailureOutcome.Interrupted : HistoryFailureOutcome.Failed;
         }
 
-        return new(id, type, text) { CompletedFailure = failure, IsComplete = isComplete, Parts = parts, FileReferences = MessageFileReferences(value, type) };
+        string[] changedFiles = type == "assistant" && value.TryGetProperty("snapshot", out JsonElement snapshot) &&
+            snapshot.TryGetProperty("files", out JsonElement changed) && changed.ValueKind == JsonValueKind.Array
+            ? changed.EnumerateArray().Select(f => f.GetString() ?? throw Protocol()).Take(ReviewLimits.Files).ToArray() : [];
+        return new(id, type, text) { CompletedFailure = failure, IsComplete = isComplete, Parts = parts, FileReferences = MessageFileReferences(value, type), ChangedFiles = changedFiles };
     }
 
     private static IReadOnlyList<HistoryFileReference> MessageFileReferences(JsonElement value, string type)

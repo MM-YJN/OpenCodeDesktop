@@ -210,7 +210,7 @@ public sealed partial class WorkspaceView
     }
 
     private static string Hash(ConversationEntry entry) =>
-        entry.Role + "|" + entry.Title + "|" + string.Join('|', entry.FileReferences.Select(reference => reference.Uri + reference.Name)) + "|" + string.Join('\u001f', entry.Segments.Select(segment =>
+        entry.Role + "|" + entry.Title + "|" + entry.ReviewFrom + "|" + string.Join('|', entry.ChangedFiles) + "|" + string.Join('|', entry.FileReferences.Select(reference => reference.Uri + reference.Name)) + "|" + string.Join('\u001f', entry.Segments.Select(segment =>
             (segment.IsCode ? "code" : segment.IsTool ? "tool" : segment.IsActivity ? "activity" : "text") + ":" + segment.ToolName + ":" + segment.Text));
 
     private FrameworkElement BuildEntry(ConversationEntry entry)
@@ -223,9 +223,22 @@ public sealed partial class WorkspaceView
             ConversationRole.Error => BuildErrorEntry(entry),
             _ => BuildActivityEntry(entry),
         };
-        if (_live?.Location is not { } location || entry.FileReferences.Count == 0) { return body; }
+        if (_live?.Location is not { } location || entry.FileReferences.Count == 0 && entry.ChangedFiles.Count == 0) { return body; }
         StackPanel wrapper = ShellUi.Stack(6);
         wrapper.Children.Add(body);
+        if (entry.ReviewFrom is { } from)
+        {
+            foreach (string file in entry.ChangedFiles)
+            {
+                string? session = _live.SelectedSessionId;
+                wrapper.Children.Add(ShellUi.LabelButton("Review change · " + file, "ShellIconInfo", async (_, _) =>
+                {
+                    if (_live?.Location != location || _live.SelectedSessionId != session) { return; }
+                    DetailsLayout.IsPaneOpen = true;
+                    await DetailsContent.OpenTurnAsync(from, file).ConfigureAwait(true);
+                }, "ShellQuietButtonStyle"));
+            }
+        }
         foreach (HistoryFileReference reference in entry.FileReferences)
         {
             if (ProjectFileReferences.Candidate(location.Directory, reference.Uri) is not { } candidate) { continue; }

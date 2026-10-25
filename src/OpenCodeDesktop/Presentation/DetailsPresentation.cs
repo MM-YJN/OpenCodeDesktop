@@ -10,7 +10,7 @@ internal sealed record DetailFieldPresentation(string Label, string Value);
 
 internal sealed record DetailsPresentation(string Title, string Subtitle, IReadOnlyList<DetailFieldPresentation> Fields, string UnavailableMessage)
 {
-    internal const string Unavailable = "Changes and terminal output are not available in this release. Open project Files from the project menu. Conversation activity and pending requests stay in the workspace.";
+    internal const string Unavailable = "Review repository or session-turn comparisons in Changes. Open project Files from the project menu. Terminal output is not available in this release.";
 }
 
 internal static class DetailsPresentationFactory

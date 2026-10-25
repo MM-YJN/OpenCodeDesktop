@@ -1,5 +1,21 @@
 # OpenCode connection contract provenance
 
+## Change-review contract (WI-016)
+
+Verified on 2026-10-25 with the same hash-checked 2.1.4 executable below. [The review snapshot](opencode-2.1.4-review.openapi.json) retains the five complete runtime path objects for VCS info, status, review base, repository diff and session-turn diff, with their transitive schema closure. [The verifier](../verify-review.ps1) structurally compares subsequent runtime slices and checks disposable Git fixtures. [Sanitized evidence](opencode-2.1.4-review-evidence.json) includes repository working/branch/committed comparisons, explicit and missing bases, non-repositories, missing sessions/turns, imported turns without snapshots, and real snapshot changes from two controlled turns and their range. The [loopback provider](../review-provider-fixture.mjs) requests writes only to a synthetic session-owned file; it does not execute a real model. Node.js and Git are verifier prerequisites, not production dependencies.
+
+`working` compares HEAD to the working copy; `branch` compares the base merge-base to the working copy; `committed` compares the base merge-base to HEAD. Base inference can return 503 for ambiguous branch history (observed when the fixture branch was created from unnamed HEAD); creating from named `main` yields `refs/heads/main` with source `reflog`. The client resolves the inferred base and supplies that ref explicitly, or accepts an explicit user ref without saving it on the server. Refs and HEAD remain mutable between requests; this is a refreshed comparison, not an atomic repository snapshot. VCS metadata was initially empty during service initialization even for a real repository and populated later, so absence of provider/branch metadata is not treated as proof of a non-repository. A non-repository working comparison returned an empty array.
+
+Untracked text is returned as added; the staged rename fixture is returned as separate added/deleted entries. Binary changes retain a unified-diff header and a `Binary files … differ` notice with zero line counts. The client preserves these representations rather than inventing rename identities or binary content. Turn comparisons use explicit user-message IDs; a turn spans the first prompt after idle through the next idle marker, including prompts steered while busy. The retained runtime description specifies first-to-last snapshots, an active working-copy endpoint, rejection across locations, and next-user-message boundaries when no idle markers exist. Completed snapshot turns and ranges were directly observed; busy steering, active snapshots, cross-location ranges and remote/POSIX providers remain unobserved. No-snapshot imported turns return no patches and missing turns/sessions return 404.
+
+Response bodies are parsed before owned temporary paths are replaced. Only synthetic projects/messages are retained; authorization, server passwords and configuration/provider credentials are absent. The client uses GET requests only, checks repository response locations and session ownership, requests three context lines, rejects responses above 4 MiB, and displays at most 1,000 files and 100,000 patch characters per file with explicit limit states. Empty patches remain distinct from textual patches. Reproduction:
+
+```powershell
+docs/integration/verify-review.ps1 -ExecutablePath "$env:TEMP/ocd-wi002-cli/package/bin/opencode.exe" -OutputDirectory "$env:TEMP/opencode/wi016/probes"
+```
+
+The verifier isolates server state, credentials and temporary storage, uses owned fixture repositories only, stops its provider/server and validates its scratch path before cleanup. Review requests are checked against unchanged fixture Git status before the separate controlled task writes begin. Native verification and remaining visual/accessibility checks are recorded in WI-016.
+
 ## Filesystem contract (WI-015)
 
 Verified on 2026-10-25 with the hash-checked 2.1.4 binary identified below. [The filesystem snapshot](opencode-2.1.4-files.openapi.json) retains the complete runtime `/api/location`, `/api/fs/list`, `/api/fs/find` and `/api/fs/read/*` path objects and their transitive schema closure. [The verifier](../verify-files.ps1) compares future runtime slices structurally before accepting them. No version migration is involved.

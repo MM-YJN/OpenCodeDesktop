@@ -1,0 +1,38 @@
+<UserControl
+    x:Class="OpenCodeDesktop.Views.ChangeReviewView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" SizeChanged="Review_SizeChanged">
+    <Grid Padding="12,4,12,12" RowSpacing="6">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <ScrollViewer x:Name="ComparisonControls" MaxHeight="220" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Comparison controls and basis">
+        <StackPanel Spacing="6">
+            <ComboBox x:Name="ComparisonMode" Header="Comparison" HorizontalAlignment="Stretch" SelectionChanged="Mode_Changed" AutomationProperties.Name="Change comparison">
+                <ComboBoxItem Content="Repository · HEAD → working copy"/>
+                <ComboBoxItem Content="Repository · merge-base → working copy"/>
+                <ComboBoxItem Content="Repository · merge-base → HEAD"/>
+                <ComboBoxItem Content="Session · selected turn / range"/>
+            </ComboBox>
+            <TextBox x:Name="BaseInput" Header="Base ref (blank uses inferred review base)" MaxLength="1024" Visibility="Collapsed" AutomationProperties.Name="Repository comparison base"/>
+            <StackPanel x:Name="TurnInputs" Spacing="4" Visibility="Collapsed">
+                <ComboBox x:Name="FromTurn" Header="First user message / turn" HorizontalAlignment="Stretch" AutomationProperties.Name="First comparison turn"/>
+                <ComboBox x:Name="ToTurn" Header="Through later turn (optional)" HorizontalAlignment="Stretch" AutomationProperties.Name="Last comparison turn"/>
+                <TextBlock Text="Busy prompts share a turn. Load older history to select earlier messages." Style="{StaticResource ShellCaptionTextStyle}"/>
+            </StackPanel>
+            <Button x:Name="ApplyComparison" Content="Apply / Refresh" Click="Refresh_ClickAsync" AutomationProperties.Name="Apply or refresh comparison"/>
+            <TextBlock x:Name="Basis" Style="{StaticResource ShellCaptionTextStyle}" IsTextSelectionEnabled="True"/>
+            <TextBlock x:Name="ReviewStatus" Style="{StaticResource ShellCaptionTextStyle}" AutomationProperties.LiveSetting="Polite"/>
+        </StackPanel>
+        </ScrollViewer>
+        <Grid Grid.Row="1" RowSpacing="6">
+            <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="2*"/></Grid.RowDefinitions>
+            <ListView x:Name="ChangedFiles" SelectionMode="Single" SelectionChanged="File_Changed" AutomationProperties.Name="Changed files"/>
+            <StackPanel Grid.Row="1" Spacing="4">
+                <TextBlock x:Name="FileStatus" Style="{StaticResource ShellCaptionTextStyle}" TextTrimming="CharacterEllipsis"/>
+                <Button x:Name="PreviewButton" Content="Open current file in Files" Click="Preview_Click" IsEnabled="False"/>
+            </StackPanel>
+            <ScrollViewer x:Name="PatchScroll" Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" IsTabStop="True" AutomationProperties.Name="Selectable unified diff" ViewChanged="Patch_ViewChanged">
+                <TextBlock x:Name="Patch" Style="{StaticResource ShellCodeTextStyle}" IsTextSelectionEnabled="True" TextWrapping="NoWrap"/>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

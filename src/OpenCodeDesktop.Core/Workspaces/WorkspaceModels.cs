@@ -21,6 +21,7 @@ public sealed record HistoryMessage(string Id, string Kind, string Text)
     public bool IsComplete { get; init; } = true;
     public IReadOnlyList<HistoryContentPart> Parts { get; init; } = [];
     public IReadOnlyList<HistoryFileReference> FileReferences { get; init; } = [];
+    public IReadOnlyList<string> ChangedFiles { get; init; } = [];
 }
 public sealed record WorkspacePage<T>(IReadOnlyList<T> Data, string? Next);
 

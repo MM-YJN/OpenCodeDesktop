@@ -24,6 +24,8 @@ public sealed partial class WorkspaceView
     {
         _live = workspace;
         FilesContent.Bind(workspace.Files);
+        DetailsContent.Bind(workspace.Review);
+        DetailsContent.PreviewRequested += ReviewPreviewRequestedAsync;
         workspace.Changed += LiveChanged;
         workspace.UserNavigation += ProjectSessionNavigationRequested;
         workspace.UserNavigation += TreeNavigationRequested;
@@ -40,6 +42,8 @@ public sealed partial class WorkspaceView
         _live?.Changed -= LiveChanged;
         _live?.UserNavigation -= ProjectSessionNavigationRequested;
         FilesContent.Unbind();
+        DetailsContent.PreviewRequested -= ReviewPreviewRequestedAsync;
+        DetailsContent.Unbind();
         _live?.UserNavigation -= TreeNavigationRequested;
         _live = null;
         ClearProjectTree();
@@ -85,9 +89,22 @@ public sealed partial class WorkspaceView
             RenderLiveHistory(live, presentation);
             RenderLiveComposer(live, presentation.DraftOwner);
             RenderTaskControls();
+            live.Review.Open(live.Location, live.SelectedSessionId);
+            IReadOnlyList<HistoryMessage> reviewHistory = CurrentTask is { Hydrated: true } task
+                ? live.History.Where(item => !task.Conversation.Any(message => message.Id == item.Id)).Concat(task.Conversation).ToArray()
+                : live.History;
+            DetailsContent.UpdateReview(reviewHistory);
             DetailsContent.Update(DetailsPresentationFactory.From(live, CurrentTask));
         }
         TerminalToggle.IsEnabled = false;
+    }
+
+    private async void ReviewPreviewRequestedAsync(object? sender, string path)
+    {
+        if (_live?.Location is { } location)
+        {
+            await OpenProjectFilesAsync(location, path).ConfigureAwait(true);
+        }
     }
 
     private void OpenProjectState(LiveWorkspace live)

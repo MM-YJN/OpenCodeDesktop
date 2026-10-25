@@ -65,6 +65,7 @@ public sealed partial class WorkspaceView
     private void ProjectSessionNavigationRequested(object? sender, EventArgs args)
     {
         SaveWorkspacePosition();
+        _live?.Review.Suspend();
         if (_tabs.Active?.IsFiles == true)
         {
             _live?.Files.Suspend();
@@ -165,6 +166,7 @@ public sealed partial class WorkspaceView
 
     private void SaveWorkspacePosition()
     {
+        DetailsContent.SavePosition();
         if (_tabs.Active?.IsFiles == true)
         {
             FilesContent.SavePosition();
@@ -213,6 +215,7 @@ public sealed partial class WorkspaceView
         }
         SaveWorkspacePosition();
         _sessionNavigationPending = false;
+        live.Review.Suspend();
         _tabNavigation = false;
         long generation = ++_tabGeneration;
         WorkspaceTabKey key = new(server.Profile.Id, location.Directory, null, true);

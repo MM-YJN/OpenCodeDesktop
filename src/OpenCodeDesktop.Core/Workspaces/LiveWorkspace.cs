@@ -28,6 +28,7 @@ public sealed partial class LiveWorkspace : IDisposable
 
     public event EventHandler? Changed;
     public ProjectFilesWorkspace Files { get; } = new();
+    public ChangeReviewWorkspace Review { get; } = new();
     public LiveTaskWorkflow? Tasks { get; private set; }
     public bool HasConnected { get; private set; }
     public bool IsConnected => _connections.Context is not null;
@@ -89,6 +90,7 @@ public sealed partial class LiveWorkspace : IDisposable
             {
                 _backends.Remove(id);
                 Files.ForgetConnection(id);
+                Review.ForgetConnection(id);
             }
         }
         if (_connectionGeneration == _connections.Generation)
@@ -98,6 +100,7 @@ public sealed partial class LiveWorkspace : IDisposable
 
         _connectionGeneration = _connections.Generation;
         Files.SetConnection(IsConnected ? Server?.Profile.Id : null, _connections.Context as IProjectFilesConnection);
+        Review.SetConnection(IsConnected ? Server?.Profile.Id : null, _connections.Context as IChangeReviewConnection);
         if (_backend is { } previous && Tasks is { } previousTasks)
         {
             previous.TaskStates = previousTasks.Sessions.Select(s => s.Retain()).ToArray();
@@ -811,6 +814,7 @@ public sealed partial class LiveWorkspace : IDisposable
 
         _disposed = true;
         Files.Dispose();
+        Review.Dispose();
         Tasks?.Dispose();
         Tasks = null;
         _connections.Changed -= ConnectionChangedAsync;

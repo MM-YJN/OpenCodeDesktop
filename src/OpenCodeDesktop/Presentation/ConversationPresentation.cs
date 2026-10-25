@@ -19,14 +19,25 @@ internal sealed record ConversationEntry(
     bool IsWarning = false)
 {
     internal IReadOnlyList<HistoryFileReference> FileReferences { get; init; } = [];
+    internal IReadOnlyList<string> ChangedFiles { get; init; } = [];
+    internal string? ReviewFrom { get; init; }
     internal string PlainText => string.Join("\n\n", Segments.Select(segment => segment.Text));
     internal string AutomationName => Role == ConversationRole.User ? "You said: " + PlainText : Title + ": " + PlainText;
 }
 
 internal static class ConversationPresentation
 {
-    internal static IReadOnlyList<ConversationEntry> From(IEnumerable<HistoryMessage> history) =>
-        history.Select(From).ToArray();
+    internal static IReadOnlyList<ConversationEntry> From(IEnumerable<HistoryMessage> history)
+    {
+        List<ConversationEntry> entries = [];
+        string? user = null;
+        foreach (HistoryMessage message in history)
+        {
+            if (message.Kind == "user") { user = message.Id; }
+            entries.Add(From(message) with { ReviewFrom = user });
+        }
+        return entries;
+    }
 
     internal static ConversationEntry From(HistoryMessage message)
     {
@@ -60,7 +71,7 @@ internal static class ConversationPresentation
         IReadOnlyList<ConversationSegment> segments = role == ConversationRole.Tool
             ? [new(Clean(message.Text), false, true)]
             : Segments(message.Text, role == ConversationRole.Assistant || role == ConversationRole.User);
-        return new(message.Id, role, title, segments, uncertain || role == ConversationRole.Error) { FileReferences = message.FileReferences };
+        return new(message.Id, role, title, segments, uncertain || role == ConversationRole.Error) { FileReferences = message.FileReferences, ChangedFiles = message.ChangedFiles };
     }
 
     internal static IReadOnlyList<ConversationSegment> Segments(string text, bool classifyRecordedActivity)

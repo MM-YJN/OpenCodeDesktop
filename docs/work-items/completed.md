@@ -21,3 +21,4 @@ This index records Done items, grouped by completion year. Read the [active inde
 | [WI-013](WI-013-polish-shell-feature-ux.md) | Polish the application shell and implemented feature UX | Implementation | Done | [WI-012](WI-012-persist-connections-workspace.md); existing shell and live workflows through WI-010 | 2026-10-25 |
 | [WI-014](WI-014-verify-native-reliability-accessibility.md) | Resolve native reliability and accessibility verification gaps | Implementation / verification | Done | WI-013 | 2026-10-25 |
 | [WI-015](WI-015-browse-preview-project-files.md) | Browse and preview project files | Implementation | Done | WI-014, WI-011 | 2026-10-25 |
+| [WI-016](WI-016-review-repository-session-changes.md) | Review repository and session changes | Implementation | Done | WI-015, WI-008 | 2026-10-25 |
