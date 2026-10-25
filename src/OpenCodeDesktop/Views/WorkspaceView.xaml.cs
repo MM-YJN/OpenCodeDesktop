@@ -187,7 +187,7 @@ public sealed partial class WorkspaceView : UserControl
         if (await dialog.ShowAsync() == ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(input.Text))
         {
             await live.OpenProjectAsync(input.Text).ConfigureAwait(true);
-            AddProjectButton.Focus(FocusState.Programmatic);
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => AddProjectButton.Focus(FocusState.Programmatic));
         }
     }
 
@@ -234,7 +234,10 @@ public sealed partial class WorkspaceView : UserControl
 
     private void DetailsLayout_SizeChanged(object sender, SizeChangedEventArgs args)
     {
-        ComposerScroll.MaxHeight = Math.Min(ShellUi.Dimension("ShellComposerMaximumHeight"), args.NewSize.Height * 0.4);
+        bool compact = args.NewSize.Height < 600;
+        SessionTitle.MaxLines = compact ? 1 : 2;
+        DraftBox.MaxHeight = compact ? 68 : 180;
+        ComposerScroll.MaxHeight = Math.Min(ShellUi.Dimension("ShellComposerMaximumHeight"), args.NewSize.Height * (compact ? 0.5 : 0.4));
         PendingRequestsScroll.MaxHeight = Math.Min(320, Math.Max(120, args.NewSize.Height * 0.36));
         bool inline = args.NewSize.Width >= ShellUi.Dimension("ShellInspectorInlineThreshold");
         if (_detailsInline != inline)

@@ -1,0 +1,38 @@
+{
+  "verifiedOn": "2026-10-25",
+  "workItem": "WI-014",
+  "serverVersion": "2.1.4",
+  "executableSha256": "B12B0613E9B4A491E5B12D90A5E9BBAE6D261FE9688C82BF73125A036963D399",
+  "scenario": "Reject a pending read-tool permission during a native submitted task",
+  "sanitization": "Only disposable fixture data. IDs are replaced; timestamps are relative to the preceding idle boundary. No request headers, credentials, paths or provider settings are retained.",
+  "observedSnapshotAfterReject": {
+    "active": false,
+    "inbox": [],
+    "permissions": [],
+    "outcome": "succeeded",
+    "idleBoundaryAdvanced": false
+  },
+  "newestHistoryFirst": [
+    {
+      "id": "assistant_rejected",
+      "type": "assistant",
+      "time": { "completed": 4444 },
+      "finish": "error",
+      "error": { "type": "aborted", "message": "Step interrupted" },
+      "toolError": { "type": "aborted", "message": "The user declined this tool call" }
+    },
+    { "id": "user_rejected", "type": "user" },
+    { "id": "idle_before", "type": "idle", "outcome": "succeeded", "time": { "created": 0 } }
+  ],
+  "clientRule": "When inactive with an empty inbox, recognize explicit completed assistant failures newer than the latest owned and admitted user input, without retrying the input. Older, incomplete, active or queued evidence must not release a newer submission.",
+  "streamingVerification": {
+    "regression": "Hydrating unfinished assistant history between session.text deltas must not hide live text or discard subsequent deltas. Completed authoritative history replaces the live overlay.",
+    "nativeSessionStillRunningInFirstCapture": true,
+    "firstVisibleAccessibleCharacters": 275,
+    "laterVisibleAccessibleCharacters": 650,
+    "composerFocusRetained": true,
+    "serverUserInputCount": 1,
+    "finalAction": "interrupt"
+  },
+  "limits": "The server's preceding succeeded outcome is stale in this scenario. This evidence does not authorize inferring completion from tool errors alone, from incomplete assistant messages, or from history older than the current input."
+}

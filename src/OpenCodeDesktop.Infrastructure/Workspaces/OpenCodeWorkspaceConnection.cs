@@ -180,10 +180,11 @@ public sealed partial class OpenCodeWorkspaceConnection(HttpClient client, Serve
     {
         string id = Required(value, "id");
         string type = Required(value, "type");
+        IReadOnlyList<HistoryContentPart> parts = type == "assistant" ? AssistantParts(value) : [];
         string text = type switch
         {
             "user" or "system" or "synthetic" => Required(value, "text", allowEmpty: true),
-            "assistant" => Assistant(value),
+            "assistant" => string.Join("\n\n", parts.Select(part => part.Text)),
             "shell" => "Recorded shell command: " + Optional(value, "command") + "\n" + Optional(value, "output") + "\nRecorded status: " + Optional(value, "status"),
             "idle" => "Recorded idle activity.",
             "compaction" => "Recorded context compaction: " + Optional(value, "status") + "\n" + Optional(value, "summary"),
@@ -193,28 +194,39 @@ public sealed partial class OpenCodeWorkspaceConnection(HttpClient client, Serve
             "location-switched" => "Recorded directory selection change.",
             _ => "Unsupported historical entry. This client cannot display this variant.",
         };
-        return new(id, type, text);
+        HistoryFailureOutcome? failure = null;
+        bool isComplete = type != "assistant" || value.TryGetProperty("time", out JsonElement time) && time.ValueKind == JsonValueKind.Object &&
+            time.TryGetProperty("completed", out JsonElement completed) && completed.ValueKind == JsonValueKind.Number;
+        if (type == "assistant" && isComplete && Optional(value, "finish") == "error" &&
+            value.TryGetProperty("error", out JsonElement error) && error.ValueKind == JsonValueKind.Object)
+        {
+            failure = Optional(error, "type") == "aborted" ? HistoryFailureOutcome.Interrupted : HistoryFailureOutcome.Failed;
+        }
+
+        return new(id, type, text) { CompletedFailure = failure, IsComplete = isComplete, Parts = parts };
     }
 
-    private static string Assistant(JsonElement value)
+    private static List<HistoryContentPart> AssistantParts(JsonElement value)
     {
-        List<string> content = [];
+        List<HistoryContentPart> content = [];
         foreach (JsonElement part in value.GetProperty("content").EnumerateArray())
         {
-            content.Add(Required(part, "type") switch
+            bool isText = Required(part, "type") == "text";
+            string text = Required(part, "type") switch
             {
                 "text" => Required(part, "text", allowEmpty: true),
                 "reasoning" => "Recorded reasoning: " + Optional(part, "text"),
                 "tool" => "Recorded tool: " + Optional(part, "name") + "\n" + ToolState(part),
                 _ => "Unsupported historical content.",
-            });
+            };
+            content.Add(new(content.Count, text, isText));
         }
         if (value.TryGetProperty("error", out JsonElement error) && error.ValueKind != JsonValueKind.Null)
         {
-            content.Add("A recorded assistant error occurred.");
+            content.Add(new(content.Count, "A recorded assistant error occurred.", false));
         }
 
-        return string.Join("\n\n", content);
+        return content;
     }
 
     private static string ToolState(JsonElement part)

@@ -8,6 +8,101 @@ namespace OpenCodeDesktop.Core.Tests;
 public sealed partial class LiveTaskWorkflowTests
 {
     [Fact]
+    public async Task PartialHistoryDoesNotHideStreamingTextOrDiscardLaterDeltas()
+    {
+        using Api api = new();
+        api.Snapshot = api.Snapshot with { Active = true };
+        api.History = [new("message", "assistant", "tool context")
+        {
+            IsComplete = false,
+            Parts = [new(0, "tool context", false), new(1, "", true)],
+        }];
+        using LiveTaskWorkflow workflow = new(api, api);
+        await workflow.OpenAsync(api.Session);
+        SessionTaskState state = workflow.Find("s")!;
+        int reads = api.SnapshotReads;
+        await EmitAsync(new("start", "session.text.started", "s", "message", 1, null), () => true);
+        await EmitAsync(new("first", "session.text.delta", "s", "message", 1, "first"), () => state.Conversation.Any(m => m.Text.Contains("first", StringComparison.Ordinal)));
+        await EmitAsync(new("hydrate", "session.updated", "s", null, 0, null), () => api.SnapshotReads > reads && !state.Loading);
+        Assert.Contains("first", Assert.Single(state.Conversation).Text, StringComparison.Ordinal);
+        await EmitAsync(new("second", "session.text.delta", "s", "message", 1, " second"), () => state.Conversation.Any(m => m.Text.Contains("first second", StringComparison.Ordinal)));
+        Assert.Equal("tool context\n\nfirst second", Assert.Single(state.Conversation).Text);
+        api.Snapshot = api.Snapshot with { Active = false, Idle = 2, Outcome = "succeeded" };
+        api.History = [new("idle", "idle", "idle"), new("message", "assistant", "server final")];
+        await EmitAsync(new("terminal", "session.execution.succeeded", "s", null, 0, null), () => state.Conversation.Any(m => m.Id == "message" && m.Text == "server final"));
+        Assert.Equal("server final", Assert.Single(state.Conversation, m => m.Id == "message").Text);
+
+        async Task EmitAsync(TaskEvent taskEvent, Func<bool> observed)
+        {
+            TaskCompletionSource signal = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            void Changed(object? sender, EventArgs args)
+            {
+                if (observed())
+                {
+                    signal.TrySetResult();
+                }
+            }
+            workflow.Changed += Changed;
+            try
+            {
+                await api.Events.Writer.WriteAsync(taskEvent, TestContext.Current.CancellationToken);
+                await signal.Task.WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+            }
+            finally
+            {
+                workflow.Changed -= Changed;
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(HistoryFailureOutcome.Interrupted, "Interrupted")]
+    [InlineData(HistoryFailureOutcome.Failed, "Failed — review errors and model access")]
+    public async Task CompletedAssistantFailureReleasesOwnedSubmissionWithoutNewIdle(HistoryFailureOutcome failure, string outcome)
+    {
+        using Api api = new();
+        api.Snapshot = api.Snapshot with { Idle = 1, Outcome = "succeeded" };
+        api.History = [new("old", "idle", "old boundary")];
+        using LiveTaskWorkflow workflow = new(api, api);
+        await workflow.OpenAsync(api.Session);
+        SessionTaskState state = workflow.Find("s")!;
+        await workflow.SendAsync(state, "read fixture");
+        string input = state.Submission!.Id;
+        api.History = [new("failure", "assistant", "completed failure") { CompletedFailure = failure }, new(input, "user", "read fixture"), new("old", "idle", "old boundary")];
+        await workflow.RefreshAsync(state);
+        Assert.Null(state.Submission);
+        Assert.True(state.CanSend);
+        Assert.Equal(outcome, state.Status);
+        Assert.Equal(1, api.Submissions);
+    }
+
+    [Theory]
+    [InlineData("older")]
+    [InlineData("active")]
+    [InlineData("queued")]
+    [InlineData("different-input")]
+    public async Task UnrelatedOrNonterminalFailureDoesNotReleaseSubmission(string scenario)
+    {
+        using Api api = new();
+        api.Snapshot = api.Snapshot with { Idle = 1, Outcome = "succeeded" };
+        api.History = [new("old", "idle", "old boundary")];
+        using LiveTaskWorkflow workflow = new(api, api);
+        await workflow.OpenAsync(api.Session);
+        SessionTaskState state = workflow.Find("s")!;
+        await workflow.SendAsync(state, "read fixture");
+        string input = state.Submission!.Id;
+        HistoryMessage failed = new("failure", "assistant", "completed failure") { CompletedFailure = HistoryFailureOutcome.Interrupted };
+        api.History = scenario == "older"
+            ? [new(input, "user", "read fixture"), failed, new("old", "idle", "old boundary")]
+            : [failed, new(scenario == "different-input" ? "foreign" : input, "user", "read fixture"), new("old", "idle", "old boundary")];
+        api.Snapshot = api.Snapshot with { Active = scenario == "active", Inbox = scenario == "queued" ? [input] : [] };
+        await workflow.RefreshAsync(state);
+        Assert.NotNull(state.Submission);
+        Assert.False(state.CanSend);
+        Assert.Equal(1, api.Submissions);
+    }
+
+    [Fact]
     public async Task EventDuringHydrationInvalidatesOldTerminalSnapshot()
     {
         using Api api = new();

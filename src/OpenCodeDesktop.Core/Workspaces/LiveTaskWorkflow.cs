@@ -68,7 +68,42 @@ public sealed class SessionTaskState(string id, string directory, string project
         Stale ? (Hydrated ? "Live state unavailable · last observed: " + (Active ? "Running" : Outcome) : "Live state unavailable — no execution state confirmed") : Permissions.Count + Forms.Count > 0 ? (Active ? "Waiting for you · task active" : "Waiting for you · session inactive") :
         Active ? "Running" : Loading ? "Checking live state…" : Submission is not null ? (DeliveryUncertain ? "Delivery uncertain — do not resend; refresh" : "Accepted / queued") :
         Inbox.Count > 0 ? (Outcome == "Ready" ? "Accepted / queued" : Outcome + " · queued input remains") : Outcome;
-    public IReadOnlyList<HistoryMessage> Conversation => History
+    private HistoryMessage OverlayLiveText(HistoryMessage history)
+    {
+        if (history.Kind != "assistant" || history.IsComplete)
+        {
+            return history;
+        }
+
+        var live = Text.Where(part => part.Key.Message == history.Id).ToDictionary(part => part.Key.Ordinal, part => part.Value);
+        if (live.Count == 0)
+        {
+            return history;
+        }
+
+        List<HistoryContentPart> parts = [.. history.Parts];
+        if (parts.Count == 0 && history.Text.Length > 0)
+        {
+            parts.Add(new(-1, history.Text, false));
+        }
+
+        foreach ((int ordinal, string text) in live)
+        {
+            int index = parts.FindIndex(part => part.Ordinal == ordinal);
+            if (index < 0)
+            {
+                parts.Add(new(ordinal, text, true));
+            }
+            else if (parts[index].IsText && text.Length > parts[index].Text.Length)
+            {
+                parts[index] = parts[index] with { Text = text };
+            }
+        }
+
+        return history with { Text = string.Join("\n\n", parts.OrderBy(part => part.Ordinal).Select(part => part.Text)) };
+    }
+
+    public IReadOnlyList<HistoryMessage> Conversation => History.Select(OverlayLiveText)
         .Concat(Submission is { } submitted && !History.Any(m => m.Id == submitted.Id) ? [new HistoryMessage(submitted.Id, DeliveryUncertain ? "user · delivery uncertain" : "user · accepted / queued", submitted.Text)] : [])
         .Concat(Text.GroupBy(p => p.Key.Message)
         .Where(g => !History.Any(h => h.Id == g.Key)).Select(g => new HistoryMessage(g.Key, "assistant", string.Join("\n", g.OrderBy(p => p.Key.Ordinal).Select(p => p.Value)))))
@@ -348,16 +383,35 @@ public sealed partial class LiveTaskWorkflow : IDisposable
         }
         bool terminal = !snapshot.Active && snapshot.Idle.HasValue && messages.Any(m => m.Kind == "idle") &&
             (state.Submission is null || state.Accepted && snapshot.Idle != state.SubmissionIdle && found && !snapshot.Inbox.Contains(state.Submission.Id));
-        state.Outcome = terminal ? snapshot.Outcome switch { "succeeded" => "Completed", "failed" => "Failed — review errors and model access", "interrupted" => "Interrupted", _ => "Ready" } : snapshot.Active ? "Running" : "Inactive — completion unconfirmed";
-        if (terminal && snapshot.Outcome is "succeeded" or "failed" or "interrupted")
+        HistoryFailureOutcome? failure = CompletedFailureAfterInput(state, snapshot, messages, found);
+        state.Outcome = SnapshotOutcome(snapshot, terminal, failure);
+        if (failure is not null || terminal && snapshot.Outcome is "succeeded" or "failed" or "interrupted")
         {
             state.Submission = null;
         }
 
-        foreach ((string Message, int Ordinal) key in state.Text.Keys.Where(k => messages.Any(m => m.Id == k.Message)).ToArray())
+        foreach ((string Message, int Ordinal) key in state.Text.Keys.Where(k => messages.Any(m => m.Id == k.Message && m.IsComplete)).ToArray())
         {
             state.Text.Remove(key);
         }
+    }
+
+    private static string SnapshotOutcome(TaskSnapshot snapshot, bool terminal, HistoryFailureOutcome? failure)
+    {
+        return failure is not null ? failure == HistoryFailureOutcome.Interrupted ? "Interrupted" : "Failed — review errors and model access" :
+            terminal ? snapshot.Outcome switch { "succeeded" => "Completed", "failed" => "Failed — review errors and model access", "interrupted" => "Interrupted", _ => "Ready" } : snapshot.Active ? "Running" : "Inactive — completion unconfirmed";
+    }
+
+    private static HistoryFailureOutcome? CompletedFailureAfterInput(SessionTaskState state, TaskSnapshot snapshot, List<HistoryMessage> messages, bool found)
+    {
+        // 2.1.4 can finish an aborted assistant step without adding an idle entry.
+        // Only evidence newer than the latest, owned user input may release its gate.
+        int inputIndex = messages.FindIndex(message => message.Kind == "user");
+        bool ownsLatest = state.Submission is null || inputIndex >= 0 && messages[inputIndex].Id == state.Submission.Id;
+        return !snapshot.Active && snapshot.Inbox.Count == 0 && ownsLatest && (state.Submission is null || state.Accepted && found)
+            ? messages.Take(Math.Max(0, inputIndex)).TakeWhile(message => message.Kind != "idle")
+                .Select(message => message.CompletedFailure).FirstOrDefault(outcome => outcome.HasValue)
+            : null;
     }
 
     public async Task SendAsync(SessionTaskState state, string text)

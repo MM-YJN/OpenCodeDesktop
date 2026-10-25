@@ -45,11 +45,6 @@ internal sealed class TaskFormPresenter(ICollection<Button> actions, ICollection
             }
 
             FrameworkElement control = CreateField(field, label, answers, UpdateVisibility);
-            if (control is Control interactive)
-            {
-                inputs.Add(interactive);
-            }
-
             conditional.Add((field, control));
             content.Children.Add(control);
         }
@@ -123,13 +118,19 @@ internal sealed class TaskFormPresenter(ICollection<Button> actions, ICollection
         return Field(field, CreateTextInput(field, answers, changed));
     }
 
-    private static FrameworkElement Field(TaskField field, FrameworkElement control)
+    private FrameworkElement Field(TaskField field, FrameworkElement control)
     {
         StackPanel content = ShellUi.Stack(ShellUi.Dimension("ShellSpaceTiny"));
+        if (control is Control interactive)
+        {
+            inputs.Add(interactive);
+        }
+
         if (control is not CheckBox)
         {
             TextBlock label = ShellUi.Text((field.Title ?? field.Key) + (field.Required ? " (required)" : ""), "ShellBodyStrongTextStyle");
             content.Children.Add(label);
+            AutomationProperties.SetName(control, label.Text);
         }
 
         if (field.Description is { Length: > 0 } description)
@@ -143,6 +144,8 @@ internal sealed class TaskFormPresenter(ICollection<Button> actions, ICollection
         {
             content.Children.Add(ShellUi.Text(hint, "ShellTertiaryTextStyle"));
         }
+
+        AutomationProperties.SetHelpText(control, string.Join(" ", new[] { field.Description, hint }.Where(text => !string.IsNullOrEmpty(text))));
 
         return content;
     }
@@ -158,6 +161,7 @@ internal sealed class TaskFormPresenter(ICollection<Button> actions, ICollection
                 Tag = option.Value,
                 IsChecked = answers.GetValueOrDefault(field.Key) is string[] values && values.Contains(option.Value),
             };
+            AutomationProperties.SetName(check, (field.Title ?? field.Key) + ": " + option.Label);
             check.Click += (_, _) =>
             {
                 answers[field.Key] = choices.Children.OfType<CheckBox>().Where(box => box.IsChecked == true).Select(box => (string)box.Tag).ToArray();

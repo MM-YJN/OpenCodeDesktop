@@ -190,6 +190,10 @@ public sealed partial class WorkspaceView
         _treeRows[node] = row;
         _treeItems[node] = model;
         _treeNodes[model.Key] = node;
+        // Containers are realized after node creation (and again after virtualization).
+        // Naming only the selected container leaves every other row with the native
+        // TreeViewNode type name in the accessibility tree.
+        row.Root.Loaded += (_, _) => UpdateTreeAutomationName(node);
         if (row is ProjectRowView projectRow)
         {
             projectRow.NewSessionButton.AddHandler(
@@ -220,6 +224,7 @@ public sealed partial class WorkspaceView
 
         _treeItems[node] = model;
         _treeNodes[model.Key] = node;
+        UpdateTreeAutomationName(node);
     }
 
     private void RevealTreeSelection(LiveWorkspace live, string? selectedKey)
@@ -432,10 +437,36 @@ public sealed partial class WorkspaceView
             menu.Items.Add(add);
 
             MenuFlyoutItem remove = MenuItem("Remove from list", "ShellIconRemove");
-            remove.Click += (_, _) => live.RemoveProject(directory);
+            remove.Click += (_, _) => RemoveProjectAndRestoreFocus(live, directory);
             menu.Items.Add(remove);
         };
         return menu;
+    }
+
+    private void RemoveProjectAndRestoreFocus(LiveWorkspace live, string directory)
+    {
+        int index = _treeNodes.TryGetValue(ProjectTreeNodePresentation.ProjectKey(directory), out TreeViewNode? removed)
+            ? RootIndexOf(removed) : 0;
+        live.RemoveProject(directory);
+        // RenderLive is queued by the workspace change. Restore focus after that
+        // render and menu dismissal, when the removed button no longer exists.
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            if (_live != live)
+            {
+                return;
+            }
+
+            if (ProjectTree.RootNodes.Count > 0 &&
+                ProjectTree.ContainerFromNode(ProjectTree.RootNodes[Math.Clamp(index, 0, ProjectTree.RootNodes.Count - 1)]) is TreeViewItem next)
+            {
+                next.Focus(FocusState.Programmatic);
+            }
+            else
+            {
+                AddProjectButton.Focus(FocusState.Programmatic);
+            }
+        });
     }
 
     private static MenuFlyoutItem MenuItem(string text, string glyphKey) => new()
@@ -457,9 +488,16 @@ public sealed partial class WorkspaceView
 
     private void ProjectTree_SelectionChanged(TreeView sender, TreeViewSelectionChangedEventArgs args)
     {
-        if (sender.SelectedNode is not TreeViewNode node ||
-            !_treeItems.TryGetValue(node, out ProjectTreeNodePresentation? model) ||
-            sender.ContainerFromNode(node) is not TreeViewItem item)
+        if (sender.SelectedNode is TreeViewNode node)
+        {
+            UpdateTreeAutomationName(node);
+        }
+    }
+
+    private void UpdateTreeAutomationName(TreeViewNode node)
+    {
+        if (!_treeItems.TryGetValue(node, out ProjectTreeNodePresentation? model) ||
+            ProjectTree.ContainerFromNode(node) is not TreeViewItem item)
         {
             return;
         }

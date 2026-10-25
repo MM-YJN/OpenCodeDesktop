@@ -11,7 +11,15 @@ public sealed record WorkspaceProject(
     string? SessionsError,
     bool CanLoadMoreSessions);
 public sealed record WorkspaceSession(string Id, string Directory, string ProjectId, string Title);
-public sealed record HistoryMessage(string Id, string Kind, string Text);
+public enum HistoryFailureOutcome { Failed, Interrupted }
+public sealed record HistoryContentPart(int Ordinal, string Text, bool IsText);
+
+public sealed record HistoryMessage(string Id, string Kind, string Text)
+{
+    public HistoryFailureOutcome? CompletedFailure { get; init; }
+    public bool IsComplete { get; init; } = true;
+    public IReadOnlyList<HistoryContentPart> Parts { get; init; } = [];
+}
 public sealed record WorkspacePage<T>(IReadOnlyList<T> Data, string? Next);
 
 public enum WorkspaceFailure { Cancelled, Unauthorized, Timeout, Transport, NotFound, Http, Protocol, Size }

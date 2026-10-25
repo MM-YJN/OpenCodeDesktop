@@ -10,6 +10,46 @@ namespace OpenCodeDesktop.Infrastructure.Tests;
 
 public sealed class OpenCodeWorkspaceConnectionTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task HistoryRetainsPartOrdinalsAndExplicitCompletionForStreaming(bool completed)
+    {
+        string body = JsonSerializer.Serialize(new
+        {
+            data = new[] { new { id = "stream", type = "assistant",
+                content = new[] { new { type = "reasoning", text = "context" }, new { type = "text", text = "prefix" } },
+                time = completed ? new Dictionary<string, int> { ["completed"] = 2 } : [] } },
+            cursor = new { next = (string?)null },
+        });
+        using HttpClient client = new(new Handler((_, _) => Task.FromResult(Json(body))));
+        using OpenCodeWorkspaceConnection api = Api(client);
+        HistoryMessage message = Assert.Single((await api.HistoryAsync("s", null, TestContext.Current.CancellationToken)).Data);
+        Assert.Equal(completed, message.IsComplete);
+        Assert.Equal("Recorded reasoning: context\n\nprefix", message.Text);
+        Assert.Equal(new HistoryContentPart(0, "Recorded reasoning: context", false), message.Parts[0]);
+        Assert.Equal(new HistoryContentPart(1, "prefix", true), message.Parts[1]);
+    }
+
+    [Theory]
+    [InlineData("aborted", true, "error", HistoryFailureOutcome.Interrupted)]
+    [InlineData("provider", true, "error", HistoryFailureOutcome.Failed)]
+    [InlineData("aborted", false, "error", null)]
+    [InlineData("aborted", true, "stop", null)]
+    public async Task HistoryMapsOnlyExplicitCompletedAssistantFailures(string error, bool completed, string finish, HistoryFailureOutcome? expected)
+    {
+        string body = JsonSerializer.Serialize(new
+        {
+            data = new[] { new { id = "failure", type = "assistant", content = Array.Empty<object>(), finish,
+                error = new { type = error }, time = completed ? new Dictionary<string, int> { ["completed"] = 2 } : [] } },
+            cursor = new { next = (string?)null },
+        });
+        using HttpClient client = new(new Handler((_, _) => Task.FromResult(Json(body))));
+        using OpenCodeWorkspaceConnection api = Api(client);
+        WorkspacePage<HistoryMessage> page = await api.HistoryAsync("s", null, TestContext.Current.CancellationToken);
+        Assert.Equal(expected, Assert.Single(page.Data).CompletedFailure);
+    }
+
     private const string Session = """{"id":"ses_1","projectID":"global","location":{"directory":"/空 project"},"unknown":true}""";
     private const string Empty = """{"data":[],"cursor":{"previous":null,"next":null}}""";
 

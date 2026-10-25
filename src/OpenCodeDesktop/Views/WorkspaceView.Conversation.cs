@@ -20,12 +20,27 @@ public sealed partial class WorkspaceView
     private readonly List<FrameworkElement> _entryControls = [];
     private bool _historyMoreVisible;
     private bool _compactConversation;
+    private readonly Dictionary<string, (double Offset, bool AtBottom)> _conversationPositions = new(StringComparer.Ordinal);
+    private string? _conversationOwner;
+    private bool _restoreConversationPosition;
 
     private Border ConversationState(string glyphKey, string title, string message, ShellTone tone, params UIElement[] actions) =>
         ShellUi.StatePanel(glyphKey, title, message, tone, _compactConversation, actions);
 
     private void RenderLiveHistory(LiveWorkspace live, LiveWorkspacePresentation presentation)
     {
+        if (_conversationOwner != presentation.DraftOwner)
+        {
+            if (_conversationOwner is not null && !_restoreConversationPosition)
+            {
+                _conversationPositions[_conversationOwner] = (ConversationScroll.VerticalOffset,
+                    ConversationScroll.ScrollableHeight - ConversationScroll.VerticalOffset < 48);
+            }
+
+            _conversationOwner = presentation.DraftOwner;
+            _restoreConversationPosition = true;
+        }
+
         IReadOnlyList<HistoryMessage> history = CurrentTask is { Hydrated: true } state
             ? live.History.Where(item => !state.Conversation.Any(message => message.Id == item.Id)).Concat(state.Conversation).ToArray()
             : live.History;
@@ -33,7 +48,20 @@ public sealed partial class WorkspaceView
         bool hasEntries = entries.Count > 0;
         UpdateConversationState(live, presentation, hasEntries);
         UpdateHistoryActions(live);
-        RenderEntries(entries);
+        RenderEntries(entries, _restoreConversationPosition);
+        if (_restoreConversationPosition && (live.SelectedSessionId is null || live.HistoryLoaded || CurrentTask is { Hydrated: true }))
+        {
+            _restoreConversationPosition = false;
+            string owner = presentation.DraftOwner;
+            (double offset, bool atBottom) = _conversationPositions.GetValueOrDefault(owner, (0, true));
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (_conversationOwner == owner)
+                {
+                    ConversationScroll.ChangeView(null, atBottom ? double.MaxValue : offset, null, true);
+                }
+            });
+        }
     }
 
     private void UpdateConversationState(LiveWorkspace live, LiveWorkspacePresentation presentation, bool hasEntries)
@@ -122,7 +150,7 @@ public sealed partial class WorkspaceView
         };
     }
 
-    private void RenderEntries(IReadOnlyList<ConversationEntry> entries)
+    private void RenderEntries(IReadOnlyList<ConversationEntry> entries, bool restorePending)
     {
         var keys = entries.Select(entry => entry.Key).ToList();
         var hashes = entries.Select(Hash).ToList();
@@ -169,13 +197,13 @@ public sealed partial class WorkspaceView
         _entryKeys.AddRange(keys);
         _entryHashes.Clear();
         _entryHashes.AddRange(hashes);
-        if (prepend)
+        if (!restorePending && prepend)
         {
             double anchor = height;
             double previous = offset;
             DispatcherQueue.TryEnqueue(() => ConversationScroll.ChangeView(null, previous + (ConversationScroll.ScrollableHeight - anchor), null, true));
         }
-        else if (atBottom)
+        else if (!restorePending && atBottom)
         {
             DispatcherQueue.TryEnqueue(() => ConversationScroll.ChangeView(null, double.MaxValue, null, true));
         }
@@ -355,4 +383,3 @@ public sealed partial class WorkspaceView
         };
     }
 }
-

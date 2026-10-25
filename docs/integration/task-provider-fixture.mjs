@@ -1,4 +1,4 @@
-// WI-007 only: deterministic loopback Chat Completions fixture, never a real model.
+// Deterministic loopback provider for task integration and native reliability checks.
 import http from 'node:http';
 
 let calls = [];
@@ -17,7 +17,8 @@ const server = http.createServer(async (request, response) => {
   const input = JSON.parse(raw);
   const user = input.messages.filter(x => x.role === 'user').at(-1);
   const text = JSON.stringify(user?.content ?? '');
-  const mode = ['stall', 'fail', 'tool', 'question'].find(x => text.includes(`WI007:${x}`)) ?? 'complete';
+  const mode = ['stream', 'long'].find(x => text.includes(`WI014:${x}`)) ??
+    ['stall', 'fail', 'tool', 'question'].find(x => text.includes(`WI007:${x}`)) ?? 'complete';
   calls.push({ mode, tools: input.tools?.map(x => x.function.name) ?? [] });
   if (mode === 'fail') {
     response.writeHead(400, { 'Content-Type': 'application/json' });
@@ -30,6 +31,26 @@ const server = http.createServer(async (request, response) => {
     model: input.model, choices: [{ index: 0, delta, finish_reason: finish }]
   })}\n\n`);
   send({ role: 'assistant', content: '' });
+  if (mode === 'stream') {
+    let chunk = 0;
+    const timer = setInterval(() => {
+      send({ content: `WI014 streamed chunk ${++chunk}.\n` });
+      if (chunk === 40) {
+        clearInterval(timer);
+        send({}, 'stop');
+        response.end('data: [DONE]\n\n');
+      }
+    }, 250);
+    response.on('close', () => clearInterval(timer));
+    return;
+  }
+  if (mode === 'long') {
+    send({ content: Array.from({ length: 40 }, (_, index) =>
+      `## Fixture section ${index + 1}\n\nA long deterministic response for native scrolling and reading-position checks.\n\n\x60\x60\x60text\nfixture line ${index + 1}\n\x60\x60\x60\n`).join('\n') });
+    send({}, 'stop');
+    response.end('data: [DONE]\n\n');
+    return;
+  }
   if (mode === 'stall') {
     send({ content: 'WI007 waiting for interruption.' });
     const timer = setInterval(() => response.write(': fixture heartbeat\n\n'), 1000);

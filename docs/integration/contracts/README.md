@@ -1,5 +1,7 @@
 # OpenCode connection contract provenance
 
+WI-014 adds [sanitized native reliability evidence](opencode-2.1.4-native-reliability-evidence.json) for a real read-tool rejection on the same pinned 2.1.4 binary: an explicitly completed aborted assistant message can be recorded without a new idle boundary. It also records visible streaming after fixing unfinished-history hydration that discarded live text; content-part ordinals and explicit completion preserve the live overlay until authoritative replacement. No new backend operation or version is introduced; the retained task-workflow OpenAPI remains the contract baseline. The work item records native reproduction and the guarded reconciliation regression checks.
+
 Retrieved and verified on 2026-10-24 for WI-001. Protocol data originates from the official MIT-licensed [anomalyco/opencode repository](https://github.com/anomalyco/opencode/blob/4617210822bdbb31e5749751afbfb4584ccedac8/LICENSE).
 
 ## Artifact identity

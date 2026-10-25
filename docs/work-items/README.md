@@ -8,7 +8,6 @@ This is the active index for unfinished work, in intended execution order. Done 
 
 | ID | Task | Type | Status | Dependencies |
 | --- | --- | --- | --- | --- |
-| [WI-014](WI-014-verify-native-reliability-accessibility.md) | Resolve native reliability and accessibility verification gaps | Implementation / verification | Ready | WI-013 |
 | [WI-015](WI-015-browse-preview-project-files.md) | Browse and preview project files | Implementation | Ready | WI-014, WI-011 |
 | [WI-016](WI-016-review-repository-session-changes.md) | Review repository and session changes | Implementation | Ready | WI-015, WI-008 |
 | [WI-017](WI-017-reference-attach-prompt-files.md) | Reference and attach files to prompts | Implementation | Ready | WI-015, WI-008, WI-009 |
@@ -17,7 +16,7 @@ This is the active index for unfinished work, in intended execution order. Done 
 | [WI-020](WI-020-manage-queued-inputs.md) | Inspect and manage queued inputs | Implementation | Ready | WI-014, WI-008, WI-009 |
 | [WI-021](WI-021-fork-revert-session-history.md) | Fork sessions and expose staged revert | Implementation | Ready | WI-016, WI-018, WI-020 |
 
-Next: WI-014. All eight items are defined only; execution has not started. Follow the row order, checking dependencies before starting each item. Dependencies express required foundations rather than an artificial dependency on every preceding row.
+Next: WI-015. WI-015 through WI-021 remain defined only; execution has not started. Follow the row order, checking dependencies before starting each item. Dependencies express required foundations rather than an artificial dependency on every preceding row.
 
 ## Shared execution and verification requirements
 
