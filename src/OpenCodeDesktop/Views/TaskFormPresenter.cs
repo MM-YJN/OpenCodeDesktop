@@ -5,35 +5,45 @@ using System.Linq;
 using System.Threading.Tasks;
 
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 
 using OpenCodeDesktop.Core.Workspaces;
+using OpenCodeDesktop.Presentation;
 
 namespace OpenCodeDesktop.Views;
 
 /// <summary>Builds native form controls once per pending request, preserving answers and keyboard focus during streaming.</summary>
-internal sealed class TaskFormPresenter(Func<string, TextBlock> body, Func<string, Func<Task>, Button> action, ICollection<Control> inputs)
+internal sealed class TaskFormPresenter(ICollection<Button> actions, ICollection<Control> inputs)
 {
-    internal StackPanel Build(SessionTaskState state, TaskForm form, LiveTaskWorkflow workflow)
+    internal FrameworkElement Build(SessionTaskState state, TaskForm form, LiveTaskWorkflow workflow)
     {
-        StackPanel panel = new() { Spacing = 8 };
-        panel.Children.Add(body(form.Title));
+        StackPanel content = ShellUi.Stack(ShellUi.Dimension("ShellSpaceSmall"));
+        StackPanel header = ShellUi.Stack(ShellUi.Dimension("ShellSpaceSmall"), Orientation.Horizontal);
+        header.Children.Add(ShellUi.Icon("ShellIconMessage", ShellUi.Dimension("ShellIconSmall"), ShellUi.Brush("ShellAccentBrush")));
+        header.Children.Add(ShellUi.Text("Agent question", "ShellBodyStrongTextStyle"));
+        header.Children.Add(ShellUi.Badge(form.State, ShellTone.Info));
+        content.Children.Add(header);
+        content.Children.Add(ShellUi.Text(form.Title, "ShellSecondaryTextStyle"));
+
         Dictionary<string, object> answers = state.Answers[form.Id];
         List<(TaskField Field, FrameworkElement Control)> conditional = [];
         void UpdateVisibility()
         {
-            foreach ((TaskField Field, FrameworkElement Control) item in conditional)
+            foreach ((TaskField field, FrameworkElement control) in conditional)
             {
-                item.Control.Visibility = !item.Field.Hidden && TaskFormValidation.Visible(item.Field, answers) ? Visibility.Visible : Visibility.Collapsed;
+                control.Visibility = !field.Hidden && TaskFormValidation.Visible(field, answers) ? Visibility.Visible : Visibility.Collapsed;
             }
         }
+
         foreach (TaskField field in form.Fields)
         {
-            string label = (field.Title ?? field.Key) + (field.Required ? " (required)" : "") + (field.Description is { } description ? " — " + description : "");
+            string label = field.Title ?? field.Key;
             if (field.Hidden && field.Required && !answers.ContainsKey(field.Key))
             {
-                panel.Children.Add(body(label + ": a required hidden value is unavailable. Cancel this form or refresh."));
+                content.Children.Add(ShellUi.Text(label + ": a required hidden value is unavailable. Cancel this form or refresh.", "ShellTertiaryTextStyle"));
             }
+
             FrameworkElement control = CreateField(field, label, answers, UpdateVisibility);
             if (control is Control interactive)
             {
@@ -41,22 +51,39 @@ internal sealed class TaskFormPresenter(Func<string, TextBlock> body, Func<strin
             }
 
             conditional.Add((field, control));
-            panel.Children.Add(control);
+            content.Children.Add(control);
         }
+
         UpdateVisibility();
-        panel.Children.Add(body("Answers must satisfy the declared options and constraints. Unsupported or missing hidden values can be cancelled."));
-        panel.Children.Add(action("Submit answer", () => workflow.AnswerAsync(state, form, false)));
-        panel.Children.Add(action("Cancel question", () => workflow.AnswerAsync(state, form, true)));
-        return panel;
+        content.Children.Add(ShellUi.Text("Answers must satisfy the declared options and constraints. Unsupported or missing hidden values can be cancelled.", "ShellTertiaryTextStyle"));
+        StackPanel footer = ShellUi.Stack(ShellUi.Dimension("ShellSpaceSmall"), Orientation.Horizontal);
+        Button submit = ShellUi.LabelButton("Submit answer", null, async (_, _) => await workflow.AnswerAsync(state, form, false).ConfigureAwait(true), "ShellPrimaryButtonStyle");
+        Button cancel = ShellUi.LabelButton("Cancel question", null, async (_, _) => await workflow.AnswerAsync(state, form, true).ConfigureAwait(true), "ShellQuietButtonStyle");
+        actions.Add(submit);
+        actions.Add(cancel);
+        footer.Children.Add(submit);
+        footer.Children.Add(cancel);
+        content.Children.Add(footer);
+
+        Border card = new()
+        {
+            Style = ShellUi.Resource<Style>("ShellCardStyle"),
+            Background = ShellUi.Brush("ShellInfoSurfaceBrush"),
+            BorderBrush = ShellUi.Brush("ShellAccentBrush"),
+            Child = content,
+        };
+        AutomationProperties.SetName(card, "Agent question: " + form.Title);
+        return card;
     }
 
     private FrameworkElement CreateField(TaskField field, string label, Dictionary<string, object> answers, Action changed)
     {
+        string required = field.Required ? " (required)" : "";
         if (field.Type is "boolean" or "external")
         {
             CheckBox box = new()
             {
-                Content = field.Type == "external" ? label + "\n" + field.Url + "\nI explicitly acknowledge this external request" : label,
+                Content = field.Type == "external" ? label + required + "\n" + field.Url + "\nI explicitly acknowledge this external request" : label + required,
                 IsChecked = answers.GetValueOrDefault(field.Key) as bool?,
             };
             box.Click += (_, _) =>
@@ -64,22 +91,22 @@ internal sealed class TaskFormPresenter(Func<string, TextBlock> body, Func<strin
                 answers[field.Key] = box.IsChecked == true;
                 changed();
             };
-            return box;
+            return Field(field, box);
         }
+
         if (field.Type == "multiselect" && !field.Custom)
         {
-            return CreateMultiselect(field, label, answers, changed);
+            return Field(field, CreateMultiselect(field, answers, changed));
         }
 
         if (field.Type == "string" && field.Options.Count > 0 && !field.Custom)
         {
             ComboBox options = new()
             {
-                Header = label,
                 ItemsSource = field.Options,
                 DisplayMemberPath = nameof(TaskOption.Label),
                 HorizontalAlignment = HorizontalAlignment.Stretch,
-                SelectedItem = field.Options.FirstOrDefault(o => o.Value == answers.GetValueOrDefault(field.Key) as string),
+                SelectedItem = field.Options.FirstOrDefault(option => option.Value == answers.GetValueOrDefault(field.Key) as string),
             };
             options.SelectionChanged += (_, _) =>
             {
@@ -90,37 +117,67 @@ internal sealed class TaskFormPresenter(Func<string, TextBlock> body, Func<strin
 
                 changed();
             };
-            return options;
+            return Field(field, options);
         }
-        return CreateTextInput(field, label, answers, changed);
+
+        return Field(field, CreateTextInput(field, answers, changed));
     }
 
-    private StackPanel CreateMultiselect(TaskField field, string label, Dictionary<string, object> answers, Action changed)
+    private static FrameworkElement Field(TaskField field, FrameworkElement control)
     {
-        StackPanel choices = new() { Spacing = 4 };
-        choices.Children.Add(body(label + " · minimum selections " + field.MinItems + " · maximum selections " + field.MaxItems));
+        StackPanel content = ShellUi.Stack(ShellUi.Dimension("ShellSpaceTiny"));
+        if (control is not CheckBox)
+        {
+            TextBlock label = ShellUi.Text((field.Title ?? field.Key) + (field.Required ? " (required)" : ""), "ShellBodyStrongTextStyle");
+            content.Children.Add(label);
+        }
+
+        if (field.Description is { Length: > 0 } description)
+        {
+            content.Children.Add(ShellUi.Text(description, "ShellTertiaryTextStyle"));
+        }
+
+        content.Children.Add(control);
+        string hint = Hint(field);
+        if (hint.Length > 0)
+        {
+            content.Children.Add(ShellUi.Text(hint, "ShellTertiaryTextStyle"));
+        }
+
+        return content;
+    }
+
+    private StackPanel CreateMultiselect(TaskField field, Dictionary<string, object> answers, Action changed)
+    {
+        StackPanel choices = ShellUi.Stack(ShellUi.Dimension("ShellSpaceTiny"));
         foreach (TaskOption option in field.Options)
         {
-            CheckBox check = new() { Content = option.Label, Tag = option.Value, IsChecked = answers.GetValueOrDefault(field.Key) is string[] values && values.Contains(option.Value) };
+            CheckBox check = new()
+            {
+                Content = option.Label,
+                Tag = option.Value,
+                IsChecked = answers.GetValueOrDefault(field.Key) is string[] values && values.Contains(option.Value),
+            };
             check.Click += (_, _) =>
             {
-                answers[field.Key] = choices.Children.OfType<CheckBox>().Where(c => c.IsChecked == true).Select(c => (string)c.Tag).ToArray();
+                answers[field.Key] = choices.Children.OfType<CheckBox>().Where(box => box.IsChecked == true).Select(box => (string)box.Tag).ToArray();
                 changed();
             };
             choices.Children.Add(check);
             inputs.Add(check);
         }
+
         return choices;
     }
 
-    private static TextBox CreateTextInput(TaskField field, string label, Dictionary<string, object> answers, Action changed)
+    private static TextBox CreateTextInput(TaskField field, Dictionary<string, object> answers, Action changed)
     {
         TextBox input = new()
         {
-            Header = label + Hint(field),
             PlaceholderText = field.Placeholder ?? "",
             Text = answers.GetValueOrDefault(field.Key) is string[] array ? string.Join('\n', array) : Convert.ToString(answers.GetValueOrDefault(field.Key), CultureInfo.InvariantCulture) ?? "",
             AcceptsReturn = field.Type == "multiselect",
+            TextWrapping = field.Type == "multiselect" ? TextWrapping.Wrap : TextWrapping.NoWrap,
         };
         input.TextChanged += (_, _) =>
         {
@@ -144,20 +201,26 @@ internal sealed class TaskFormPresenter(Func<string, TextBlock> body, Func<strin
         };
         return input;
     }
-    private static string Hint(TaskField field)
-    {
-        string hint = field.Type switch
-        {
-            "number" or "integer" => " · " + field.Type + " · minimum " + field.Minimum + " · maximum " + field.Maximum,
-            "string" => " · length " + field.MinLength + "–" + field.MaxLength + (field.Format is null ? "" : " · format: " + field.Format) + (field.Pattern is null ? "" : " · pattern: " + field.Pattern),
-            "multiselect" => " · one value per line · minimum selections " + field.MinItems + " · maximum selections " + field.MaxItems,
-            _ => " · unsupported control; cancel or refresh",
-        };
-        if (field.Options.Count > 0)
-        {
-            hint += " · suggested values: " + string.Join(", ", field.Options.Select(o => o.Value));
-        }
 
-        return hint;
-    }
+    private static string Hint(TaskField field) => field.Type switch
+    {
+        "number" or "integer" => "Number" + Range(field.Minimum, field.Maximum, "minimum", "maximum"),
+        "string" => "Text" + Length(field.MinLength, field.MaxLength) + (field.Format is null ? "" : " · format: " + field.Format),
+        "multiselect" => "One value per line" + Count(field.MinItems, field.MaxItems),
+        "boolean" => "Check to accept.",
+        "external" => "Acknowledging sends the external request through the server.",
+        _ => "Unsupported control. Cancel this form or refresh.",
+    };
+
+    private static string Range(double? minimum, double? maximum, string minimumLabel, string maximumLabel) =>
+        minimum is null && maximum is null ? "" : " · " + minimumLabel + " " + (minimum?.ToString(CultureInfo.InvariantCulture) ?? "—") +
+        " · " + maximumLabel + " " + (maximum?.ToString(CultureInfo.InvariantCulture) ?? "—");
+
+    private static string Length(int? minimum, int? maximum) =>
+        minimum is null && maximum is null ? "" : " · length " + (minimum?.ToString(CultureInfo.InvariantCulture) ?? "—") + "–" +
+        (maximum?.ToString(CultureInfo.InvariantCulture) ?? "—");
+
+    private static string Count(int? minimum, int? maximum) =>
+        minimum is null && maximum is null ? "" : " · minimum " + (minimum?.ToString(CultureInfo.InvariantCulture) ?? "—") +
+        " · maximum " + (maximum?.ToString(CultureInfo.InvariantCulture) ?? "—");
 }

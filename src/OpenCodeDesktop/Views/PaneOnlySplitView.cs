@@ -3,11 +3,15 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 
+using Windows.UI.ViewManagement;
+
 namespace OpenCodeDesktop.Views;
 
 /// <summary>Retains native pane transitions without sliding the workspace content.</summary>
 public sealed class PaneOnlySplitView : SplitView
 {
+    private readonly UISettings _settings = new();
+
     public PaneOnlySplitView()
     {
         DefaultStyleKey = typeof(SplitView);
@@ -26,8 +30,17 @@ public sealed class PaneOnlySplitView : SplitView
         // The bundled WinUI SplitView template translates ContentTransform during
         // inline open/close. Remove only those timelines from this template instance;
         // preserve pane movement, clipping, layout, and overlay light dismissal.
+        // When Windows animations are disabled, remove all transitions so reduced
+        // motion is respected without changing layout or accessibility behavior.
+        bool animations = _settings.AnimationsEnabled;
         foreach (VisualStateGroup group in VisualStateManager.GetVisualStateGroups(root))
         {
+            if (!animations)
+            {
+                group.Transitions.Clear();
+                continue;
+            }
+
             foreach (VisualTransition transition in group.Transitions)
             {
                 if (transition.Storyboard is not { } storyboard)

@@ -7,22 +7,15 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
 
 using OpenCodeDesktop.Core.Workspaces;
 using OpenCodeDesktop.Presentation;
-
-using Windows.System;
 
 namespace OpenCodeDesktop.Views;
 
 public sealed partial class WorkspaceView
 {
-    private Button? _send;
-    private Button? _stop;
-    private ComboBox? _model;
-    private ComboBox? _agent;
+    private const string PermissionActionStyle = "ShellPrimaryButtonStyle";
     private string _catalogKey = "";
     private string _attentionKey = "";
     private readonly List<Button> _requestActions = [];
@@ -32,176 +25,138 @@ public sealed partial class WorkspaceView
     private void RenderTaskControls()
     {
         SessionTaskState? state = CurrentTask;
-        var presentation = LiveTaskPresentation.From(state, _draft?.Text, _live?.Tasks?.AttentionError, _live?.Tasks);
+        var presentation = LiveTaskPresentation.From(state, DraftBox.Text, _live?.Tasks?.AttentionError, _live?.Tasks);
+        ShellStatusPresentation status = ShellPresentation.Task(state);
         string previousStatus = TaskStatus.Text;
-        string previousError = TaskError.Text;
-        TaskStatus.Text = presentation.Status;
-        TaskError.Text = presentation.Error;
-        TaskError.Visibility = TaskError.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        TaskStatusBadge.Background = ShellUi.ToneSurface(status.Tone);
+        TaskStatusBadge.BorderBrush = status.Tone == ShellTone.Neutral ? ShellUi.Brush("ShellBorderBrush") : ShellUi.ToneBrush(status.Tone);
+        TaskStatusIcon.Glyph = ShellUi.Glyph(status.Glyph);
+        TaskStatusIcon.Foreground = status.Tone == ShellTone.Neutral ? ShellUi.Brush("ShellTextSecondaryBrush") : ShellUi.ToneBrush(status.Tone);
+        TaskStatus.Text = status.Label;
+        TaskStatus.Foreground = status.Tone == ShellTone.Neutral ? ShellUi.Brush("ShellTextPrimaryBrush") : ShellUi.ToneBrush(status.Tone);
+        ShellUi.Tooltip(TaskStatusBadge, status.Detail);
+        AutomationProperties.SetName(TaskStatusBadge, "Task status: " + status.Label + ". " + status.Detail);
         if (previousStatus != TaskStatus.Text)
         {
             FrameworkElementAutomationPeer.FromElement(TaskStatus)?.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
         }
 
+        string previousError = TaskError.Text;
+        TaskError.Text = presentation.Error;
+        TaskErrorBanner.Visibility = presentation.Error.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        RefreshTask.IsEnabled = presentation.CanRefresh;
         if (previousError != TaskError.Text)
         {
             FrameworkElementAutomationPeer.FromElement(TaskError)?.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
         }
 
+        TaskLoading.IsActive = presentation.IsBusy;
         TaskLoading.Visibility = presentation.IsBusy ? Visibility.Visible : Visibility.Collapsed;
         string previousRecovery = RecoveryStatus.Text;
         RecoveryStatus.Text = presentation.RecoveryStatus;
-        RecoveryStatus.Visibility = presentation.ShowRecovery ? Visibility.Visible : Visibility.Collapsed;
+        RecoveryBanner.Visibility = presentation.ShowRecovery ? Visibility.Visible : Visibility.Collapsed;
         RetryRecovery.Visibility = presentation.CanRetryRecovery ? Visibility.Visible : Visibility.Collapsed;
         if (previousRecovery != RecoveryStatus.Text)
         {
             FrameworkElementAutomationPeer.FromElement(RecoveryStatus)?.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
         }
-        RefreshTask.IsEnabled = presentation.CanRefresh;
-        _send?.IsEnabled = presentation.CanSend;
-
-        _stop?.IsEnabled = presentation.CanStop;
 
         UpdateTaskCatalog(state, presentation.CanSelect);
         CatalogNotice.Text = presentation.CatalogNotice;
-        int count = _live?.Tasks?.Sessions.Sum(s => s.Permissions.Count + s.Forms.Count) ?? 0;
-        AttentionButton.Content = "Attention (" + count + ")";
-        AttentionButton.IsEnabled = count > 0;
+        CatalogNotice.Visibility = presentation.CatalogNotice.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        UpdateSend();
         RenderRequests(state);
+        bool requestsEnabled = state is { Busy: false, Stale: false };
         foreach (Button button in _requestActions)
         {
-            button.IsEnabled = state is { Busy: false, Stale: false };
+            button.IsEnabled = requestsEnabled;
         }
 
         foreach (Control input in _requestInputs)
         {
-            input.IsEnabled = state is { Busy: false, Stale: false };
+            input.IsEnabled = requestsEnabled;
         }
     }
 
     private void UpdateTaskCatalog(SessionTaskState? state, bool canSelect)
     {
-        bool select = canSelect;
-        if (_model is not null && _agent is not null)
+        ModelSelector.IsEnabled = canSelect;
+        AgentSelector.IsEnabled = canSelect;
+        string catalogKey = (_live?.SelectedSessionId ?? "") + "|" +
+            string.Join('|', state?.Catalog.Models.Select(model => model.ProviderId + "/" + model.Id) ?? []) + ":" +
+            string.Join('|', state?.Catalog.Agents.Select(agent => agent.Id) ?? []);
+        if (_catalogKey != catalogKey)
         {
-            _model.IsEnabled = select;
-            _agent.IsEnabled = select;
-            string catalogKey = (_live?.SelectedSessionId ?? "") + "|" + string.Join('|', state?.Catalog.Models.Select(m => m.ProviderId + "/" + m.Id) ?? []) + ":" + string.Join('|', state?.Catalog.Agents.Select(a => a.Id) ?? []);
-            if (_catalogKey != catalogKey)
-            {
-                _catalogKey = catalogKey;
-                _model.ItemsSource = state?.Catalog.Models;
-                _model.DisplayMemberPath = nameof(TaskModel.Name);
-                _agent.ItemsSource = state?.Catalog.Agents;
-                _agent.DisplayMemberPath = nameof(TaskAgent.Name);
-            }
-            _model.SelectedItem = state?.Model;
-            _agent.SelectedItem = state?.Catalog.Agents.FirstOrDefault(a => a.Id == state.Agent);
+            _catalogKey = catalogKey;
+            ModelSelector.ItemsSource = state?.Catalog.Models;
+            ModelSelector.DisplayMemberPath = nameof(TaskModel.Name);
+            AgentSelector.ItemsSource = state?.Catalog.Agents;
+            AgentSelector.DisplayMemberPath = nameof(TaskAgent.Name);
         }
+
+        ModelSelector.SelectedItem = state?.Model;
+        AgentSelector.SelectedItem = state?.Catalog.Agents.FirstOrDefault(agent => agent.Id == state.Agent);
     }
 
-    private void AddTaskComposer(StackPanel composer)
-    {
-        _catalogKey = "";
-        _model = new ComboBox { Header = "Model", HorizontalAlignment = HorizontalAlignment.Stretch };
-        _agent = new ComboBox { Header = "Agent", HorizontalAlignment = HorizontalAlignment.Stretch };
-        _model.SelectionChanged += (_, _) =>
-        {
-            if (CurrentTask is { Busy: false, Active: false } s && _model.SelectedItem is TaskModel m)
-            {
-                s.Model = m;
-            }
-
-            UpdateSend();
-        };
-        _agent.SelectionChanged += (_, _) =>
-        {
-            if (CurrentTask is { Busy: false, Active: false } s && _agent.SelectedItem is TaskAgent a)
-            {
-                s.Agent = a.Id;
-            }
-
-            UpdateSend();
-        };
-        composer.Children.Add(_model);
-        composer.Children.Add(_agent);
-        _send = LiveAction("Send (Ctrl+Enter)", SendTaskAsync, false);
-        _stop = LiveAction("Interrupt task", StopTaskAsync, false);
-        composer.Children.Add(_send);
-        composer.Children.Add(_stop);
-        KeyboardAccelerator sendShortcut = new() { Key = VirtualKey.Enter, Modifiers = VirtualKeyModifiers.Control };
-        sendShortcut.Invoked += async (_, args) =>
-        {
-            args.Handled = true;
-            await SendTaskAsync().ConfigureAwait(true);
-        };
-        _draft?.KeyboardAccelerators.Add(sendShortcut);
-    }
     private void UpdateSend()
     {
-        _send?.IsEnabled = CurrentTask?.CanSend == true && !string.IsNullOrWhiteSpace(_draft?.Text);
+        SendButton.IsEnabled = CurrentTask?.CanSend == true && !string.IsNullOrWhiteSpace(DraftBox.Text);
     }
+
     private async Task SendTaskAsync()
     {
-        if (_live is { } live && CurrentTask is { CanSend: true })
+        if (_live is not { } live || CurrentTask is not { CanSend: true })
         {
-            string? owner = Composer.Tag as string;
-            await live.SendTaskAsync().ConfigureAwait(true);
-            if (Equals(Composer.Tag, owner) && _draft is not null && _draft.Text != live.Draft)
-            {
-                _draft.Text = live.Draft;
-            }
+            return;
+        }
+
+        string? owner = live.SelectedSessionId;
+        await live.SendTaskAsync().ConfigureAwait(true);
+        if (live.SelectedSessionId == owner && DraftBox.Text != live.Draft)
+        {
+            DraftBox.Text = live.Draft;
         }
     }
+
+    private async void SendTask_ClickAsync(object sender, RoutedEventArgs args) => await SendTaskAsync().ConfigureAwait(true);
+    private async void StopTask_ClickAsync(object sender, RoutedEventArgs args) => await StopTaskAsync().ConfigureAwait(true);
     private Task StopTaskAsync() => _live?.Tasks is { } workflow && CurrentTask is { } state ? workflow.StopAsync(state) : Task.CompletedTask;
-    private async void RetryRecovery_ClickAsync(object sender, RoutedEventArgs args)
+
+    private async Task RetryRecoveryAsync()
     {
         if (_live?.Tasks is { } workflow)
         {
             await workflow.RetryRecoveryAsync().ConfigureAwait(true);
         }
     }
-    private async void RefreshTask_ClickAsync(object sender, RoutedEventArgs args)
-    {
-        if (_live?.Tasks is { } workflow && CurrentTask is { } state)
-        {
-            if (workflow.Recovery != WorkspaceRecovery.Current)
-            {
-                await workflow.RetryRecoveryAsync().ConfigureAwait(true);
-            }
-            else
-            {
-                await workflow.RefreshAsync(state).ConfigureAwait(true);
-            }
-        }
-    }
-    private void Attention_Click(object sender, RoutedEventArgs args)
-    {
-        MenuFlyout flyout = new();
-        foreach (SessionTaskState state in _live?.Tasks?.Sessions ?? [])
-        {
-            if (state.Permissions.Count + state.Forms.Count == 0)
-            {
-                continue;
-            }
 
-            MenuFlyoutItem item = new() { Text = state.Directory + " · " + state.Id + " (" + (state.Permissions.Count + state.Forms.Count) + ")" };
-            item.Click += async (_, _) =>
-            {
-                if (_live is { } live)
-                {
-                    await live.OpenProjectAsync(state.Directory).ConfigureAwait(true);
-                    await live.SelectAttentionSessionAsync(state.Id).ConfigureAwait(true);
-                }
-            };
-            flyout.Items.Add(item);
+    private async Task RefreshCurrentTaskAsync()
+    {
+        if (_live?.Tasks is not { } workflow || CurrentTask is not { } state)
+        {
+            return;
         }
-        flyout.ShowAt(AttentionButton);
+
+        if (workflow.Recovery != WorkspaceRecovery.Current)
+        {
+            await workflow.RetryRecoveryAsync().ConfigureAwait(true);
+        }
+        else
+        {
+            await workflow.RefreshAsync(state).ConfigureAwait(true);
+        }
     }
+
+    private async void RetryRecovery_ClickAsync(object sender, RoutedEventArgs args) => await RetryRecoveryAsync().ConfigureAwait(true);
+    private async void RefreshTask_ClickAsync(object sender, RoutedEventArgs args) => await RefreshCurrentTaskAsync().ConfigureAwait(true);
 
     private void RenderRequests(SessionTaskState? state)
     {
-        string key = (_live?.SelectedSessionId ?? "") + "|" + string.Join('|', state?.Permissions.Select(p => p.Id) ?? []) + ":" + string.Join('|', state?.Forms.Select(f => f.Id) ?? []);
+        int count = state?.Permissions.Count + state?.Forms.Count ?? 0;
+        PendingRequestsSection.Visibility = count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        PendingRequestsCount.Text = count == 0 ? "" : count + (count == 1 ? " request" : " requests");
+        string key = (_live?.SelectedSessionId ?? "") + "|" + string.Join('|', state?.Permissions.Select(permission => permission.Id) ?? []) +
+            ":" + string.Join('|', state?.Forms.Select(form => form.Id) ?? []);
         if (_attentionKey == key)
         {
             return;
@@ -216,48 +171,65 @@ public sealed partial class WorkspaceView
             return;
         }
 
-        Button Action(string label, Func<Task> action)
-        {
-            Button button = LiveAction(label, action);
-            _requestActions.Add(button);
-            return button;
-        }
         foreach (TaskPermission permission in state.Permissions)
         {
-            StackPanel panel = new() { Spacing = 8 };
-            panel.Children.Add(BodyText("Permission: " + permission.Action + "\nResources: " + string.Join(", ", permission.Resources)));
-            panel.Children.Add(Action("Allow once — this request only", () => workflow.PermissionAsync(state, permission, "once")));
-            if (permission.Save.Count > 0)
-            {
-                panel.Children.Add(BodyText("Proposed project allow rule: " + permission.Action + " · " + string.Join(", ", permission.Save)));
-                panel.Children.Add(Action("Save project allow rule", () => workflow.PermissionAsync(state, permission, "always")));
-            }
-            panel.Children.Add(Action("Reject request", () => workflow.PermissionAsync(state, permission, "reject")));
-            PendingRequests.Children.Add(panel);
+            PendingRequests.Children.Add(BuildPermissionCard(state, permission, workflow));
         }
-        TaskFormPresenter forms = new(BodyText, Action, _requestInputs);
+
+        TaskFormPresenter forms = new(_requestActions, _requestInputs);
         foreach (TaskForm form in state.Forms)
         {
             PendingRequests.Children.Add(forms.Build(state, form, workflow));
         }
     }
 
-    private void AddMessage(HistoryMessage message)
+    private FrameworkElement BuildPermissionCard(SessionTaskState state, TaskPermission permission, LiveTaskWorkflow workflow)
     {
-        StackPanel parts = new() { Spacing = 8 };
-        parts.Children.Add(BodyText(message.Kind));
-        string[] segments = message.Text.Split("```", StringSplitOptions.None);
-        for (int i = 0; i < segments.Length; i++)
+        StackPanel content = ShellUi.Stack(ShellUi.Dimension("ShellSpaceSmall"));
+        StackPanel header = ShellUi.Stack(ShellUi.Dimension("ShellSpaceSmall"), Orientation.Horizontal);
+        header.Children.Add(ShellUi.Icon("ShellIconLock", ShellUi.Dimension("ShellIconSmall"), ShellUi.Brush("ShellWarningBrush")));
+        header.Children.Add(ShellUi.Text("Permission request", "ShellBodyStrongTextStyle"));
+        header.Children.Add(ShellUi.Badge(permission.Action, ShellTone.Warning));
+        content.Children.Add(header);
+        content.Children.Add(ShellUi.Text("The server is asking to perform this action.", "ShellSecondaryTextStyle"));
+        if (permission.Resources.Count > 0)
         {
-            TextBlock text = BodyText(segments[i]);
-            text.IsTextSelectionEnabled = true;
-            if (i % 2 == 1)
-            {
-                text.FontFamily = new FontFamily("Cascadia Mono,Consolas");
-            }
-
-            parts.Children.Add(text);
+            content.Children.Add(ShellUi.Text("Resources", "ShellTertiaryTextStyle"));
+            content.Children.Add(CodeBlock(string.Join("\n", permission.Resources), wrap: true));
         }
-        Conversation.Children.Add(parts);
+
+        if (permission.Save.Count > 0)
+        {
+            content.Children.Add(ShellUi.Text("Proposed project allow rule", "ShellTertiaryTextStyle"));
+            content.Children.Add(ShellUi.Text(permission.Action + " · " + string.Join(", ", permission.Save), "ShellSecondaryTextStyle", TextWrapping.Wrap));
+        }
+
+        StackPanel actions = ShellUi.Stack(ShellUi.Dimension("ShellSpaceSmall"), Orientation.Horizontal);
+        Button allow = RequestAction("Allow once", () => workflow.PermissionAsync(state, permission, "once"), PermissionActionStyle);
+        actions.Children.Add(allow);
+        if (permission.Save.Count > 0)
+        {
+            actions.Children.Add(RequestAction("Save project allow rule", () => workflow.PermissionAsync(state, permission, "always"), "ShellSecondaryButtonStyle"));
+        }
+
+        actions.Children.Add(RequestAction("Reject", () => workflow.PermissionAsync(state, permission, "reject"), "ShellQuietButtonStyle"));
+        content.Children.Add(actions);
+
+        Border card = new()
+        {
+            Style = ShellUi.Resource<Style>("ShellCardStyle"),
+            Background = ShellUi.Brush("ShellWarningSurfaceBrush"),
+            BorderBrush = ShellUi.Brush("ShellWarningBrush"),
+            Child = content,
+        };
+        AutomationProperties.SetName(card, "Permission request: " + permission.Action);
+        return card;
+    }
+
+    private Button RequestAction(string label, Func<Task> action, string style)
+    {
+        Button button = ShellUi.LabelButton(label, null, async (_, _) => await action().ConfigureAwait(true), style);
+        _requestActions.Add(button);
+        return button;
     }
 }

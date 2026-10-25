@@ -2,6 +2,7 @@
     x:Class="OpenCodeDesktop.Views.WorkspaceView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Microsoft.UI.Xaml.Controls"
     xmlns:views="using:OpenCodeDesktop.Views">
     <UserControl.Resources>
         <ResourceDictionary>
@@ -14,33 +15,65 @@
         <SplitView x:Name="ProjectsLayout" SizeChanged="ProjectsLayout_SizeChanged"
                    OpenPaneLength="{StaticResource ShellProjectsPanelWidth}" CompactPaneLength="0" DisplayMode="Inline">
             <SplitView.Pane>
-                <Grid Width="{StaticResource ShellProjectsPanelWidth}" Padding="12">
+                <Grid Width="{StaticResource ShellProjectsPanelWidth}" Padding="12" Background="{ThemeResource ShellSidebarSurfaceBrush}">
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                    <StackPanel Spacing="8">
-                        <Button x:Name="ServerSelector" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" AutomationProperties.Name="Switch server">
-                            <Button.Flyout>
-                                <MenuFlyout Placement="BottomEdgeAlignedLeft"/>
-                            </Button.Flyout>
-                            <TextBlock Text="Select server ▾" Style="{StaticResource ShellBodyTextStyle}"/>
+                    <StackPanel Spacing="10">
+                        <Button x:Name="ServerSelector" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Style="{StaticResource ShellNavigationRowStyle}" AutomationProperties.Name="Switch server">
+                            <TextBlock Text="Select server" Style="{StaticResource ShellBodyTextStyle}"/>
                         </Button>
-                        <TextBlock Text="Projects" Style="{StaticResource ShellHeadingTextStyle}"/>
-                        <Button Content="Close Projects" Click="CloseProjects_Click"/>
-                        <Button x:Name="NewTaskButton" Content="New-session draft" IsEnabled="False" Click="NewTask_ClickAsync"/>
-                        <StackPanel x:Name="LiveProjectControls" Spacing="8">
-                            <TextBox x:Name="ServerDirectory" IsEnabled="False" Header="Server-side directory" PlaceholderText="Path on the selected server" AutomationProperties.Name="Server-side project directory"/>
-                            <Button x:Name="OpenDirectoryButton" Content="Add project" IsEnabled="False" Click="OpenDirectory_ClickAsync"/>
-                            <ProgressBar x:Name="WorkspaceLoading" IsIndeterminate="True" Visibility="Collapsed" AutomationProperties.Name="Loading server workspace"/>
-                            <TextBlock x:Name="WorkspaceStatus" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-                            <TextBlock x:Name="RecoveryStatus" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" Visibility="Collapsed"/>
-                            <Button x:Name="RetryRecovery" Content="Retry recovery" Click="RetryRecovery_ClickAsync" Visibility="Collapsed"/>
-                            <TextBlock x:Name="WorkspaceError" TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive" IsTextSelectionEnabled="True"/>
-                            <Button x:Name="WorkspaceRetry" Content="Retry loading" Click="RetryWorkspace_ClickAsync" Visibility="Collapsed"/>
-                        </StackPanel>
+                        <Button x:Name="NewTaskButton" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Style="{StaticResource ShellSecondaryButtonStyle}" Click="NewTask_ClickAsync" IsEnabled="False">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE710;" Style="{StaticResource ShellIconTextStyle}" />
+                                <TextBlock Text="New session draft" Style="{StaticResource ShellBodyTextStyle}" />
+                            </StackPanel>
+                        </Button>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="Projects" Style="{StaticResource ShellSubheadingTextStyle}" VerticalAlignment="Center" />
+                                <TextBlock x:Name="ProjectsCount" Style="{StaticResource ShellCaptionTextStyle}" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+                                <Button x:Name="AddProjectButton" Style="{StaticResource ShellIconButtonStyle}" Click="AddProject_ClickAsync" AutomationProperties.Name="Add project" ToolTipService.ToolTip="Add a server-side project">
+                                    <FontIcon Glyph="&#xE710;" Style="{StaticResource ShellIconTextStyle}" />
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock x:Name="WorkspaceStatus" Style="{StaticResource ShellTertiaryTextStyle}" AutomationProperties.LiveSetting="Polite" Visibility="Collapsed" />
+                        <ProgressBar x:Name="WorkspaceLoading" IsIndeterminate="True" Visibility="Collapsed" AutomationProperties.Name="Loading server workspace" />
                     </StackPanel>
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,8,0,8">
-                        <StackPanel x:Name="ProjectList" Spacing="8"/>
-                    </ScrollViewer>
-                    <Button Grid.Row="2" Content="Settings" Click="Settings_Click"/>
+                    <Grid Grid.Row="1" Margin="0,8,0,8">
+                        <TreeView
+                            x:Name="ProjectTree"
+                            SelectionMode="Single"
+                            ItemContainerStyle="{StaticResource ShellProjectTreeItemStyle}"
+                            Expanding="ProjectTree_ExpandingAsync"
+                            Collapsed="ProjectTree_Collapsed"
+                            ItemInvoked="ProjectTree_ItemInvokedAsync"
+                            SelectionChanged="ProjectTree_SelectionChanged"
+                            AutomationProperties.Name="Projects and sessions">
+                            <TreeView.ItemTemplate>
+                                <DataTemplate x:DataType="controls:TreeViewNode">
+                                    <ContentPresenter Content="{x:Bind Content}" HorizontalAlignment="Stretch" VerticalAlignment="Center" />
+                                </DataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
+                        <TextBlock
+                            x:Name="ProjectTreeEmptyState"
+                            Style="{StaticResource ShellTertiaryTextStyle}"
+                            Margin="8,4,8,0"
+                            VerticalAlignment="Top"
+                            Visibility="Collapsed" />
+                    </Grid>
+                    <StackPanel Grid.Row="2" Spacing="8">
+                        <Border Style="{StaticResource ShellDividerStyle}" />
+                        <Button x:Name="SettingsButton" Style="{StaticResource ShellNavigationRowStyle}" HorizontalContentAlignment="Left" Click="Settings_Click" AutomationProperties.Name="Open settings">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE713;" Style="{StaticResource ShellIconTextStyle}" />
+                                <TextBlock Text="Settings" Style="{StaticResource ShellBodyTextStyle}" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
                 </Grid>
             </SplitView.Pane>
             <views:PaneOnlySplitView x:Name="DetailsLayout" PanePlacement="Right" CompactPaneLength="0" SizeChanged="DetailsLayout_SizeChanged">
@@ -49,49 +82,153 @@
                         <Grid.ColumnDefinitions><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <Thumb x:Name="DetailsGrip" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DragDelta="DetailsGrip_DragDelta"
                                AutomationProperties.Name="Resize Details with Left and Right arrows" KeyDown="DetailsGrip_KeyDown" IsTabStop="True"/>
-                        <Grid Grid.Column="1" Padding="12">
+                        <Grid Grid.Column="1">
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="Details" Style="{StaticResource ShellHeadingTextStyle}"/>
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Button x:Name="ExpandButton" Content="Expand" Click="Expand_Click"/>
-                                    <Button Content="Close Details" Click="CloseDetails_Click"/>
+                            <Grid Padding="16,12,12,8" ColumnSpacing="8">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="Details" Style="{StaticResource ShellHeadingTextStyle}" AutomationProperties.HeadingLevel="Level2" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+                                    <Button x:Name="ExpandButton" Style="{StaticResource ShellIconButtonStyle}" Click="Expand_Click" AutomationProperties.Name="Expand Details" ToolTipService.ToolTip="Expand Details">
+                                        <FontIcon Glyph="&#xE740;" Style="{StaticResource ShellIconTextStyle}" />
+                                    </Button>
+                                    <Button x:Name="CloseDetailsButton" Style="{StaticResource ShellIconButtonStyle}" Click="CloseDetails_Click" AutomationProperties.Name="Close Details" ToolTipService.ToolTip="Close Details">
+                                        <FontIcon Glyph="&#xE89F;" Style="{StaticResource ShellIconTextStyle}" />
+                                    </Button>
                                 </StackPanel>
-                            </StackPanel>
-                            <TextBlock x:Name="LiveDetails" Grid.Row="1" TextWrapping="Wrap" Margin="0,12,0,0"
-                                       Text="Details, files, changes, terminal and attention requests are unavailable in this increment. Conversation entries show recorded history only."/>
+                            </Grid>
+                            <views:DetailsView x:Name="DetailsContent" Grid.Row="1" />
                         </Grid>
                     </Grid>
                 </SplitView.Pane>
                 <Grid x:Name="CentralWorkspace">
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                    <Border BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="0,0,0,1" Padding="12">
+                    <Border BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="{StaticResource ShellHeaderBorderThickness}" Padding="{StaticResource ShellWorkspaceHeaderPadding}" Background="{ThemeResource ShellSurfaceBrush}">
                         <StackPanel Spacing="8">
-                            <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Auto" VerticalScrollBarVisibility="Disabled">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Button x:Name="ProjectsToggle" Content="Projects" Click="Projects_Click"/>
-                                    <Button x:Name="DetailsToggle" Content="Details" Click="Details_Click"/>
-                                    <Button x:Name="TerminalToggle" Content="Terminal unavailable" IsEnabled="False"/>
-                                    <Button x:Name="AttentionButton" Content="Attention (0)" Click="Attention_Click" IsEnabled="False"/>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <Button x:Name="ProjectsToggle" Style="{StaticResource ShellQuietButtonStyle}" Click="Projects_Click" AutomationProperties.Name="Toggle Projects">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon Glyph="&#xE8B7;" Style="{StaticResource ShellIconTextStyle}" />
+                                            <TextBlock Text="Projects" Style="{StaticResource ShellBodyTextStyle}" />
+                                        </StackPanel>
+                                    </Button>
                                 </StackPanel>
-                            </ScrollViewer>
-                            <TextBlock x:Name="SessionTitle" Text="Workspace" Style="{StaticResource ShellHeadingTextStyle}"/>
-                            <TextBlock x:Name="SessionPath" Text="No server connected · No session selected" Style="{StaticResource ShellSecondaryTextStyle}"/>
-                            <TextBlock x:Name="TaskStatus" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-                            <ProgressBar x:Name="TaskLoading" IsIndeterminate="True" Visibility="Collapsed" AutomationProperties.Name="Task operation in progress"/>
-                            <TextBlock x:Name="TaskError" TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive" IsTextSelectionEnabled="True"/>
-                            <TextBlock x:Name="CatalogNotice" TextWrapping="Wrap"/>
-                            <Button x:Name="RefreshTask" Content="Refresh live task state" Click="RefreshTask_ClickAsync" IsEnabled="False"/>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+                                    <Button x:Name="TerminalToggle" Style="{StaticResource ShellQuietButtonStyle}" IsEnabled="False" AutomationProperties.Name="Terminal unavailable" ToolTipService.ToolTip="Terminal is not available in this release">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon Glyph="&#xE756;" Style="{StaticResource ShellIconTextStyle}" />
+                                            <TextBlock Text="Terminal" Style="{StaticResource ShellBodyTextStyle}" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button x:Name="DetailsToggle" Style="{StaticResource ShellQuietButtonStyle}" Click="Details_Click" AutomationProperties.Name="Toggle Details">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon Glyph="&#xE8A0;" Style="{StaticResource ShellIconTextStyle}" />
+                                            <TextBlock Text="Details" Style="{StaticResource ShellBodyTextStyle}" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button x:Name="TaskMenuButton" Style="{StaticResource ShellIconButtonStyle}" Click="TaskMenu_Click" AutomationProperties.Name="Task diagnostics" ToolTipService.ToolTip="Refresh task state">
+                                        <FontIcon Glyph="&#xE712;" Style="{StaticResource ShellIconTextStyle}" />
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <StackPanel Spacing="2">
+                                    <TextBlock x:Name="SessionTitle" Text="Workspace" Style="{StaticResource ShellHeadingTextStyle}" AutomationProperties.HeadingLevel="Level1" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock x:Name="SessionPath" Text="No server connected · No session selected" Style="{StaticResource ShellSecondaryTextStyle}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <ProgressRing x:Name="TaskLoading" IsActive="False" Width="16" Height="16" />
+                                    <Border x:Name="TaskStatusBadge" Style="{StaticResource ShellBadgeStyle}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <FontIcon x:Name="TaskStatusIcon" Glyph="&#xE768;" Style="{StaticResource ShellIconTextStyle}" FontSize="12" />
+                                            <TextBlock x:Name="TaskStatus" Text="No session selected" Style="{StaticResource ShellCaptionTextStyle}" TextWrapping="NoWrap" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+                            <StackPanel x:Name="StatusBanners" Spacing="8">
+                                <Border x:Name="RecoveryBanner" Visibility="Collapsed" Style="{StaticResource ShellBannerStyle}" Background="{ThemeResource ShellWarningSurfaceBrush}" BorderBrush="{ThemeResource ShellWarningBrush}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <FontIcon Glyph="&#xE7BA;" Style="{StaticResource ShellIconTextStyle}" FontSize="14" Foreground="{ThemeResource ShellWarningBrush}" />
+                                        <TextBlock x:Name="RecoveryStatus" Grid.Column="1" Style="{StaticResource ShellCaptionTextStyle}" AutomationProperties.LiveSetting="Polite" VerticalAlignment="Center" />
+                                        <Button x:Name="RetryRecovery" Grid.Column="2" Content="Retry" Style="{StaticResource ShellQuietButtonStyle}" Click="RetryRecovery_ClickAsync" Visibility="Collapsed" />
+                                    </Grid>
+                                </Border>
+                                <Border x:Name="TaskErrorBanner" Visibility="Collapsed" Style="{StaticResource ShellBannerStyle}" Background="{ThemeResource ShellDangerSurfaceBrush}" BorderBrush="{ThemeResource ShellDangerBrush}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <FontIcon Glyph="&#xE783;" Style="{StaticResource ShellIconTextStyle}" FontSize="14" Foreground="{ThemeResource ShellDangerBrush}" />
+                                        <TextBlock x:Name="TaskError" Grid.Column="1" Style="{StaticResource ShellCaptionTextStyle}" AutomationProperties.LiveSetting="Assertive" IsTextSelectionEnabled="True" VerticalAlignment="Center" />
+                                        <Button x:Name="RefreshTask" Grid.Column="2" Content="Refresh state" Style="{StaticResource ShellQuietButtonStyle}" Click="RefreshTask_ClickAsync" />
+                                    </Grid>
+                                </Border>
+                                <Border x:Name="WorkspaceErrorBanner" Visibility="Collapsed" Style="{StaticResource ShellBannerStyle}" Background="{ThemeResource ShellDangerSurfaceBrush}" BorderBrush="{ThemeResource ShellDangerBrush}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <FontIcon Glyph="&#xE783;" Style="{StaticResource ShellIconTextStyle}" FontSize="14" Foreground="{ThemeResource ShellDangerBrush}" />
+                                        <TextBlock x:Name="WorkspaceError" Grid.Column="1" Style="{StaticResource ShellCaptionTextStyle}" AutomationProperties.LiveSetting="Assertive" IsTextSelectionEnabled="True" VerticalAlignment="Center" />
+                                        <Button x:Name="WorkspaceRetry" Grid.Column="2" Content="Retry" Style="{StaticResource ShellQuietButtonStyle}" Click="RetryWorkspace_ClickAsync" Visibility="Collapsed" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
-                    <ScrollViewer x:Name="ConversationScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" IsTabStop="True" AutomationProperties.Name="Conversation history">
-                        <StackPanel x:Name="Conversation" Padding="16" Spacing="16"/>
+                    <ScrollViewer x:Name="ConversationScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" IsTabStop="True" AutomationProperties.Name="Conversation history">
+                        <StackPanel x:Name="Conversation" Padding="20,24" Spacing="20" MaxWidth="760" HorizontalAlignment="Center">
+                            <ContentControl x:Name="ConversationStateHost" HorizontalContentAlignment="Stretch" />
+                            <StackPanel x:Name="ConversationHistoryActions" HorizontalAlignment="Center" />
+                            <StackPanel x:Name="ConversationEntries" Spacing="20" />
+                        </StackPanel>
                     </ScrollViewer>
-                    <ScrollViewer Grid.Row="2" MaxHeight="280" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Pending permissions and questions">
-                        <StackPanel x:Name="PendingRequests" Padding="12" Spacing="12"/>
-                    </ScrollViewer>
-                    <ScrollViewer x:Name="ComposerScroll" Grid.Row="3" MaxHeight="{StaticResource ShellComposerMaximumHeight}" VerticalScrollBarVisibility="Auto">
-                        <StackPanel x:Name="Composer" Padding="12" Spacing="8"/>
+                    <Border x:Name="PendingRequestsSection" Grid.Row="2" Visibility="Collapsed" Background="{ThemeResource ShellWarningSurfaceBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="0,1,0,1">
+                        <StackPanel>
+                            <Grid Padding="16,10" ColumnSpacing="8">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE7BA;" Style="{StaticResource ShellIconTextStyle}" FontSize="14" Foreground="{ThemeResource ShellWarningBrush}" />
+                                <TextBlock x:Name="PendingRequestsHeading" Grid.Column="1" Text="Waiting for you" Style="{StaticResource ShellBodyStrongTextStyle}" VerticalAlignment="Center" />
+                                <TextBlock x:Name="PendingRequestsCount" Grid.Column="2" Style="{StaticResource ShellCaptionTextStyle}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+                            </Grid>
+                            <ScrollViewer x:Name="PendingRequestsScroll" MaxHeight="240" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Pending permissions and questions">
+                                <StackPanel x:Name="PendingRequests" Padding="16,0,16,12" Spacing="10" />
+                            </ScrollViewer>
+                        </StackPanel>
+                    </Border>
+                    <ScrollViewer x:Name="ComposerScroll" Grid.Row="3" MaxHeight="{StaticResource ShellComposerMaximumHeight}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="{StaticResource ShellComposerMargin}">
+                        <Grid>
+                        <Border x:Name="ComposerCard" Style="{StaticResource ShellComposerSurfaceStyle}" MaxWidth="{StaticResource ShellComposerMaximumWidth}" HorizontalAlignment="Center">
+                            <StackPanel x:Name="Composer" Spacing="8">
+                                <StackPanel x:Name="ComposerChips" Spacing="6" Visibility="Collapsed" />
+                                <TextBox x:Name="DraftBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="68" MaxHeight="180" BorderThickness="0" Background="Transparent" Padding="4,2"
+                                         PlaceholderText="Describe a task…" AutomationProperties.Name="Task request. Control Enter to send. Draft retained." />
+                                <Grid x:Name="ComposerToolbar" ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <ComboBox x:Name="ModelSelector" MinWidth="150" PlaceholderText="Model" AutomationProperties.Name="Model" />
+                                        <ComboBox x:Name="AgentSelector" MinWidth="120" PlaceholderText="Agent" AutomationProperties.Name="Agent" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                        <Button x:Name="StopButton" Style="{StaticResource ShellSecondaryButtonStyle}" Click="StopTask_ClickAsync" Visibility="Collapsed" AutomationProperties.Name="Interrupt task">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <FontIcon Glyph="&#xE71A;" Style="{StaticResource ShellIconTextStyle}" FontSize="14" />
+                                                <TextBlock Text="Interrupt" Style="{StaticResource ShellBodyTextStyle}" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button x:Name="SendButton" Style="{StaticResource ShellPrimaryButtonStyle}" Click="SendTask_ClickAsync" IsEnabled="False" AutomationProperties.Name="Send task">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <FontIcon Glyph="&#xE724;" Style="{StaticResource ShellIconTextStyle}" FontSize="14" />
+                                                <TextBlock Text="Send" Style="{StaticResource ShellBodyTextStyle}" />
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock x:Name="ComposerHint" Style="{StaticResource ShellCaptionTextStyle}" Visibility="Collapsed" />
+                                <TextBlock x:Name="CatalogNotice" Style="{StaticResource ShellTertiaryTextStyle}" Visibility="Collapsed" />
+                            </StackPanel>
+                        </Border>
+                        </Grid>
                     </ScrollViewer>
                 </Grid>
             </views:PaneOnlySplitView>

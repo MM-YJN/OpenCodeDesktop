@@ -7,38 +7,84 @@
     <Grid x:Name="ShellRoot" Background="{ThemeResource ShellSurfaceBrush}" Loaded="ShellRoot_LoadedAsync">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <InfoBar x:Name="PersistenceNotice" IsOpen="False" IsClosable="False" AutomationProperties.LiveSetting="Polite">
-            <InfoBar.Content>
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <ProgressRing x:Name="RestoreProgress" IsActive="False" Width="20" Height="20"/>
-                    <Button x:Name="RestoreRetry" Content="Retry restoration" Click="RestoreRetry_ClickAsync"/>
-                    <Button x:Name="SaveRetry" Content="Retry saving" Click="SaveRetry_Click"/>
-                    <Button x:Name="SettingsReset" Content="Reset saved settings" Click="SettingsReset_ClickAsync"/>
-                    <Button Content="Connections" Click="Connections_Click"/>
-                </StackPanel>
-            </InfoBar.Content>
-        </InfoBar>
-        <Grid x:Name="ShellContentHost" Grid.Row="1" />
+
         <Border
-            Grid.Row="2"
+            x:Name="AppTitleBar"
+            Grid.Row="0"
+            Height="{StaticResource ShellTitleBarHeight}"
+            Background="{ThemeResource ShellSurfaceBrush}"
+            BorderBrush="{ThemeResource ShellDividerBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="{StaticResource ShellTitleBarPadding}"
+            AutomationProperties.Name="OpenCode Desktop">
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" IsHitTestVisible="False">
+                <Path
+                    Width="{StaticResource ShellIconMedium}"
+                    Height="{StaticResource ShellIconMedium}"
+                    VerticalAlignment="Center"
+                    Fill="{ThemeResource ShellAccentBrush}"
+                    Data="M8,0 C8.6,4.6 11.4,7.4 16,8 C11.4,8.6 8.6,11.4 8,16 C7.4,11.4 4.6,8.6 0,8 C4.6,7.4 7.4,4.6 8,0 Z" />
+                <TextBlock Text="OpenCode Desktop" Style="{StaticResource ShellTitleBarTextStyle}" />
+            </StackPanel>
+        </Border>
+
+        <Border
+            x:Name="PersistenceBanner"
+            Grid.Row="1"
+            Visibility="Collapsed"
+            Background="{ThemeResource ShellInfoSurfaceBrush}"
+            BorderBrush="{ThemeResource ShellBorderBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="16,10"
+            AutomationProperties.LiveSetting="Polite">
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <FontIcon x:Name="PersistenceIcon" Glyph="&#xE946;" Style="{StaticResource ShellIconTextStyle}" VerticalAlignment="Top" Margin="0,2,0,0" />
+                <StackPanel Grid.Column="1" Spacing="2">
+                    <TextBlock x:Name="PersistenceTitle" Style="{StaticResource ShellBodyStrongTextStyle}" />
+                    <TextBlock x:Name="PersistenceMessage" Style="{StaticResource ShellSecondaryTextStyle}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <ProgressRing x:Name="RestoreProgress" IsActive="False" Width="18" Height="18" />
+                    <Button x:Name="RestoreRetry" Content="Retry restoration" Style="{StaticResource ShellQuietButtonStyle}" Click="RestoreRetry_ClickAsync" Visibility="Collapsed" />
+                    <Button x:Name="SaveRetry" Content="Retry saving" Style="{StaticResource ShellQuietButtonStyle}" Click="SaveRetry_Click" Visibility="Collapsed" />
+                    <Button x:Name="SettingsReset" Content="Reset saved settings" Style="{StaticResource ShellQuietButtonStyle}" Click="SettingsReset_ClickAsync" Visibility="Collapsed" />
+                    <Button x:Name="ConnectionsNoticeAction" Content="Connections" Style="{StaticResource ShellQuietButtonStyle}" Click="Connections_Click" Visibility="Collapsed" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid x:Name="ShellContentHost" Grid.Row="2" />
+
+        <Border
+            Grid.Row="3"
             Background="{ThemeResource ShellStatusSurfaceBrush}"
             BorderBrush="{ThemeResource ShellBorderBrush}"
             BorderThickness="{StaticResource ShellStatusBorderThickness}"
             Padding="{StaticResource ShellStatusPadding}">
-            <Grid>
+            <Grid ColumnSpacing="12">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <TextBlock
-                x:Name="ConnectionStatusText"
-                Text="Connection: Disconnected · Sample data"
-                AutomationProperties.Name="Server connection: Disconnected"
-                AutomationProperties.LiveSetting="Polite"
-                Foreground="{ThemeResource ShellDisconnectedBrush}"
-                Style="{StaticResource ShellBodyTextStyle}" VerticalAlignment="Center" />
-                <Button x:Name="AttentionButton" Grid.Column="1" Content="Attention unavailable" IsEnabled="False"
-                        AutomationProperties.LiveSetting="Polite"/>
+                <Button x:Name="ConnectionStatusButton" Style="{StaticResource ShellQuietButtonStyle}" HorizontalAlignment="Left" Click="Connections_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Border x:Name="ConnectionDot" Width="{StaticResource ShellStatusIndicatorSize}" Height="{StaticResource ShellStatusIndicatorSize}" CornerRadius="{StaticResource ShellStatusIndicatorCornerRadius}" Background="{ThemeResource ShellDisconnectedBrush}" VerticalAlignment="Center" />
+                        <TextBlock x:Name="ConnectionStatusLabel" Text="Disconnected" Style="{StaticResource ShellCaptionTextStyle}" FontWeight="SemiBold" TextWrapping="NoWrap" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+                        <TextBlock x:Name="ConnectionStatusText" Text="No server connected" Style="{StaticResource ShellCaptionTextStyle}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button x:Name="AttentionButton" Grid.Column="1" Style="{StaticResource ShellQuietButtonStyle}" HorizontalAlignment="Right" Click="Attention_Click" IsEnabled="False">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <FontIcon x:Name="AttentionIcon" Glyph="&#xE7BA;" Style="{StaticResource ShellIconTextStyle}" FontSize="14" />
+                        <TextBlock x:Name="AttentionText" Text="No pending requests" Style="{StaticResource ShellCaptionTextStyle}" TextWrapping="NoWrap" AutomationProperties.LiveSetting="Polite" />
+                    </StackPanel>
+                </Button>
             </Grid>
         </Border>
     </Grid>

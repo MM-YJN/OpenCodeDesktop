@@ -1,7 +1,15 @@
 namespace OpenCodeDesktop.Core.Workspaces;
 
 public sealed record ProjectLocation(string Directory, string ProjectId);
-public sealed record WorkspaceProject(ProjectLocation Location, bool IsSelected, string? Error);
+public sealed record WorkspaceProject(
+    ProjectLocation Location,
+    bool IsSelected,
+    string? Error,
+    IReadOnlyList<WorkspaceSession> Sessions,
+    bool SessionsLoaded,
+    bool SessionsLoading,
+    string? SessionsError,
+    bool CanLoadMoreSessions);
 public sealed record WorkspaceSession(string Id, string Directory, string ProjectId, string Title);
 public sealed record HistoryMessage(string Id, string Kind, string Text);
 public sealed record WorkspacePage<T>(IReadOnlyList<T> Data, string? Next);

@@ -18,23 +18,27 @@ public sealed partial class WorkspaceView
 {
     private LiveWorkspace? _live;
     private bool _renderQueued;
-    private string _projectsProjection = "";
-    private string _historyOwner = "";
-    private string _historyNotice = "";
-    private bool _historyMore;
-    private IReadOnlyList<HistoryMessage> _renderedHistory = [];
+    private string _composerProjection = "";
 
     internal void Bind(LiveWorkspace workspace)
     {
         _live = workspace;
         workspace.Changed += LiveChanged;
+        workspace.UserNavigation += TreeNavigationRequested;
+        _treeConnectionKey = null;
+        _treeActiveKey = null;
+        _treeRevealPending = true;
+        _expandedProjects.Clear();
+        ClearProjectTree();
         LiveChanged(this, EventArgs.Empty);
     }
 
     internal void Unbind()
     {
         _live?.Changed -= LiveChanged;
+        _live?.UserNavigation -= TreeNavigationRequested;
         _live = null;
+        ClearProjectTree();
     }
 
     private void LiveChanged(object? sender, EventArgs args)
@@ -55,178 +59,96 @@ public sealed partial class WorkspaceView
         }
     }
 
-    private Button LiveAction(string label, Func<Task> action, bool enabled = true)
-    {
-        Button button = LoadTemplate<Button>("ActionTemplate");
-        button.Content = new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap };
-        button.HorizontalAlignment = HorizontalAlignment.Stretch;
-        button.HorizontalContentAlignment = HorizontalAlignment.Left;
-        button.IsEnabled = enabled;
-        AutomationProperties.SetName(button, label);
-        button.Click += async (_, _) => await action().ConfigureAwait(true);
-        return button;
-    }
-
     private void RenderLive()
     {
-        if (_live is not { } live || ProjectList is null)
+        if (_live is not { } live || ProjectTree is null)
         {
             return;
         }
 
         var presentation = LiveWorkspacePresentation.From(live);
-        LiveProjectControls.Visibility = Visibility.Visible;
-        OpenDirectoryButton.IsEnabled = live.IsConnected;
-        ServerDirectory.IsEnabled = live.IsConnected;
-        NewTaskButton.Content = "New-session draft";
-        NewTaskButton.IsEnabled = live.Location is not null;
-        WorkspaceLoading.Visibility = live.IsLoading ? Visibility.Visible : Visibility.Collapsed;
-        bool statusChanged = WorkspaceStatus.Text != live.Status;
-        bool errorChanged = WorkspaceError.Text != (live.Error ?? "");
-        WorkspaceStatus.Text = live.Status;
-        WorkspaceError.Text = live.Error ?? "";
-        WorkspaceError.Visibility = live.Error is null ? Visibility.Collapsed : Visibility.Visible;
-        WorkspaceRetry.Visibility = live.CanRetry ? Visibility.Visible : Visibility.Collapsed;
-        WorkspaceRetry.IsEnabled = live.CanRetry;
-        if (statusChanged)
-        {
-            FrameworkElementAutomationPeer.FromElement(WorkspaceStatus)?.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
-        }
-
-        if (errorChanged)
-        {
-            FrameworkElementAutomationPeer.FromElement(WorkspaceError)?.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
-        }
-
+        OpenProjectState(live);
         SessionTitle.Text = presentation.Title;
-        SessionPath.Text = presentation.Path;
+        SessionPath.Text = presentation.Path.Replace("\n", " · ");
+        ShellUi.Tooltip(SessionTitle, presentation.Title);
+        ShellUi.Tooltip(SessionPath, presentation.Path);
+        AutomationProperties.SetName(ConversationScroll, "Conversation history for " + presentation.Title);
         RenderLiveProjects(live);
         RenderLiveHistory(live, presentation);
         RenderLiveComposer(live, presentation.DraftOwner);
         RenderTaskControls();
-        LiveDetails.Text = LiveWorkspacePresentation.UnavailableDetails;
-        LiveDetails.Visibility = Visibility.Visible;
+        DetailsContent.Update(DetailsPresentationFactory.From(live, CurrentTask));
         TerminalToggle.IsEnabled = false;
     }
 
-    private void RenderLiveProjects(LiveWorkspace live)
+    private void OpenProjectState(LiveWorkspace live)
     {
-        string projection = live.Server?.Profile.Id + "|" + live.Location?.Directory + "|" + live.SelectedSessionId + "|" +
-            live.IsLoading + "|" + live.CanCreate + "|" + live.CreationUncertain + "|" + live.CanLoadSessions + "|" +
-            string.Join('|', LiveWorkspacePresentation.ProjectList(live).Select(p => p.Label)) + "|" + string.Join('|', live.Sessions.Select(s => s.Id + ":" + s.Title));
-        if (_projectsProjection == projection)
+        bool connected = live.IsConnected;
+        NewTaskButton.IsEnabled = live.Location is not null;
+        AddProjectButton.IsEnabled = connected && !live.IsLoading;
+        ProjectsCount.Text = live.Projects.Count == 0 ? "" : "· " + live.Projects.Count;
+        WorkspaceLoading.Visibility = live.IsLoading ? Visibility.Visible : Visibility.Collapsed;
+        WorkspaceStatus.Text = live.Status;
+        WorkspaceStatus.Visibility = live.IsLoading ? Visibility.Visible : Visibility.Collapsed;
+        bool error = live.Error is not null;
+        WorkspaceError.Text = live.Error ?? "";
+        WorkspaceErrorBanner.Visibility = error ? Visibility.Visible : Visibility.Collapsed;
+        WorkspaceRetry.Visibility = live.CanRetry ? Visibility.Visible : Visibility.Collapsed;
+        WorkspaceRetry.IsEnabled = live.CanRetry;
+        if (error)
         {
-            return;
-        }
-
-        _projectsProjection = projection;
-        ProjectList.Children.Clear();
-        if (live.IsConnected)
-        {
-            if (live.Projects.Count == 0)
-            {
-                ProjectList.Children.Add(BodyText(LiveWorkspacePresentation.EmptyProjects));
-            }
-            foreach (ProjectListPresentation project in LiveWorkspacePresentation.ProjectList(live))
-            {
-                string path = project.Path;
-                Button select = LiveAction(project.Label, () => live.OpenProjectAsync(path), live.IsConnected);
-                ToolTipService.SetToolTip(select, path);
-                AutomationProperties.SetItemStatus(select, project.IsSelected ? "Selected project" : "Project");
-                ProjectList.Children.Add(select);
-                Button remove = LiveAction("Remove from list: " + project.Name, () =>
-                {
-                    live.RemoveProject(path);
-                    return Task.CompletedTask;
-                }, live.IsConnected);
-                AutomationProperties.SetName(remove, "Remove from list: " + path);
-                ToolTipService.SetToolTip(remove, "Forget " + path + ". Server work and drafts are retained.");
-                ProjectList.Children.Add(remove);
-            }
-            if (live.Location is not null)
-            {
-                ProjectList.Children.Add(LiveAction("Create session", live.CreateSessionAsync, live.CanCreate));
-                ProjectList.Children.Add(LiveAction(live.CreationUncertain ? "Reconcile creation: refresh sessions" : "Refresh sessions", live.RefreshSessionsAsync, !live.IsLoading));
-                if (live.Sessions.Count == 0)
-                {
-                    ProjectList.Children.Add(BodyText("No sessions. Choose Create session to start a conversation."));
-                }
-
-                foreach (WorkspaceSession session in live.Sessions)
-                {
-                    string id = session.Id;
-                    ProjectList.Children.Add(LiveAction((live.Selected?.Id == id ? "Selected: " : "") + session.Title,
-                        () => live.SelectSessionAsync(id), !live.IsLoading));
-                }
-                if (live.CanLoadSessions)
-                {
-                    ProjectList.Children.Add(LiveAction("Load more sessions", live.LoadMoreSessionsAsync));
-                }
-            }
-        }
-    }
-
-    private void RenderLiveHistory(LiveWorkspace live, LiveWorkspacePresentation presentation)
-    {
-        IReadOnlyList<HistoryMessage> history = CurrentTask is { Hydrated: true } state
-            ? live.History.Where(h => !state.Conversation.Any(m => m.Id == h.Id)).Concat(state.Conversation).ToArray() : live.History;
-        if (_historyOwner == presentation.DraftOwner && _historyNotice == presentation.ConversationNotice &&
-            _historyMore == live.CanLoadHistory && _renderedHistory.SequenceEqual(history))
-        {
-            return;
-        }
-
-        _historyOwner = presentation.DraftOwner;
-        _historyNotice = presentation.ConversationNotice;
-        _historyMore = live.CanLoadHistory;
-        _renderedHistory = history;
-        Conversation.Children.Clear();
-        if (presentation.ConversationNotice.Length > 0)
-        {
-            Conversation.Children.Add(BodyText(presentation.ConversationNotice));
-        }
-
-        if (live.CanLoadHistory)
-        {
-            Conversation.Children.Add(LiveAction("Load older messages", live.LoadOlderHistoryAsync));
-        }
-
-        foreach (HistoryMessage message in history)
-        {
-            AddMessage(message);
+            ShellUi.Announce(WorkspaceError);
         }
     }
 
     private void RenderLiveComposer(LiveWorkspace live, string owner)
     {
-        // Preserve the editor and keyboard focus during loading/status updates for the same draft owner.
+        ComposerScroll.Visibility = live.Location is null ? Visibility.Collapsed : Visibility.Visible;
+        if (live.Location is null)
+        {
+            return;
+        }
+
         if (!Equals(Composer.Tag, owner))
         {
             Composer.Tag = owner;
-            Composer.Children.Clear();
-            _draft = null;
-            if (live.Location is not null)
-            {
-                TextBox draft = new() { Text = live.Draft, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 80, Header = "Task request (Ctrl+Enter to send)" };
-                AutomationProperties.SetName(draft, "Task request. Control Enter to send. Draft retained.");
-                draft.TextChanged += (_, _) =>
-                {
-                    live.Draft = draft.Text;
-                    UpdateSend();
-                };
-                _draft = draft;
-                Composer.Children.Add(draft);
-                AddTaskComposer(Composer);
-            }
+            DraftBox.Text = live.Draft;
         }
-    }
 
-    private async void OpenDirectory_ClickAsync(object sender, RoutedEventArgs args)
-    {
-        if (_live is not null)
+        ComposerPresentation composer = ShellPresentation.Composer(live, CurrentTask, DraftBox.Text);
+        string projection = composer.IsAvailable + "|" + composer.CanSend + "|" + composer.CanStop + "|" + composer.IsBusy + "|" +
+            composer.Hint + "|" + composer.QueueLabel + "|" + composer.DeliveryLabel + "|" + composer.AttentionLabel;
+        if (_composerProjection != projection)
         {
-            await _live.OpenProjectAsync(ServerDirectory.Text).ConfigureAwait(true);
+            _composerProjection = projection;
+            ComposerHint.Text = composer.Hint;
+            ComposerHint.Visibility = Visibility.Visible;
+            ComposerHint.Foreground = composer.IsBusy ? ShellUi.Brush("ShellAccentBrush") : ShellUi.Brush("ShellTextTertiaryBrush");
+            ComposerChips.Children.Clear();
+            if (composer.QueueLabel is { } queue)
+            {
+                ComposerChips.Children.Add(ShellUi.Badge(queue, ShellTone.Info, "ShellIconClock"));
+            }
+
+            if (composer.DeliveryLabel is { } delivery)
+            {
+                ComposerChips.Children.Add(ShellUi.Badge(delivery, ShellTone.Danger, "ShellIconWarning"));
+            }
+
+            if (composer.AttentionLabel is { } attention)
+            {
+                ComposerChips.Children.Add(ShellUi.Badge(attention, ShellTone.Warning, "ShellIconWarning"));
+            }
+
+            ComposerChips.Visibility = ComposerChips.Children.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         }
+
+        ComposerHint.Visibility = _compactConversation ? Visibility.Collapsed : Visibility.Visible;
+        SendButton.IsEnabled = composer.CanSend;
+        bool showStop = CurrentTask is { Active: true } or { Busy: true } or { Stopping: true };
+        StopButton.Visibility = showStop ? Visibility.Visible : Visibility.Collapsed;
+        StopButton.IsEnabled = composer.CanStop;
+        DraftBox.IsEnabled = live.IsConnected;
     }
 
     private async void RetryWorkspace_ClickAsync(object sender, RoutedEventArgs args)

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -7,6 +8,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 
 using OpenCodeDesktop.Core.Connections;
+using OpenCodeDesktop.Presentation;
 
 namespace OpenCodeDesktop.Views;
 
@@ -42,6 +44,7 @@ public sealed partial class ConnectionView : UserControl
         ClearPassword();
         _local.Deactivate();
     }
+
     public void Shutdown()
     {
         _activation++;
@@ -50,10 +53,12 @@ public sealed partial class ConnectionView : UserControl
         _local.Dispose();
         _connections.Changed -= ConnectionsChanged;
     }
+
     private void ConnectionsChanged(object? sender, EventArgs args) => Refresh();
     private void LocalChanged(object? sender, EventArgs args) => Refresh();
 
     private async void DetectLocal_ClickAsync(object sender, RoutedEventArgs args) => await _local.DetectAsync().ConfigureAwait(true);
+
     private async void AddLocal_ClickAsync(object sender, RoutedEventArgs args)
     {
         ClearPassword();
@@ -79,6 +84,7 @@ public sealed partial class ConnectionView : UserControl
         ServerOrigin.Text = profile?.Address.Display ?? ServerAddress.DefaultOrigin;
         _showFeedback = false;
         Refresh();
+        EditorSection.StartBringIntoView();
         (profile is null ? (Control)ServerName : ServerPassword).Focus(FocusState.Programmatic);
     }
 
@@ -87,6 +93,10 @@ public sealed partial class ConnectionView : UserControl
         bool busy = _connections.IsConnecting || _local.IsAdding;
         bool localStatusChanged = LocalDetectionStatus.Text != _local.Message;
         LocalDetectionStatus.Text = _local.Message;
+        LocalDetectionBadge.Text = _local.Detected is { } detected
+            ? "OpenCode " + detected.Version
+            : _local.IsBusy ? "Checking" : "";
+        LocalDetectionBadge.Foreground = _local.Detected is null ? ShellUi.Brush("ShellTextTertiaryBrush") : ShellUi.Brush("ShellConnectedBrush");
         LocalDetectionProgress.Visibility = _local.IsBusy ? Visibility.Visible : Visibility.Collapsed;
         DetectLocalButton.IsEnabled = !_local.IsBusy && !_connections.IsConnecting;
         AddLocalButton.Visibility = _local.Detected is null ? Visibility.Collapsed : Visibility.Visible;
@@ -107,9 +117,7 @@ public sealed partial class ConnectionView : UserControl
         AddServerButton.IsEnabled = !busy;
         SaveButton.IsEnabled = ConnectButton.IsEnabled = !busy && !editingActive;
         ConnectButton.Content = _connections.Active is null ? "Connect" : "Connect & switch";
-        CancelButton.Content = _local.IsBusy ? "Cancel local operation" : busy ? "Cancel connection" : "Cancel";
-        DisconnectButton.Visibility = _connections.Active is null && !_connections.IsConnecting ? Visibility.Collapsed : Visibility.Visible;
-        DisconnectButton.IsEnabled = true;
+        CancelButton.Content = _local.IsBusy ? "Cancel local operation" : busy ? "Cancel connection" : "Close editor";
         SwitchInformation.Message = editingActive ? "Disconnect this server before editing or removing it."
             : _connections.Active is null ? "Enter an existing local server address and its password to check readiness."
             : "Your current server stays active until the new connection is ready.";
@@ -131,39 +139,100 @@ public sealed partial class ConnectionView : UserControl
         ServerList.Children.Clear();
         foreach (ServerProfile profile in _connections.Profiles)
         {
-            bool active = _connections.Active?.Profile.Id == profile.Id;
-            bool connecting = _connections.ConnectingId == profile.Id;
-            var card = (Border)((DataTemplate)Resources["ServerProfileTemplate"]).LoadContent();
-            ((TextBlock)card.FindName("ProfileName")).Text = profile.Name;
-            ((TextBlock)card.FindName("Address")).Text = profile.Address.Display;
-            var state = (TextBlock)card.FindName("State");
-            state.Text = active ? "✓ Active · OpenCode " + _connections.Active!.Version
-                : connecting ? "Connecting…" : "Not connected";
-            var select = (Button)card.FindName("Select");
-            select.Content = active ? "View" : "Connect";
-            select.IsEnabled = true;
-            select.Click += (_, _) => Edit(profile);
-            AutomationProperties.SetName(select, (active ? "View " : "Connect to ") + profile.Name);
-            var remove = (Button)card.FindName("Remove");
-            remove.Visibility = active ? Visibility.Collapsed : Visibility.Visible;
-            remove.IsEnabled = !busy;
-            AutomationProperties.SetName(remove, "Remove " + profile.Name);
-            remove.Click += (_, _) =>
+            ConnectionCardPresentation presentation = ShellPresentation.ConnectionCard(profile, _connections.Active, _connections.ConnectingId, busy);
+            Border card = new()
             {
-                if (_connections.Remove(profile.Id) && _editingId == profile.Id)
-                {
-                    Edit(null);
-                }
+                Style = ShellUi.Resource<Style>("ShellCardStyle"),
+                Padding = new Thickness(14, 12, 12, 12),
+                Background = presentation.IsActive ? ShellUi.Brush("ShellAccentSurfaceBrush") : ShellUi.Brush("ShellCardSurfaceBrush"),
+                BorderBrush = presentation.IsActive ? ShellUi.Brush("ShellAccentBrush") : ShellUi.Brush("ShellBorderBrush"),
             };
 
-            if (active)
+            Grid layout = new() { ColumnSpacing = 12 };
+            layout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            layout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            Border iconSurface = new()
             {
-                card.BorderBrush = (Brush)Application.Current.Resources["ShellAccentBrush"];
-                state.Foreground = (Brush)Application.Current.Resources["ShellConnectedBrush"];
+                Width = 32,
+                Height = 32,
+                CornerRadius = ShellUi.Resource<CornerRadius>("ShellCornerRadiusMedium"),
+                Background = presentation.IsActive ? ShellUi.Brush("ShellConnectedSurfaceBrush") : ShellUi.Brush("ShellSubtleSurfaceBrush"),
+                BorderBrush = presentation.IsActive ? ShellUi.Brush("ShellConnectedBrush") : ShellUi.Brush("ShellBorderBrush"),
+                BorderThickness = ShellUi.Resource<Thickness>("ShellHairlineThickness"),
+                Child = ShellUi.Icon(presentation.IsActive ? "ShellIconCheck" : "ShellIconServer", ShellUi.Dimension("ShellIconMedium"),
+                    presentation.IsActive ? ShellUi.Brush("ShellConnectedBrush") : ShellUi.Brush("ShellTextSecondaryBrush")),
+                VerticalAlignment = VerticalAlignment.Top,
+            };
+            layout.Children.Add(iconSurface);
+
+            StackPanel details = ShellUi.Stack(4);
+            Grid.SetColumn(details, 1);
+            TextBlock name = ShellUi.Text(presentation.Name, "ShellBodyStrongTextStyle");
+            TextBlock address = ShellUi.Text(presentation.Address, "ShellTertiaryTextStyle", TextWrapping.NoWrap);
+            address.TextTrimming = TextTrimming.CharacterEllipsis;
+            ShellUi.Tooltip(address, presentation.Address);
+            StackPanel stateRow = ShellUi.Stack(8, Orientation.Horizontal);
+            stateRow.Children.Add(ShellUi.Badge(presentation.StateLabel, presentation.IsActive ? ShellTone.Success : presentation.IsConnecting ? ShellTone.Info : ShellTone.Neutral,
+                presentation.IsActive ? "ShellIconCheck" : presentation.IsConnecting ? "ShellIconClock" : null));
+            if (presentation.IsActive && _connections.Active is { } active)
+            {
+                stateRow.Children.Add(ShellUi.Text("OpenCode " + active.Version, "ShellCaptionTextStyle", TextWrapping.NoWrap));
             }
 
+            details.Children.Add(name);
+            details.Children.Add(address);
+            details.Children.Add(stateRow);
+            layout.Children.Add(details);
+
+            StackPanel actions = ShellUi.Stack(8, Orientation.Horizontal);
+            Grid.SetColumn(actions, 2);
+            actions.VerticalAlignment = VerticalAlignment.Center;
+            Button select = ShellUi.LabelButton(presentation.PrimaryActionLabel, null, (_, _) => Edit(profile),
+                presentation.IsActive ? "ShellSecondaryButtonStyle" : "ShellPrimaryButtonStyle", presentation.AutomationName);
+            actions.Children.Add(select);
+            if (presentation.IsActive)
+            {
+                Button disconnect = ShellUi.LabelButton("Disconnect", null, (_, _) =>
+                {
+                    ClearPassword();
+                    _connections.Disconnect();
+                    _showFeedback = true;
+                    Refresh();
+                }, "ShellQuietButtonStyle", "Disconnect active server");
+                actions.Children.Add(disconnect);
+            }
+            else if (presentation.CanRemove)
+            {
+                Button more = ShellUi.IconButton("ShellIconMore", "More actions for " + profile.Name, (_, _) => { });
+                more.Flyout = BuildProfileMenu(profile);
+                actions.Children.Add(more);
+            }
+
+            layout.Children.Add(actions);
+            card.Child = layout;
+            AutomationProperties.SetName(card, presentation.AutomationName);
             ServerList.Children.Add(card);
         }
+    }
+
+    private MenuFlyout BuildProfileMenu(ServerProfile profile)
+    {
+        MenuFlyout menu = new();
+        MenuFlyoutItem edit = new() { Text = "Edit server", Icon = new FontIcon { Glyph = ShellUi.Glyph("ShellIconEdit") } };
+        edit.Click += (_, _) => Edit(profile);
+        menu.Items.Add(edit);
+        MenuFlyoutItem remove = new() { Text = "Remove server", Icon = new FontIcon { Glyph = ShellUi.Glyph("ShellIconDelete") } };
+        remove.Click += (_, _) =>
+        {
+            if (_connections.Remove(profile.Id) && _editingId == profile.Id)
+            {
+                Edit(null);
+            }
+        };
+        menu.Items.Add(remove);
+        return menu;
     }
 
     private ServerProfile? Save()
@@ -181,6 +250,7 @@ public sealed partial class ConnectionView : UserControl
     }
 
     private void Add_Click(object sender, RoutedEventArgs args) => Edit(null);
+
     private void Save_Click(object sender, RoutedEventArgs args)
     {
         Save();
@@ -217,6 +287,7 @@ public sealed partial class ConnectionView : UserControl
         {
             _local.Deactivate();
         }
+
         if (_connections.IsConnecting)
         {
             _connections.Cancel();
@@ -227,11 +298,5 @@ public sealed partial class ConnectionView : UserControl
         }
     }
 
-    private void Disconnect_Click(object sender, RoutedEventArgs args)
-    {
-        ClearPassword();
-        _connections.Disconnect();
-        _showFeedback = true;
-        Refresh();
-    }
+    internal void FocusInitial() => AddServerButton.Focus(FocusState.Programmatic);
 }

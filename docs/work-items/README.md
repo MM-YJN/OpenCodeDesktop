@@ -6,11 +6,9 @@ This is the active index for unfinished work, in intended execution order. Done 
 
 ## Active Work
 
-| ID | Task | Type | Status | Dependencies |
-| --- | --- | --- | --- | --- |
-| [WI-013](WI-013-polish-shell-feature-ux.md) | Polish the application shell and implemented feature UX | Implementation | Ready | [WI-012](WI-012-persist-connections-workspace.md); existing shell and live workflows through WI-010 |
+No active work items.
 
-Next: [WI-013 Polish the application shell and implemented feature UX](WI-013-polish-shell-feature-ux.md).
+Next: no implementation item is active. New work requires a new work item.
 
 ## Working Agreements
 

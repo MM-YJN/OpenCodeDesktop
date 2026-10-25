@@ -1,16 +1,19 @@
 using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 
 using OpenCodeDesktop.Core.Connections;
 using OpenCodeDesktop.Core.Workspaces;
+using OpenCodeDesktop.Presentation;
 using OpenCodeDesktop.Views;
 
 using Windows.Graphics;
+using Windows.UI.ViewManagement;
 
 namespace OpenCodeDesktop;
 
@@ -35,14 +38,25 @@ public sealed partial class MainWindow : Window
         _workspaceView.Bind(_liveWorkspace);
         _settingsView = new SettingsView(connections, localDiscovery);
         InitializeComponent();
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
         ShellContentHost.Children.Add(_workspaceView);
         ShellContentHost.Children.Add(_settingsView);
         _settingsView.Visibility = Visibility.Collapsed;
         _workspaceView.SettingsRequested += (_, _) => ShowSettings(true);
         _settingsView.ReturnRequested += (_, _) => ShowSettings(false);
         _connections.Changed += Connections_Changed;
-        ShellRoot.ActualThemeChanged += (_, _) => UpdateConnectionStatus();
+        _liveWorkspace.Changed += Workspace_Changed;
+        ShellRoot.ActualThemeChanged += (_, _) =>
+        {
+            UpdateConnectionStatus();
+            UpdateAttention();
+            UpdateTitleBarTheme();
+            PersistenceChanged(this, EventArgs.Empty);
+        };
         UpdateConnectionStatus();
+        UpdateAttention();
+        UpdateTitleBarTheme();
         Closed += MainWindow_Closed;
         _persistence.Changed += PersistenceChanged;
         AppWindow.Closing += AppWindow_ClosingAsync;
@@ -50,40 +64,78 @@ public sealed partial class MainWindow : Window
 
     private void ShowSettings(bool show)
     {
-        if (!show)
-        {
-            _settingsView.ClearPassword();
-        }
-
         _workspaceView.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
         _settingsView.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         if (show)
         {
             _settingsView.Activate();
+            _settingsView.FocusInitial();
         }
+        else
+        {
+            _settingsView.ClearPassword();
+            _workspaceView.FocusWorkspace();
+        }
+    }
 
-        (show ? (Control)_settingsView : _workspaceView).Focus(FocusState.Programmatic);
+    private void ShowConnections(ServerProfile? profile)
+    {
+        ShowSettings(true);
+        _settingsView.ShowConnections(profile);
     }
 
     private void Connections_Changed(object? sender, EventArgs args) => UpdateConnectionStatus();
+    private void Workspace_Changed(object? sender, EventArgs args) => UpdateAttention();
 
     private void UpdateConnectionStatus()
     {
-        ActiveServer? active = _connections.Active;
-        string status = active is null ? "Disconnected" : "Connected · " + active.Profile.Name + " · " + active.Profile.Address.Display + " · OpenCode " + active.Version;
-        if (_connections.IsConnecting)
+        ServerProfile? connecting = _connections.ConnectingId is { } id
+            ? _connections.Profiles.FirstOrDefault(profile => profile.Id == id)
+            : null;
+        ShellStatusPresentation status = ShellPresentation.Connection(_connections.Active, connecting, _liveWorkspace.HasConnected);
+        ConnectionStatusLabel.Text = status.Label;
+        ConnectionStatusText.Text = status.Detail;
+        ConnectionStatusLabel.Foreground = status.Tone == ShellTone.Neutral ? ShellUi.Brush("ShellTextSecondaryBrush") : ShellUi.ToneBrush(status.Tone);
+        ConnectionDot.Background = ShellUi.ToneBrush(status.Tone);
+        AutomationProperties.SetName(ConnectionStatusButton, "Server connection. " + status.AutomationName + ". Open connection settings.");
+        ShellUi.Tooltip(ConnectionStatusButton, status.AutomationName + "\nOpen Settings > Connections.");
+        ServerSelectorPresenter.Update(_workspaceView.ConnectionSelector, _connections, ShowConnections);
+    }
+
+    private void UpdateAttention()
+    {
+        var targets = ShellPresentation.Attention(_liveWorkspace);
+        int count = targets.Sum(target => target.Count);
+        AttentionText.Text = count == 0 ? "No pending requests" : "Needs attention: " + count;
+        AttentionIcon.Foreground = count == 0 ? ShellUi.Brush("ShellTextSecondaryBrush") : ShellUi.Brush("ShellWarningBrush");
+        AttentionButton.IsEnabled = count > 0;
+        AutomationProperties.SetName(AttentionButton, count == 0 ? "Attention: no pending requests" : "Attention: " + count + " pending requests");
+        ShellUi.Tooltip(AttentionButton, count == 0 ? "Permission and question requests appear here." : "Review pending permission and question requests.");
+    }
+
+    private void Attention_Click(object sender, RoutedEventArgs args)
+    {
+        var targets = ShellPresentation.Attention(_liveWorkspace);
+        if (targets.Count == 0)
         {
-            status += " · Connecting to another server…";
+            return;
         }
 
-        ConnectionStatusText.Text = status;
-        AutomationProperties.SetName(ConnectionStatusText, "Server connection: " + ConnectionStatusText.Text);
-        ConnectionStatusText.Foreground = (Brush)Application.Current.Resources[active is null ? "ShellDisconnectedBrush" : "ShellConnectedBrush"];
-        ServerSelectorPresenter.Update(_workspaceView.ConnectionSelector, _connections, profile =>
+        MenuFlyout flyout = new();
+        foreach (AttentionTargetPresentation target in targets)
         {
-            ShowSettings(true);
-            _settingsView.ShowConnections(profile);
-        });
+            MenuFlyoutItem item = new() { Text = target.Label, Tag = target };
+            item.Click += async (_, _) => await OpenAttentionAsync(target).ConfigureAwait(true);
+            flyout.Items.Add(item);
+        }
+
+        flyout.ShowAt(AttentionButton);
+    }
+
+    private async Task OpenAttentionAsync(AttentionTargetPresentation target)
+    {
+        ShowSettings(false);
+        await _workspaceView.OpenAttentionAsync(target).ConfigureAwait(true);
     }
 
     private async void ShellRoot_LoadedAsync(object sender, RoutedEventArgs args)
@@ -91,11 +143,19 @@ public sealed partial class MainWindow : Window
         ShellRoot.Loaded -= ShellRoot_LoadedAsync;
         ShellRoot.XamlRoot.Changed += XamlRoot_Changed;
         UpdateWindowMinimumSize();
-        AppWindow.ResizeClient(new SizeInt32(
-            ScaleDimension("ShellWindowInitialWidth"),
-            ScaleDimension("ShellWindowInitialHeight")));
-        _workspaceView.Focus(FocusState.Programmatic);
+        ResizeInitialWindow();
+        _workspaceView.FocusWorkspace();
         await _persistence.StartAsync().ConfigureAwait(true);
+    }
+
+    private void ResizeInitialWindow()
+    {
+        var display = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary);
+        RectInt32 work = display.WorkArea;
+        int width = Math.Min(ScaleDimension("ShellWindowInitialWidth"), work.Width);
+        int height = Math.Min(ScaleDimension("ShellWindowInitialHeight"), work.Height);
+        AppWindow.ResizeClient(new SizeInt32(width, height));
+        AppWindow.Move(new PointInt32(work.X + Math.Max(0, (work.Width - width) / 2), work.Y + Math.Max(0, (work.Height - height) / 2)));
     }
 
     private void XamlRoot_Changed(XamlRoot sender, XamlRootChangedEventArgs args)
@@ -116,24 +176,72 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private int ScaleDimension(string key) => (int)Math.Ceiling((double)Application.Current.Resources[key] * _rasterizationScale);
+    private int ScaleDimension(string key) => (int)Math.Ceiling(ShellUi.Dimension(key) * _rasterizationScale);
+
+    private void UpdateTitleBarTheme()
+    {
+        if (!AppWindowTitleBar.IsCustomizationSupported())
+        {
+            return;
+        }
+
+        AppWindowTitleBar bar = AppWindow.TitleBar;
+        bar.PreferredHeightOption = TitleBarHeightOption.Standard;
+        AccessibilitySettings accessibility = new();
+        UISettings settings = new();
+        bool highContrast = accessibility.HighContrast;
+        bool dark = ShellRoot.ActualTheme == ElementTheme.Dark;
+        Windows.UI.Color transparent = Windows.UI.Color.FromArgb(0, 0, 0, 0);
+        Windows.UI.Color foreground = highContrast
+            ? settings.GetColorValue(UIColorType.Foreground)
+            : dark ? Windows.UI.Color.FromArgb(255, 255, 255, 255) : Windows.UI.Color.FromArgb(255, 26, 26, 26);
+        Windows.UI.Color hover = highContrast
+            ? Windows.UI.Color.FromArgb(72, foreground.R, foreground.G, foreground.B)
+            : dark ? Windows.UI.Color.FromArgb(32, 255, 255, 255) : Windows.UI.Color.FromArgb(24, 0, 0, 0);
+        Windows.UI.Color pressed = highContrast
+            ? Windows.UI.Color.FromArgb(120, foreground.R, foreground.G, foreground.B)
+            : dark ? Windows.UI.Color.FromArgb(64, 255, 255, 255) : Windows.UI.Color.FromArgb(48, 0, 0, 0);
+
+        // The app draws its own 32 DIP title-bar row; the system only owns the
+        // caption buttons, so their background must stay transparent.
+        bar.BackgroundColor = transparent;
+        bar.InactiveBackgroundColor = transparent;
+        bar.ForegroundColor = foreground;
+        bar.InactiveForegroundColor = foreground;
+        bar.ButtonBackgroundColor = transparent;
+        bar.ButtonForegroundColor = foreground;
+        bar.ButtonHoverBackgroundColor = hover;
+        bar.ButtonHoverForegroundColor = foreground;
+        bar.ButtonPressedBackgroundColor = pressed;
+        bar.ButtonPressedForegroundColor = foreground;
+        bar.ButtonInactiveBackgroundColor = transparent;
+        bar.ButtonInactiveForegroundColor = foreground;
+    }
 
     private void PersistenceChanged(object? sender, EventArgs args)
     {
-        var state = Presentation.WorkspacePersistencePresentation.From(_persistence);
-        PersistenceNotice.IsOpen = state.Message is not null;
-        PersistenceNotice.Message = state.Message ?? "";
-        PersistenceNotice.Severity = state.IsError ? InfoBarSeverity.Warning : InfoBarSeverity.Informational;
+        var state = WorkspacePersistencePresentation.From(_persistence);
+        PersistenceBanner.Visibility = state.Message is null ? Visibility.Collapsed : Visibility.Visible;
+        PersistenceTitle.Text = state.IsRestoring ? "Restoring your workspace" : state.IsError ? "Saved state needs attention" : "Workspace storage";
+        PersistenceMessage.Text = state.Message ?? "";
+        PersistenceBanner.Background = ShellUi.Brush(state.IsError ? "ShellWarningSurfaceBrush" : "ShellInfoSurfaceBrush");
+        PersistenceIcon.Glyph = ShellUi.Glyph(state.IsError ? "ShellIconWarning" : "ShellIconInfo");
+        PersistenceIcon.Foreground = state.IsError ? ShellUi.Brush("ShellWarningBrush") : ShellUi.Brush("ShellAccentBrush");
         RestoreProgress.IsActive = state.IsRestoring;
         RestoreRetry.Visibility = state.CanRetry ? Visibility.Visible : Visibility.Collapsed;
         SaveRetry.Visibility = state.CanSave ? Visibility.Visible : Visibility.Collapsed;
         SettingsReset.Visibility = state.CanReset ? Visibility.Visible : Visibility.Collapsed;
+        ConnectionsNoticeAction.Visibility = state.IsError ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private async void RestoreRetry_ClickAsync(object sender, RoutedEventArgs args) => await _persistence.RetryAsync().ConfigureAwait(true);
     private void SaveRetry_Click(object sender, RoutedEventArgs args) => _persistence.RetrySave();
     private async void SettingsReset_ClickAsync(object sender, RoutedEventArgs args) => await _persistence.ResetAsync().ConfigureAwait(true);
-    private void Connections_Click(object sender, RoutedEventArgs args) => ShowSettings(true);
+    private void Connections_Click(object sender, RoutedEventArgs args)
+    {
+        ShowSettings(true);
+        _settingsView.ShowConnectionsSection();
+    }
 
     private async void AppWindow_ClosingAsync(AppWindow sender, AppWindowClosingEventArgs args)
     {
@@ -164,6 +272,7 @@ public sealed partial class MainWindow : Window
         _settingsView.ClearPassword();
         _settingsView.Shutdown();
         _workspaceView.Unbind();
+        _liveWorkspace.Changed -= Workspace_Changed;
         _liveWorkspace.Dispose();
         _connections.Changed -= Connections_Changed;
         _connections.Dispose();

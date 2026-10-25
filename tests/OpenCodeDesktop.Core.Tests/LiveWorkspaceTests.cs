@@ -351,6 +351,172 @@ public sealed class LiveWorkspaceTests
         Assert.Null(h.Workspace.Location);
     }
 
+    [Fact]
+    public async Task TreeSessionLoadIsProjectScopedAndLeavesTheActiveWorkspaceAlone()
+    {
+        using Harness h = await Harness.StartAsync();
+        h.Api.List = (directory, _, _) => Task.FromResult(new WorkspacePage<WorkspaceSession>(
+            [new("session-" + directory, directory, "global", "Session " + directory)], null));
+        await h.Workspace.OpenProjectAsync("/one");
+        await h.Workspace.OpenProjectAsync("/two");
+        await h.Workspace.OpenProjectAsync("/one");
+        await h.Workspace.SelectSessionAsync("session-/one");
+        h.Connections.Disconnect();
+        await h.Connections.ConnectAsync(h.First.Id, "again");
+        await WaitIdleAsync(h.Workspace);
+
+        WorkspaceProject inactive = h.Workspace.Projects.Single(project => project.Location.Directory == "/two");
+        Assert.False(inactive.SessionsLoaded);
+        Assert.Empty(inactive.Sessions);
+
+        FakeConnection api = h.Service.Created[^1];
+        api.List = (directory, _, _) => Task.FromResult(new WorkspacePage<WorkspaceSession>(
+            [new("loaded-" + directory, directory, "global", "Loaded " + directory)], null));
+        await h.Workspace.LoadProjectSessionsAsync("/two");
+
+        inactive = h.Workspace.Projects.Single(project => project.Location.Directory == "/two");
+        Assert.True(inactive.SessionsLoaded);
+        Assert.Equal("loaded-/two", Assert.Single(inactive.Sessions).Id);
+        Assert.Equal("/one", h.Workspace.Location!.Directory);
+        Assert.Equal("session-/one", h.Workspace.SelectedSessionId);
+    }
+
+    [Fact]
+    public async Task ConcurrentProjectSessionLoadsCompleteIndependentlyAndKeepTheActiveHistory()
+    {
+        using Harness h = await Harness.StartAsync();
+        h.Api.List = (directory, _, _) => Task.FromResult(new WorkspacePage<WorkspaceSession>(
+            [new("session-" + directory, directory, "global", "Session " + directory)], null));
+        await h.Workspace.OpenProjectAsync("/one");
+        await h.Workspace.OpenProjectAsync("/two");
+        await h.Workspace.OpenProjectAsync("/three");
+        await h.Workspace.OpenProjectAsync("/one");
+        await h.Workspace.SelectSessionAsync("session-/one");
+        h.Connections.Disconnect();
+        await h.Connections.ConnectAsync(h.First.Id, "again");
+        await WaitIdleAsync(h.Workspace);
+
+        FakeConnection api = h.Service.Created[^1];
+        TaskCompletionSource<WorkspacePage<WorkspaceSession>> two = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<WorkspacePage<WorkspaceSession>> three = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        api.List = (directory, _, _) => directory switch
+        {
+            "/two" => two.Task,
+            "/three" => three.Task,
+            _ => Task.FromResult(new WorkspacePage<WorkspaceSession>([], null)),
+        };
+
+        Task loadTwo = h.Workspace.LoadProjectSessionsAsync("/two");
+        Task loadThree = h.Workspace.LoadProjectSessionsAsync("/three");
+        Assert.True(h.Workspace.Projects.Single(project => project.Location.Directory == "/two").SessionsLoading);
+        Assert.True(h.Workspace.Projects.Single(project => project.Location.Directory == "/three").SessionsLoading);
+        Assert.Equal("/one", h.Workspace.Location!.Directory);
+
+        three.SetResult(new([new("three", "/three", "global", "Three")], null));
+        await loadThree;
+        two.SetResult(new([new("two", "/two", "global", "Two")], null));
+        await loadTwo;
+
+        Assert.Equal("two", Assert.Single(h.Workspace.Projects.Single(project => project.Location.Directory == "/two").Sessions).Id);
+        Assert.Equal("three", Assert.Single(h.Workspace.Projects.Single(project => project.Location.Directory == "/three").Sessions).Id);
+        Assert.Equal("/one", h.Workspace.Location!.Directory);
+        Assert.Equal("session-/one", h.Workspace.SelectedSessionId);
+    }
+
+    [Fact]
+    public async Task InactiveProjectSessionPaginationKeepsTheActiveProjectAndStopsAtTheFinalPage()
+    {
+        using Harness h = await Harness.StartAsync();
+        h.Api.List = (directory, _, _) => Task.FromResult(new WorkspacePage<WorkspaceSession>(
+            [new("session-" + directory, directory, "global", "Session " + directory)], null));
+        await h.Workspace.OpenProjectAsync("/one");
+        await h.Workspace.OpenProjectAsync("/two");
+        await h.Workspace.OpenProjectAsync("/one");
+        h.Connections.Disconnect();
+        await h.Connections.ConnectAsync(h.First.Id, "again");
+        await WaitIdleAsync(h.Workspace);
+
+        FakeConnection api = h.Service.Created[^1];
+        api.List = (directory, cursor, _) => Task.FromResult(cursor switch
+        {
+            null => new WorkspacePage<WorkspaceSession>([new("a", directory, "global", "A")], "next"),
+            "next" => new WorkspacePage<WorkspaceSession>([new("a", directory, "global", "A"), new("b", directory, "global", "B")], "empty"),
+            _ => new WorkspacePage<WorkspaceSession>([], "ignored"),
+        });
+        await h.Workspace.LoadProjectSessionsAsync("/two");
+        await h.Workspace.LoadProjectSessionsAsync("/two", true);
+        await h.Workspace.LoadProjectSessionsAsync("/two", true);
+
+        WorkspaceProject project = h.Workspace.Projects.Single(candidate => candidate.Location.Directory == "/two");
+        Assert.True(project.SessionsLoaded);
+        Assert.Equal(new[] { "a", "b" }, project.Sessions.Select(session => session.Id));
+        Assert.False(project.CanLoadMoreSessions);
+        Assert.Equal("/one", h.Workspace.Location!.Directory);
+    }
+
+    [Fact]
+    public async Task ProjectSessionFailureIsIsolatedAndRetryDoesNotChangeTheActiveProject()
+    {
+        using Harness h = await Harness.StartAsync();
+        h.Api.List = (directory, _, _) => Task.FromResult(new WorkspacePage<WorkspaceSession>(
+            [new("session-" + directory, directory, "global", "Session " + directory)], null));
+        await h.Workspace.OpenProjectAsync("/one");
+        await h.Workspace.OpenProjectAsync("/two");
+        await h.Workspace.OpenProjectAsync("/one");
+        h.Connections.Disconnect();
+        await h.Connections.ConnectAsync(h.First.Id, "again");
+        await WaitIdleAsync(h.Workspace);
+
+        FakeConnection api = h.Service.Created[^1];
+        api.List = (_, _, _) => throw Failure();
+        await h.Workspace.LoadProjectSessionsAsync("/two");
+        WorkspaceProject failed = h.Workspace.Projects.Single(project => project.Location.Directory == "/two");
+        Assert.False(failed.SessionsLoaded);
+        Assert.NotNull(failed.SessionsError);
+        Assert.Equal("/one", h.Workspace.Location!.Directory);
+
+        api.List = (directory, _, _) => Task.FromResult(new WorkspacePage<WorkspaceSession>(
+            [new("retried-" + directory, directory, "global", "Retried " + directory)], null));
+        await h.Workspace.RefreshProjectSessionsAsync("/two");
+        WorkspaceProject recovered = h.Workspace.Projects.Single(project => project.Location.Directory == "/two");
+        Assert.True(recovered.SessionsLoaded);
+        Assert.Null(recovered.SessionsError);
+        Assert.Equal("retried-/two", Assert.Single(recovered.Sessions).Id);
+        Assert.Equal("/one", h.Workspace.Location!.Directory);
+    }
+
+    [Fact]
+    public async Task CrossProjectSessionSelectionIsStagedAndDraftSelectionNeverCreatesASession()
+    {
+        using Harness h = await Harness.StartAsync();
+        await h.Workspace.OpenProjectAsync("/one");
+        await h.Workspace.OpenProjectAsync("/two");
+        await h.Workspace.OpenProjectAsync("/one");
+        await h.Workspace.SelectSessionAsync("a");
+
+        await h.Workspace.OpenProjectSessionAsync("/two", "b");
+        Assert.Equal("/two", h.Workspace.Location!.Directory);
+        Assert.Equal("b", h.Workspace.SelectedSessionId);
+        Assert.Equal("history b", Assert.Single(h.Workspace.History).Text);
+
+        h.Api.Metadata = (_, _) => throw new WorkspaceException(WorkspaceFailure.NotFound, "Missing session.");
+        await h.Workspace.OpenProjectSessionAsync("/one", "a");
+        Assert.Equal("/two", h.Workspace.Location!.Directory);
+        Assert.Equal("b", h.Workspace.SelectedSessionId);
+        Assert.Equal("history b", Assert.Single(h.Workspace.History).Text);
+
+        h.Api.Metadata = null;
+        await h.Workspace.OpenProjectDraftAsync("/one");
+        Assert.Equal("/one", h.Workspace.Location!.Directory);
+        Assert.Null(h.Workspace.SelectedSessionId);
+        Assert.Empty(h.Workspace.History);
+        h.Workspace.Draft = "new one draft";
+        await h.Workspace.OpenProjectSessionAsync("/two", "b");
+        await h.Workspace.OpenProjectDraftAsync("/one");
+        Assert.Equal("new one draft", h.Workspace.Draft);
+        Assert.Equal(0, h.Api.CreateCalls);
+    }
+
     private static async Task WaitIdleAsync(LiveWorkspace workspace)
     {
         for (int i = 0; i < 100 && workspace.IsLoading; i++)

@@ -37,14 +37,22 @@ public sealed partial class LiveWorkspace : IDisposable
     public bool CanRetry => _retry is not null && !IsLoading;
     public ProjectLocation? Location => IsConnected ? _project?.Location : null;
     public IReadOnlyList<WorkspaceProject> Projects => _backend?.Projects.Values.Where(p => p.Listed)
-        .Select(p => new WorkspaceProject(p.Location, p == _project, p.OpenError)).ToArray() ?? [];
+        .Select(p => new WorkspaceProject(
+            p.Location,
+            p == _project,
+            p.OpenError,
+            p.Sessions.ToArray(),
+            p.SessionsLoaded,
+            p.SessionsLoading,
+            p.SessionsError,
+            IsConnected && p.SessionCursor is not null && !p.SessionsLoading)).ToArray() ?? [];
     public IReadOnlyList<string> OpenedDirectories => Projects.Select(p => p.Location.Directory).ToArray();
     public IReadOnlyList<WorkspaceSession> Sessions => IsConnected ? _project?.Sessions.AsReadOnly() ?? (IReadOnlyList<WorkspaceSession>)[] : [];
     public WorkspaceSession? Selected => Sessions.FirstOrDefault(s => s.Id == _project?.SelectedId);
     public string? SelectedSessionId => _project?.SelectedId;
     public IReadOnlyList<HistoryMessage> History { get; private set; } = [];
     public bool HistoryLoaded { get; private set; }
-    public bool CanLoadSessions => IsConnected && _project?.SessionCursor is not null && !IsLoading;
+    public bool CanLoadSessions => IsConnected && _project is { SessionCursor: not null, SessionsLoading: false };
     public bool CanLoadHistory => IsConnected && _project?.HistoryCursor is not null && HistoryLoaded && !IsLoading;
     public bool CanCreate => IsConnected && _project is { Creating: false, Uncertain: false } && !IsLoading;
     public bool CreationUncertain => _project?.Uncertain == true;
@@ -97,6 +105,7 @@ public sealed partial class LiveWorkspace : IDisposable
         Tasks?.Changed += TaskChanged;
 
         CancelLoad();
+        CancelProjectSessionLoads();
         _project = null;
         _backend = null;
         History = [];
@@ -111,6 +120,15 @@ public sealed partial class LiveWorkspace : IDisposable
                 _backend = new(server.Profile);
                 _backends.Add(server.Profile.Id, _backend);
             }
+            foreach (Project project in _backend.Projects.Values)
+            {
+                project.Sessions.Clear();
+                project.SessionsLoaded = false;
+                project.SessionsLoading = false;
+                project.SessionsError = null;
+                project.SessionCursor = null;
+                project.SessionCursors.Clear();
+            }
             Tasks?.Restore(_backend.TaskStates);
             foreach (Project project in _backend.Projects.Values)
             {
@@ -121,7 +139,7 @@ public sealed partial class LiveWorkspace : IDisposable
             Notify();
             if (remembered is not null)
             {
-                await OpenProjectCoreAsync(remembered).ConfigureAwait(true);
+                await OpenProjectCoreAsync(remembered, null, false).ConfigureAwait(true);
             }
             else if (Tasks is { } attention && _backend.Projects.Values.FirstOrDefault() is { } retained)
             {
@@ -139,16 +157,33 @@ public sealed partial class LiveWorkspace : IDisposable
     public Task OpenProjectAsync(string directory)
     {
         UserNavigation?.Invoke(this, EventArgs.Empty);
-        return OpenProjectCoreAsync(directory);
+        return OpenProjectCoreAsync(directory, null, false);
     }
 
-    private Task OpenProjectCoreAsync(string directory)
+    public Task OpenProjectSessionAsync(string directory, string sessionId)
+    {
+        UserNavigation?.Invoke(this, EventArgs.Empty);
+        return OpenProjectCoreAsync(directory, sessionId, false);
+    }
+
+    public Task OpenProjectDraftAsync(string directory)
+    {
+        UserNavigation?.Invoke(this, EventArgs.Empty);
+        return OpenProjectCoreAsync(directory, null, true);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "CA1502:Avoid excessive complexity", Justification = "Directory, target-session and history validation remain one staged navigation transaction so a failed or superseded switch cannot partially replace the workspace.")]
+    private Task OpenProjectCoreAsync(string directory, string? targetSessionId, bool selectDraft)
     {
         if (string.IsNullOrWhiteSpace(directory) || !IsConnected)
         {
             return Task.CompletedTask;
         }
 
+        bool useRememberedSession = targetSessionId is null && !selectDraft;
+        Func<Task> retry = selectDraft
+            ? () => OpenProjectDraftAsync(directory)
+            : targetSessionId is { } target ? () => OpenProjectSessionAsync(directory, target) : () => OpenProjectAsync(directory);
         return RunAsync("Opening server directory…", async (context, token, current) =>
         {
             Backend backend = _backend!;
@@ -167,15 +202,23 @@ public sealed partial class LiveWorkspace : IDisposable
                     throw Ownership();
                 }
 
+                if (backend.Projects.GetValueOrDefault(location.Directory) is { } loaded)
+                {
+                    CancelProjectLoad(loaded);
+                }
+
                 page = await context.SessionsAsync(location.Directory, null, token).ConfigureAwait(true);
                 ValidateSessions(location, page.Data);
-                if (backend.Projects.GetValueOrDefault(location.Directory)?.ConfirmedId is { } id)
+                string? selectedId = selectDraft
+                    ? null
+                    : targetSessionId ?? backend.Projects.GetValueOrDefault(location.Directory)?.ConfirmedId;
+                if (selectedId is { } id)
                 {
                     try
                     {
                         selected = await context.SessionAsync(id, token).ConfigureAwait(true);
                     }
-                    catch (WorkspaceException error) when (error.Failure == WorkspaceFailure.NotFound)
+                    catch (WorkspaceException error) when (error.Failure == WorkspaceFailure.NotFound && useRememberedSession)
                     {
                         missingSession = true;
                     }
@@ -222,6 +265,7 @@ public sealed partial class LiveWorkspace : IDisposable
                 project.Sessions.Add(selected);
             }
             project.SelectedId = selected?.Id;
+            project.ConfirmedId = selectDraft ? null : selected?.Id ?? project.ConfirmedId;
             _project = project;
             backend.Directory = location.Directory;
             History = history?.Data.DistinctBy(m => m.Id).Reverse().ToArray() ?? [];
@@ -231,7 +275,7 @@ public sealed partial class LiveWorkspace : IDisposable
             if (missingSession)
             {
                 Error = "The remembered session no longer exists. Select another session, or Retry to check it again.";
-                _retry = () => OpenProjectAsync(directory);
+                _retry = retry;
             }
             NavigationChanged?.Invoke(this, EventArgs.Empty);
             Notify();
@@ -243,7 +287,7 @@ public sealed partial class LiveWorkspace : IDisposable
                     await tasks.OpenAsync(selected).ConfigureAwait(true);
                 }
             }
-        }, () => OpenProjectAsync(directory));
+        }, retry);
     }
 
     /// <summary>Forget navigation only; retain drafts and task attention for this app lifetime.</summary>
@@ -254,6 +298,7 @@ public sealed partial class LiveWorkspace : IDisposable
             return;
         }
         UserNavigation?.Invoke(this, EventArgs.Empty);
+        CancelProjectLoad(project);
         CancelLoad();
         project.Listed = false;
         project.OpenError = null;
@@ -298,6 +343,7 @@ public sealed partial class LiveWorkspace : IDisposable
             return Task.CompletedTask;
         }
 
+        CancelProjectLoad(_project);
         CancelLoad();
         _project.SelectedId = id;
         _project.HistoryCursor = null;
@@ -362,40 +408,73 @@ public sealed partial class LiveWorkspace : IDisposable
         }
     }
 
-    public Task RefreshSessionsAsync() => SessionsPageAsync(false);
-    public Task LoadMoreSessionsAsync() => CanLoadSessions ? SessionsPageAsync(true) : Task.CompletedTask;
+    public Task RefreshSessionsAsync() => _project is { } project ? RefreshProjectSessionsAsync(project.Location.Directory) : Task.CompletedTask;
+    public Task LoadMoreSessionsAsync() => _project is { } project ? LoadProjectSessionsAsync(project.Location.Directory, true) : Task.CompletedTask;
 
-    private Task SessionsPageAsync(bool more)
+    /// <summary>Load a listed project's first session page without changing the active workspace.</summary>
+    public Task LoadProjectSessionsAsync(string directory, bool more = false)
     {
-        if (_project is not { } project || !IsConnected)
+        if (!IsConnected || _backend?.Projects.GetValueOrDefault(directory) is not { Listed: true } project)
         {
             return Task.CompletedTask;
         }
 
-        string? cursor = more ? project.SessionCursor : null;
-        return RunAsync(more ? "Loading more sessions…" : "Refreshing sessions…", async (context, token, current) =>
+        if (project.SessionsLoading || (more ? project.SessionCursor is null : project.SessionsLoaded))
         {
-            WorkspacePage<WorkspaceSession> page = await context.SessionsAsync(project.Location.Directory, cursor, token).ConfigureAwait(true);
+            return Task.CompletedTask;
+        }
+
+        return LoadProjectSessionsCoreAsync(project, more);
+    }
+
+    /// <summary>Reload a listed project's first session page, preserving its selection and drafts.</summary>
+    public Task RefreshProjectSessionsAsync(string directory)
+    {
+        if (!IsConnected || _backend?.Projects.GetValueOrDefault(directory) is not { Listed: true } project)
+        {
+            return Task.CompletedTask;
+        }
+
+        CancelProjectLoad(project);
+        return LoadProjectSessionsCoreAsync(project, false);
+    }
+
+    private async Task LoadProjectSessionsCoreAsync(Project project, bool more)
+    {
+        if (_connections.Context is not { } context)
+        {
+            return;
+        }
+
+        string? cursor = more ? project.SessionCursor : null;
+        long connection = _connections.Generation;
+        using CancellationTokenSource load = new(TimeSpan.FromSeconds(15));
+        project.SessionLoad = load;
+        project.SessionsLoading = true;
+        project.SessionsError = null;
+        Notify();
+        bool OwnsLoad() => ReferenceEquals(project.SessionLoad, load);
+        bool Current()
+        {
+            return !_disposed
+                && connection == _connections.Generation
+                && _backend is { } backend
+                && backend.Projects.TryGetValue(project.Location.Directory, out Project? currentProject)
+                && ReferenceEquals(currentProject, project)
+                && project.Listed;
+        }
+
+        try
+        {
+            WorkspacePage<WorkspaceSession> page = await context.SessionsAsync(project.Location.Directory, cursor, load.Token).ConfigureAwait(true);
             ValidateSessions(project.Location, page.Data);
             ValidateCursor(cursor, page.Next, more ? project.SessionCursors : [], page.Data.Count, page.Data.Any(s => !project.Sessions.Any(old => old.Id == s.Id)));
-            if (!current())
+            if (!Current() || !OwnsLoad())
             {
                 return;
             }
 
-            if (!more)
-            {
-                // Keep selected metadata until its own GET determines whether it is unavailable.
-                WorkspaceSession? selected = Selected;
-                SetSessions(project, page);
-                if (selected is not null && !project.Sessions.Any(s => s.Id == selected.Id))
-                {
-                    project.Sessions.Add(selected);
-                }
-
-                project.Uncertain = false;
-            }
-            else
+            if (more)
             {
                 if (cursor is not null)
                 {
@@ -405,7 +484,57 @@ public sealed partial class LiveWorkspace : IDisposable
                 project.Sessions.AddRange(page.Data.Where(s => !project.Sessions.Any(old => old.Id == s.Id)).DistinctBy(s => s.Id));
                 project.SessionCursor = page.Data.Count == 0 ? null : page.Next;
             }
-        }, () => SessionsPageAsync(more));
+            else
+            {
+                // Keep selected metadata until its own GET determines whether it is unavailable.
+                WorkspaceSession? selected = project.Sessions.FirstOrDefault(s => s.Id == project.SelectedId);
+                SetSessions(project, page);
+                if (selected is not null && !project.Sessions.Any(s => s.Id == selected.Id))
+                {
+                    project.Sessions.Add(selected);
+                }
+
+                project.Uncertain = false;
+            }
+
+            project.SessionsLoaded = true;
+            project.SessionsError = null;
+        }
+        catch (WorkspaceException error)
+        {
+            if (OwnsLoad() && Current())
+            {
+                if (error.Failure == WorkspaceFailure.Unauthorized)
+                {
+                    _connections.RejectAuthorization(connection);
+                }
+                else
+                {
+                    project.SessionsError = error.Failure == WorkspaceFailure.Cancelled && load.IsCancellationRequested
+                        ? "Loading timed out or was cancelled. Retry when ready."
+                        : error.Message;
+                }
+            }
+        }
+        catch (Exception)
+        {
+            if (OwnsLoad() && Current())
+            {
+                project.SessionsError = "Sessions unavailable. Check the server and retry.";
+            }
+        }
+        finally
+        {
+            if (OwnsLoad())
+            {
+                project.SessionLoad = null;
+                project.SessionsLoading = false;
+                if (Current())
+                {
+                    Notify();
+                }
+            }
+        }
     }
 
     public Task LoadOlderHistoryAsync()
@@ -445,6 +574,7 @@ public sealed partial class LiveWorkspace : IDisposable
             return Task.CompletedTask;
         }
 
+        CancelProjectLoad(project);
         project.Creating = true;
         return RunAsync("Creating session…", async (context, token, current) =>
         {
@@ -618,6 +748,29 @@ public sealed partial class LiveWorkspace : IDisposable
         project.Sessions.AddRange(page.Data.DistinctBy(s => s.Id));
         project.SessionCursors.Clear();
         project.SessionCursor = page.Data.Count == 0 ? null : page.Next;
+        project.SessionsLoaded = true;
+        project.SessionsLoading = false;
+        project.SessionsError = null;
+    }
+
+    private static void CancelProjectLoad(Project project)
+    {
+        CancellationTokenSource? load = project.SessionLoad;
+        project.SessionLoad = null;
+        project.SessionsLoading = false;
+        project.SessionsError = null;
+        load?.Cancel();
+    }
+
+    private void CancelProjectSessionLoads()
+    {
+        foreach (Backend backend in _backends.Values)
+        {
+            foreach (Project project in backend.Projects.Values)
+            {
+                CancelProjectLoad(project);
+            }
+        }
     }
 
     private void CancelLoad()
@@ -656,6 +809,7 @@ public sealed partial class LiveWorkspace : IDisposable
         Tasks?.Dispose();
         Tasks = null;
         _connections.Changed -= ConnectionChangedAsync;
+        CancelProjectSessionLoads();
         CancelLoad();
         foreach (Backend backend in _backends.Values)
         {
@@ -684,6 +838,10 @@ public sealed partial class LiveWorkspace : IDisposable
         public bool Listed { get; set; } = true;
         public string? OpenError { get; set; }
         public List<WorkspaceSession> Sessions { get; } = [];
+        public bool SessionsLoaded { get; set; }
+        public bool SessionsLoading { get; set; }
+        public string? SessionsError { get; set; }
+        public CancellationTokenSource? SessionLoad { get; set; }
         public Dictionary<string, string> Drafts { get; } = new(StringComparer.Ordinal);
         public string? SelectedId { get; set; }
         public string? ConfirmedId { get; set; }

@@ -18,7 +18,10 @@ internal sealed record LiveWorkspacePresentation(string Title, string Path, stri
         string name = trimmed[(separator + 1)..];
         return new ProjectListPresentation(name.Length == 0 ? path : name, path, project.IsSelected, project.Error);
     }).ToArray();
-    internal const string UnavailableDetails = "Details, files, changes and terminal are unavailable in this increment. Task activity and pending requests appear in the conversation.";
+    internal const string UnavailableDetails = "Details files, changes and terminal are unavailable in this release. Task activity and pending requests appear in the workspace.";
+
+    internal static string SessionTitle(WorkspaceSession? session) =>
+        session is null ? "New-session draft" : string.IsNullOrWhiteSpace(session.Title) ? "Untitled session" : session.Title;
 
     internal static LiveWorkspacePresentation From(LiveWorkspace workspace)
     {
@@ -30,7 +33,7 @@ internal sealed record LiveWorkspacePresentation(string Title, string Path, stri
         string path = workspace.Server is { } server
             ? server.Profile.Name + " · " + server.Profile.Address.Display + "\n" + (workspace.Location?.Directory ?? "No directory selected")
             : workspace.HasConnected ? "Disconnected · Reconnect in Settings to restore your workspace" : "Disconnected · No server connected";
-        return new(workspace.Selected?.Title ?? (workspace.Location is null ? "Server workspace" : "New-session draft"), path, notice,
+        return new(workspace.Selected is null ? (workspace.Location is null ? "Server workspace" : "New-session draft") : SessionTitle(workspace.Selected), path, notice,
             (workspace.Server?.Profile.Id.ToString() ?? "") + "\n" + workspace.Location?.Directory + "\n" + workspace.SelectedSessionId);
     }
 }
