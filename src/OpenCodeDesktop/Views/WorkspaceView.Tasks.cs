@@ -25,7 +25,7 @@ public sealed partial class WorkspaceView
     private void RenderTaskControls()
     {
         SessionTaskState? state = CurrentTask;
-        var presentation = LiveTaskPresentation.From(state, DraftBox.Text, _live?.Tasks?.AttentionError, _live?.Tasks);
+        var presentation = LiveTaskPresentation.From(state, DraftBox.Text, _live?.Tasks?.AttentionError, _live?.Tasks, _live?.CurrentDraft?.Files.Count ?? 0);
         ShellStatusPresentation status = ShellPresentation.Task(state);
         string previousStatus = TaskStatus.Text;
         TaskStatusBadge.Background = ShellUi.ToneSurface(status.Tone);
@@ -65,6 +65,7 @@ public sealed partial class WorkspaceView
         CatalogNotice.Text = presentation.CatalogNotice;
         CatalogNotice.Visibility = presentation.CatalogNotice.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         UpdateSend();
+        RenderAttachments();
         RenderRequests(state);
         bool requestsEnabled = state is { Busy: false, Stale: false };
         foreach (Button button in _requestActions)
@@ -100,7 +101,7 @@ public sealed partial class WorkspaceView
 
     private void UpdateSend()
     {
-        SendButton.IsEnabled = CurrentTask?.CanSend == true && !string.IsNullOrWhiteSpace(DraftBox.Text);
+        SendButton.IsEnabled = CurrentTask?.CanSend == true && (!string.IsNullOrWhiteSpace(DraftBox.Text) || _live?.CurrentDraft?.Files.Count > 0);
     }
 
     private async Task SendTaskAsync()

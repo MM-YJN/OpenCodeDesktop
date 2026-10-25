@@ -6,6 +6,38 @@ namespace OpenCodeDesktop.Core.Tests;
 public sealed class LiveWorkspaceTests
 {
     [Fact]
+    public async Task AttachmentsFollowConnectionProjectAndSessionOwnershipAcrossReconnect()
+    {
+        using Harness h = await Harness.StartAsync();
+        PromptAttachment first = PromptAttachment.Local("one.txt", "local one", [65]);
+        PromptAttachment second = PromptAttachment.Local("two.txt", "local two", [66]);
+        await h.Workspace.OpenProjectAsync("/one");
+        await h.Workspace.SelectSessionAsync("a");
+        h.Workspace.CurrentDraft!.Add(first);
+        await h.Workspace.SelectSessionAsync("b");
+        Assert.Empty(h.Workspace.CurrentDraft!.Files);
+        await h.Workspace.OpenProjectAsync("/two");
+        await h.Workspace.SelectSessionAsync("a");
+        Assert.Empty(h.Workspace.CurrentDraft!.Files);
+        h.Workspace.CurrentDraft.Add(second);
+        h.Connections.Disconnect();
+        await h.Connections.ConnectAsync(h.First.Id, "secret");
+        await h.Workspace.ConnectionTransition;
+        Assert.Equal(second, Assert.Single(h.Workspace.CurrentDraft!.Files));
+        ServerProfile other = h.Connections.Save(null, "Other", "http://127.0.0.1:4098")!;
+        await h.Connections.ConnectAsync(other.Id, "other secret");
+        await h.Workspace.ConnectionTransition;
+        await h.Workspace.OpenProjectAsync("/one");
+        await h.Workspace.SelectSessionAsync("a");
+        Assert.Empty(h.Workspace.CurrentDraft!.Files);
+        await h.Connections.ConnectAsync(h.First.Id, "secret");
+        await h.Workspace.ConnectionTransition;
+        await h.Workspace.OpenProjectAsync("/one");
+        await h.Workspace.SelectSessionAsync("a");
+        Assert.Equal(first, Assert.Single(h.Workspace.CurrentDraft!.Files));
+    }
+
+    [Fact]
     public async Task GlobalDirectoriesAndSessionDraftsAreIndependentAndFailedCandidateRetainsHistory()
     {
         using Harness h = await Harness.StartAsync();

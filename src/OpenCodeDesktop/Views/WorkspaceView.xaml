@@ -213,6 +213,10 @@
                         <Border x:Name="ComposerCard" Style="{StaticResource ShellComposerSurfaceStyle}" MaxWidth="{StaticResource ShellComposerMaximumWidth}" HorizontalAlignment="Center">
                             <StackPanel x:Name="Composer" Spacing="8">
                                 <StackPanel x:Name="ComposerChips" Spacing="6" Visibility="Collapsed" />
+                                <ScrollViewer x:Name="AttachmentScroll" MaxHeight="44" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Auto" Visibility="Collapsed" AutomationProperties.Name="Prompt attachments">
+                                    <StackPanel x:Name="AttachmentList" Orientation="Horizontal" Spacing="4" />
+                                </ScrollViewer>
+                                <TextBlock x:Name="AttachmentFeedback" Style="{StaticResource ShellCaptionTextStyle}" TextWrapping="Wrap" Visibility="Collapsed" AutomationProperties.LiveSetting="Polite" />
                                 <TextBox x:Name="DraftBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="68" MaxHeight="180" BorderThickness="0" Background="Transparent" Padding="4,2"
                                          PlaceholderText="Describe a task…" AutomationProperties.Name="Task request. Control Enter to send. Draft retained." />
                                 <Grid x:Name="ComposerToolbar" ColumnSpacing="8">
@@ -222,6 +226,9 @@
                                         <ComboBox x:Name="AgentSelector" MinWidth="120" PlaceholderText="Agent" AutomationProperties.Name="Agent" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                        <Button x:Name="AttachLocal" Click="AttachLocal_ClickAsync" AutomationProperties.AutomationId="AttachLocal" AutomationProperties.Name="Attach local text file, up to four files, 256 KiB each" ToolTipService.ToolTip="Attach local text file · Up to four UTF-8 text files, 256 KiB each. Local content is captured when attached; server references are read when submitted." Style="{StaticResource ShellQuietButtonStyle}">
+                                            <FontIcon Glyph="&#xE723;" FontSize="14" />
+                                        </Button>
                                         <Button x:Name="StopButton" Style="{StaticResource ShellSecondaryButtonStyle}" Click="StopTask_ClickAsync" Visibility="Collapsed" AutomationProperties.Name="Interrupt task">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <FontIcon Glyph="&#xE71A;" Style="{StaticResource ShellIconTextStyle}" FontSize="14" />

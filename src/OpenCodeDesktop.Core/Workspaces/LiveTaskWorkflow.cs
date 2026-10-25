@@ -18,6 +18,7 @@ public sealed class SessionTaskState(string id, string directory, string project
     public bool Hydrated { get; internal set; }
     public bool DeliveryUncertain { get; internal set; }
     public TaskSubmission? Submission { get; internal set; }
+    public string? AdmittedSubmissionId { get; internal set; }
     public string? Error { get; internal set; }
     public string Outcome { get; internal set; } = "Ready";
     public IReadOnlyList<string> Inbox { get; internal set; } = [];
@@ -45,6 +46,7 @@ public sealed class SessionTaskState(string id, string directory, string project
             Hydrated = Hydrated,
             DeliveryUncertain = DeliveryUncertain || Busy && Submission is not null,
             Submission = Submission,
+            AdmittedSubmissionId = AdmittedSubmissionId,
             Outcome = Outcome,
             Inbox = Inbox,
             History = Conversation,
@@ -104,7 +106,7 @@ public sealed class SessionTaskState(string id, string directory, string project
     }
 
     public IReadOnlyList<HistoryMessage> Conversation => History.Select(OverlayLiveText)
-        .Concat(Submission is { } submitted && !History.Any(m => m.Id == submitted.Id) ? [new HistoryMessage(submitted.Id, DeliveryUncertain ? "user · delivery uncertain" : "user · accepted / queued", submitted.Text)] : [])
+        .Concat(Submission is { } submitted && !History.Any(m => m.Id == submitted.Id) ? [new HistoryMessage(submitted.Id, DeliveryUncertain ? "user · delivery uncertain" : "user · accepted / queued", submitted.Text) { FileReferences = submitted.Files.Select(f => new HistoryFileReference(f.IsServer ? f.Uri : "", f.Name)).ToArray() }] : [])
         .Concat(Text.GroupBy(p => p.Key.Message)
         .Where(g => !History.Any(h => h.Id == g.Key)).Select(g => new HistoryMessage(g.Key, "assistant", string.Join("\n", g.OrderBy(p => p.Key.Ordinal).Select(p => p.Value)))))
         .Concat(Tools.Where(t => !History.Any(m => m.Id == t.Key.Message)).Select(t => new HistoryMessage(t.Key.Message + ":" + t.Key.Tool, "tool activity", t.Value))).ToArray();
@@ -378,6 +380,7 @@ public sealed partial class LiveTaskWorkflow : IDisposable
         bool found = state.Submission is { } submitted && (messages.Any(m => m.Id == submitted.Id) || snapshot.Inbox.Contains(submitted.Id));
         if (found)
         {
+            state.AdmittedSubmissionId = state.Submission!.Id;
             state.Accepted = true;
             state.DeliveryUncertain = false;
         }
@@ -414,10 +417,13 @@ public sealed partial class LiveTaskWorkflow : IDisposable
             : null;
     }
 
-    public async Task SendAsync(SessionTaskState state, string text)
+    public Task SendAsync(SessionTaskState state, string text) => SendAsync(state, new TaskSubmission("msg_" + Guid.NewGuid().ToString("N"), text));
+
+    public async Task SendAsync(SessionTaskState state, TaskSubmission submission)
     {
         ArgumentNullException.ThrowIfNull(state);
-        if (_disposed || !state.CanSend || string.IsNullOrWhiteSpace(text))
+        ArgumentNullException.ThrowIfNull(submission);
+        if (_disposed || !state.CanSend || string.IsNullOrWhiteSpace(submission.Text) && submission.Files.Count == 0)
         {
             return;
         }
@@ -427,13 +433,21 @@ public sealed partial class LiveTaskWorkflow : IDisposable
         state.Accepted = false;
         TaskModel model = state.Model!;
         string agent = state.Agent!;
-        TaskSubmission submission = new("msg_" + Guid.NewGuid().ToString("N"), text);
+        submission = submission with { Files = Array.AsReadOnly(submission.Files.ToArray()) };
         state.SubmissionIdle = state.Idle;
         bool sending = false;
         string? failure = null;
         Notify();
         try
         {
+            if (submission.Files.Count > PromptAttachment.MaximumFiles) { throw new ArgumentException("Attach up to four files."); }
+            foreach (PromptAttachment file in submission.Files.Where(f => f.IsServer))
+            {
+                if (_workspace is not IProjectFilesConnection files ||
+                    await ProjectFileReferences.VerifyAsync(files, state.Directory, file.Uri, _lifetime.Token).ConfigureAwait(true) is not { } path)
+                { throw new ArgumentException("A server file is missing. Remove it or attach a readable file again."); }
+                _ = PromptAttachment.Server(state.Directory, path, await files.ReadFileAsync(state.Directory, path, _lifetime.Token).ConfigureAwait(true));
+            }
             TaskCatalog catalog = await _api.CatalogAsync(state.Directory, _lifetime.Token).ConfigureAwait(true);
             if (!catalog.Models.Any(m => m.Id == model.Id && m.ProviderId == model.ProviderId) || !catalog.Agents.Any(a => a.Id == agent))
             {
@@ -461,12 +475,13 @@ public sealed partial class LiveTaskWorkflow : IDisposable
             }
 
             state.Accepted = true;
+            state.AdmittedSubmissionId = submission.Id;
             state.DeliveryUncertain = false;
         }
-        catch (Exception)
+        catch (Exception error)
         {
             state.Stale = true;
-            failure = sending ? "Delivery is uncertain. The immutable input ID and original text are retained. Refresh; do not resend." : "Could not apply the selected model and agent. Your draft is retained. Refresh and check model access.";
+            failure = sending ? "Delivery is uncertain. The immutable input ID, original text and attachments are retained. Refresh; do not resend." : error is ArgumentException ? error.Message : "Could not validate files or apply the selected model and agent. Your draft is retained. Refresh and check file availability and model access.";
             state.Error = failure;
         }
         finally

@@ -58,12 +58,13 @@ public sealed partial class LiveWorkspace : IDisposable
     public bool CanLoadHistory => IsConnected && _project?.HistoryCursor is not null && HistoryLoaded && !IsLoading;
     public bool CanCreate => IsConnected && _project is { Creating: false, Uncertain: false } && !IsLoading;
     public bool CreationUncertain => _project?.Uncertain == true;
+    public PromptDraft? CurrentDraft => _project?.GetDraft(_project.SelectedId ?? "");
     public string Draft
     {
-        get => _project?.Drafts.GetValueOrDefault(_project.SelectedId ?? "") ?? "";
+        get => CurrentDraft?.Text ?? "";
         set
         {
-            _project?.Drafts[_project.SelectedId ?? ""] = value;
+            if (CurrentDraft is { } draft) { draft.Text = value; }
         }
     }
 
@@ -606,8 +607,8 @@ public sealed partial class LiveWorkspace : IDisposable
                 return;
             }
 
-            project.Drafts[created.Id] = project.Drafts.GetValueOrDefault("") ?? "";
-            project.Drafts[""] = "";
+            project.Drafts[created.Id] = project.GetDraft("");
+            project.Drafts[""] = new();
             if (!current())
             {
                 return;
@@ -653,13 +654,11 @@ public sealed partial class LiveWorkspace : IDisposable
             return;
         }
 
-        string text = project.Drafts.GetValueOrDefault(id) ?? "";
-        await workflow.SendAsync(state, text).ConfigureAwait(true);
-        // Only the admitted, unchanged draft is consumed. Navigation and later typing keep their own drafts.
-        if (state.Accepted && project.Drafts.GetValueOrDefault(id) == text)
-        {
-            project.Drafts[id] = "";
-        }
+        PromptDraft draft = project.GetDraft(id);
+        TaskSubmission submission = new("msg_" + Guid.NewGuid().ToString("N"), draft.Text) { Files = Array.AsReadOnly(draft.Files.ToArray()) };
+        project.PendingDrafts[id] = (submission.Id, draft.Version);
+        await workflow.SendAsync(state, submission).ConfigureAwait(true);
+        ConsumeAdmittedDrafts();
 
         Notify();
     }
@@ -789,6 +788,7 @@ public sealed partial class LiveWorkspace : IDisposable
     }
     private void TaskChanged(object? sender, EventArgs args)
     {
+        ConsumeAdmittedDrafts();
         if (!IsLoading && !HistoryLoaded && Error is not null && _project is { SelectedId: { } id, Uncertain: false } project &&
             Tasks is { Recovery: WorkspaceRecovery.Current } tasks && tasks.Find(id) is { Hydrated: true, Stale: false } state)
         {
@@ -851,7 +851,13 @@ public sealed partial class LiveWorkspace : IDisposable
         public bool SessionsLoading { get; set; }
         public string? SessionsError { get; set; }
         public CancellationTokenSource? SessionLoad { get; set; }
-        public Dictionary<string, string> Drafts { get; } = new(StringComparer.Ordinal);
+        public Dictionary<string, PromptDraft> Drafts { get; } = new(StringComparer.Ordinal);
+        public Dictionary<string, (string SubmissionId, long Version)> PendingDrafts { get; } = new(StringComparer.Ordinal);
+        public PromptDraft GetDraft(string id)
+        {
+            if (!Drafts.TryGetValue(id, out PromptDraft? draft)) { Drafts[id] = draft = new(); }
+            return draft;
+        }
         public string? SelectedId { get; set; }
         public string? ConfirmedId { get; set; }
         public string? SessionCursor { get; set; }

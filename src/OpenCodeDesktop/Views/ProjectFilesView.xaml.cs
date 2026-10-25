@@ -16,6 +16,16 @@ namespace OpenCodeDesktop.Views;
 
 public sealed partial class ProjectFilesView : UserControl
 {
+    internal Func<ProjectFilesState, Task>? AddToPrompt { get; set; }
+    private async void AddToPrompt_ClickAsync(object sender, RoutedEventArgs args)
+    {
+        if (_state is not { SelectedPath: not null } state || AddToPrompt is not { } add) { return; }
+        AddPromptFile.IsEnabled = false;
+        try { await add(state).ConfigureAwait(true); }
+        catch (Exception error) when (error is ArgumentException or WorkspaceException)
+        { if (_state == state) { AttachmentStatus.Text = error is ArgumentException ? error.Message : "Unable to read the server file. Refresh and choose a readable file."; } }
+        finally { AddPromptFile.IsEnabled = true; }
+    }
     private ProjectFilesWorkspace? _files;
     private ProjectFilesState? _state;
     private bool _rendering;
@@ -110,6 +120,8 @@ public sealed partial class ProjectFilesView : UserControl
         try
         {
             bool switched = _state != state;
+            if (switched) { AttachmentStatus.Text = ""; }
+            AddPromptFile.IsEnabled = state.SelectedPath is not null;
             ProjectFilesPresentation presentation = ProjectFilesPresentation.From(state);
             _state = state;
             FilesHeading.Text = "Files · " + ProjectTreeNodePresentation.DisplayName(state.Location.Directory);

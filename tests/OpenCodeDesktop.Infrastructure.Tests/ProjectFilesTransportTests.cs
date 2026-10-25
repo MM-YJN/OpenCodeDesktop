@@ -18,7 +18,8 @@ public sealed class ProjectFilesTransportTests
         using HttpClient client = new(new Handler(_ => new(HttpStatusCode.OK) { Content = new StringContent(body) }));
         using OpenCodeWorkspaceConnection api = Api(client);
         HistoryMessage message = Assert.Single((await api.HistoryAsync("session", null, TestContext.Current.CancellationToken)).Data);
-        Assert.Equal(new HistoryFileReference("file:///server/project/file.txt", "file.txt"), Assert.Single(message.FileReferences));
+        Assert.Equal(new HistoryFileReference("file:///server/project/file.txt", "file.txt"), Assert.Single(message.FileReferences.Where(f => f.Uri.Length > 0)));
+        Assert.Equal(new HistoryFileReference("", "inline.txt"), Assert.Single(message.FileReferences.Where(f => f.Uri.Length == 0)));
     }
 
     [Fact]

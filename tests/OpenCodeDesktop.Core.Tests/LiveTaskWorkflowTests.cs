@@ -393,7 +393,8 @@ public sealed partial class LiveTaskWorkflowTests
         await first.OpenAsync(api.Session);
         SessionTaskState original = first.Find("s")!;
         api.PendingSubmit = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        Task sending = first.SendAsync(original, "original backend payload");
+        PromptAttachment file = PromptAttachment.Local("note.txt", "local", [65]);
+        Task sending = first.SendAsync(original, new TaskSubmission("msg_backend_files", "original backend payload") { Files = [file] });
         using LiveTaskWorkflow replacement = new(api, api);
         replacement.Restore(first.Sessions);
         first.Dispose();
@@ -405,6 +406,7 @@ public sealed partial class LiveTaskWorkflowTests
         Assert.True(retained.DeliveryUncertain);
         Assert.False(retained.CanSend);
         Assert.Equal("original backend payload", retained.Submission!.Text);
+        Assert.Equal(file, Assert.Single(retained.Submission.Files));
         Assert.Equal(1, api.Submissions);
     }
 
@@ -427,8 +429,13 @@ public sealed partial class LiveTaskWorkflowTests
         Assert.Equal(1, api.PermissionCount);
     }
 
-    private sealed class Api : IWorkspaceConnection, ITaskConnection
+    private sealed class Api : IWorkspaceConnection, ITaskConnection, IProjectFilesConnection
     {
+        public bool MissingFile { get; set; }
+        public ProjectFilePreview FilePreview { get; set; } = new(FilePreviewKind.Text, "hello", false);
+        public Task<ProjectFileList> ListFilesAsync(string directory, string path, CancellationToken cancellationToken) => Task.FromResult(new ProjectFileList(MissingFile ? [] : [new("note.txt", false)], false));
+        public Task<ProjectFileList> FindFilesAsync(string directory, string query, CancellationToken cancellationToken) => ListFilesAsync(directory, query, cancellationToken);
+        public Task<ProjectFilePreview> ReadFileAsync(string directory, string path, CancellationToken cancellationToken) => Task.FromResult(FilePreview);
         public WorkspaceSession Session { get; } = new("s", "/dir", "project", "Task");
         public TaskCatalog Catalog { get; set; } = new([new("model", "provider", "Model")], [new("build", "Build")]);
         public TaskSnapshot Snapshot { get; set; } = new(new("s", "/dir", "project", "Task"), false, null, null, new("model", "provider", "Model"), "build", [], [], []);

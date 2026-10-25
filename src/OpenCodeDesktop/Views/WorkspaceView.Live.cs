@@ -24,6 +24,7 @@ public sealed partial class WorkspaceView
     {
         _live = workspace;
         FilesContent.Bind(workspace.Files);
+        FilesContent.AddToPrompt = AddFileToPromptAsync;
         DetailsContent.Bind(workspace.Review);
         DetailsContent.PreviewRequested += ReviewPreviewRequestedAsync;
         workspace.Changed += LiveChanged;
@@ -135,7 +136,7 @@ public sealed partial class WorkspaceView
             return;
         }
 
-        if (!Equals(Composer.Tag, owner))
+        if (!Equals(Composer.Tag, owner) || DraftBox.Text != live.Draft)
         {
             Composer.Tag = owner;
             DraftBox.Text = live.Draft;

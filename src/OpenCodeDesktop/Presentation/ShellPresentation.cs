@@ -132,7 +132,7 @@ internal static class ShellPresentation
 
     internal static ComposerPresentation Composer(LiveWorkspace workspace, SessionTaskState? state, string? draft)
     {
-        var task = LiveTaskPresentation.From(state, draft, workspace.Tasks?.AttentionError, workspace.Tasks);
+        var task = LiveTaskPresentation.From(state, draft, workspace.Tasks?.AttentionError, workspace.Tasks, workspace.CurrentDraft?.Files.Count ?? 0);
         bool available = workspace.Location is not null;
         string hint = !available ? "Open a project to compose a task."
             : state is null ? "Create or select a session to run a task."

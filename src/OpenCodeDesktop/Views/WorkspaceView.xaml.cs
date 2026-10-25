@@ -239,6 +239,7 @@ public sealed partial class WorkspaceView : UserControl
         bool compact = args.NewSize.Height < 600;
         SessionTitle.MaxLines = compact ? 1 : 2;
         DraftBox.MaxHeight = compact ? 68 : 180;
+        DraftBox.MinHeight = compact ? 48 : 68;
         ComposerScroll.MaxHeight = Math.Min(ShellUi.Dimension("ShellComposerMaximumHeight"), args.NewSize.Height * (compact ? 0.5 : 0.4));
         PendingRequestsScroll.MaxHeight = Math.Min(320, Math.Max(120, args.NewSize.Height * 0.36));
         bool inline = args.NewSize.Width >= ShellUi.Dimension("ShellInspectorInlineThreshold");

@@ -22,3 +22,4 @@ This index records Done items, grouped by completion year. Read the [active inde
 | [WI-014](WI-014-verify-native-reliability-accessibility.md) | Resolve native reliability and accessibility verification gaps | Implementation / verification | Done | WI-013 | 2026-10-25 |
 | [WI-015](WI-015-browse-preview-project-files.md) | Browse and preview project files | Implementation | Done | WI-014, WI-011 | 2026-10-25 |
 | [WI-016](WI-016-review-repository-session-changes.md) | Review repository and session changes | Implementation | Done | WI-015, WI-008 | 2026-10-25 |
+| [WI-017](WI-017-reference-attach-prompt-files.md) | Reference and attach files to prompts | Implementation | Done | WI-015, WI-008, WI-009 | 2026-10-26 |

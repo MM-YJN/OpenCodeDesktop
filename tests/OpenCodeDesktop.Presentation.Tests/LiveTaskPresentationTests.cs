@@ -50,6 +50,7 @@ public sealed class LiveTaskPresentationTests
         await loading;
         Assert.True(LiveTaskPresentation.From(state, "draft", null).CanSend);
         Assert.False(LiveTaskPresentation.From(state, "  ", null).CanSend);
+        Assert.True(LiveTaskPresentation.From(state, "", null, attachments: 1).CanSend);
         Task sending = workflow.SendAsync(state, "draft");
         presentation = LiveTaskPresentation.From(state, "edited draft", null);
         Assert.True(presentation.IsBusy);

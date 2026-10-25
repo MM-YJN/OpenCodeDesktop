@@ -221,6 +221,11 @@ public sealed partial class OpenCodeWorkspaceConnection(HttpClient client, Serve
                 {
                     references.Add(new(uri, Optional(file, "name")));
                 }
+                else
+                {
+                    // Inline history is a label only: never expose data URLs or render arbitrary content.
+                    references.Add(new("", Optional(file, "name") ?? "Inline attachment"));
+                }
             }
         }
         if (type == "assistant" && value.TryGetProperty("content", out JsonElement parts))

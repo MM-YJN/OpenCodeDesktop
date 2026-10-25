@@ -241,7 +241,11 @@ public sealed partial class WorkspaceView
         }
         foreach (HistoryFileReference reference in entry.FileReferences)
         {
-            if (ProjectFileReferences.Candidate(location.Directory, reference.Uri) is not { } candidate) { continue; }
+            if (ProjectFileReferences.Candidate(location.Directory, reference.Uri) is not { } candidate)
+            {
+                wrapper.Children.Add(ShellUi.Text("Attachment · " + (reference.Name ?? "Recorded file") + " · content retained by server", "ShellCaptionTextStyle", TextWrapping.Wrap));
+                continue;
+            }
             Button open = ShellUi.LabelButton("Open file · " + candidate, "ShellIconFolder", (_, _) => { }, "ShellQuietButtonStyle");
             TextBlock status = ShellUi.Text("", "ShellCaptionTextStyle");
             AutomationProperties.SetLiveSetting(status, Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Polite);

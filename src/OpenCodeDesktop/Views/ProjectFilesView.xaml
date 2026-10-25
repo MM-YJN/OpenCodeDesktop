@@ -38,6 +38,8 @@
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                 <TextBlock x:Name="SelectedPath" Style="{StaticResource ShellCaptionTextStyle}" TextWrapping="Wrap" MaxLines="3" IsTextSelectionEnabled="True"/>
                 <StackPanel Grid.Row="1" Spacing="4">
+                    <Button x:Name="AddPromptFile" Content="Add to prompt" Click="AddToPrompt_ClickAsync" AutomationProperties.AutomationId="AddPromptFile" AutomationProperties.Name="Add selected server file to prompt" ToolTipService.ToolTip="Add to this project's current draft, or open a new-session draft for this project. Up to four text files with complete previews, 256 KiB / 100,000 characters each." />
+                    <TextBlock x:Name="AttachmentStatus" Style="{StaticResource ShellCaptionTextStyle}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
                     <TextBlock x:Name="PreviewStatus" Style="{StaticResource ShellCaptionTextStyle}" AutomationProperties.LiveSetting="Polite"/>
                     <Button x:Name="RetryPreview" Content="Retry preview" Click="RetryPreview_ClickAsync" Visibility="Collapsed"/>
                 </StackPanel>

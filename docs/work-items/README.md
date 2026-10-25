@@ -8,13 +8,12 @@ This is the active index for unfinished work, in intended execution order. Done 
 
 | ID | Task | Type | Status | Dependencies |
 | --- | --- | --- | --- | --- |
-| [WI-017](WI-017-reference-attach-prompt-files.md) | Reference and attach files to prompts | Implementation | Ready | WI-015, WI-008, WI-009 |
 | [WI-018](WI-018-organize-session-history.md) | Search, rename, archive and restore sessions | Implementation | Ready | WI-014, WI-011, WI-012 |
 | [WI-019](WI-019-notify-completion-attention.md) | Notify on completion and required attention | Implementation | Ready | WI-014, WI-009, WI-012 |
 | [WI-020](WI-020-manage-queued-inputs.md) | Inspect and manage queued inputs | Implementation | Ready | WI-014, WI-008, WI-009 |
 | [WI-021](WI-021-fork-revert-session-history.md) | Fork sessions and expose staged revert | Implementation | Ready | WI-016, WI-018, WI-020 |
 
-Next: WI-017. WI-016 was accepted as Done by the user on 2026-10-25 with its documented native verification limitations. WI-017 through WI-021 remain defined only and execution has not started. Follow the row order, checking dependencies before starting each item. Dependencies express required foundations rather than an artificial dependency on every preceding row.
+Next: WI-018. WI-017 was accepted as Done by the user on 2026-10-26 with its documented verification and cleanup limitations. WI-018 through WI-021 remain Ready; no subsequent item has started. Follow the row order, checking dependencies before starting each item.
 
 ## Shared execution and verification requirements
 

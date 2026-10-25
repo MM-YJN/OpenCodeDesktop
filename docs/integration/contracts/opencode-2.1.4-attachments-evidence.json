@@ -1,0 +1,672 @@
+{
+  "unobserved": [
+    "Remote/POSIX providers",
+    "Server maximum payload size",
+    "Non-text media",
+    "Concurrent changes between validation and server admission"
+  ],
+  "providerInput": {
+    "localTextObserved": true,
+    "serverTextObserved": true
+  },
+  "executableSha256": "B12B0613E9B4A491E5B12D90A5E9BBAE6D261FE9688C82BF73125A036963D399",
+  "cases": {
+    "create": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "ses_e8c5e59e0fferuUOKpPS3s1MgQ",
+          "projectID": "0dfb39ba04149777756056e402ef721b53d01c31",
+          "cost": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "time": {
+            "created": 1792941336105,
+            "updated": 1792941336105
+          },
+          "location": {
+            "directory": "<isolated-root>\\workspace"
+          }
+        }
+      }
+    },
+    "selectModel": {
+      "status": 204,
+      "contentType": "",
+      "challenge": "",
+      "retryAfter": "",
+      "body": ""
+    },
+    "admit": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "msg_wi017_files",
+          "sessionID": "ses_e8c5e59e0fferuUOKpPS3s1MgQ",
+          "time": {
+            "created": 1792941336620
+          },
+          "type": "user",
+          "payload": {
+            "text": "Inspect attachment fixture",
+            "files": [
+              {
+                "data": "U0VSVkVSX0ZJTEVfTUFSS0VSXzAxNw==",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/note%20%E7%A9%BA%20%23%25.txt"
+                },
+                "name": "note 空 #%.txt"
+              },
+              {
+                "data": "TE9DQUxfQ09OVEVOVF9NQVJLRVJfMDE3",
+                "mime": "text/plain",
+                "source": {
+                  "type": "inline"
+                },
+                "name": "local.txt"
+              },
+              {
+                "data": "U0VSVkVSX21kX01BUktFUl8wMTc=",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.md"
+                },
+                "name": "source.md"
+              },
+              {
+                "data": "U0VSVkVSX2NzX01BUktFUl8wMTc=",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.cs"
+                },
+                "name": "source.cs"
+              },
+              {
+                "data": "U0VSVkVSX2pzb25fTUFSS0VSXzAxNw==",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.json"
+                },
+                "name": "source.json"
+              },
+              {
+                "data": "U0VSVkVSX3htbF9NQVJLRVJfMDE3",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.xml"
+                },
+                "name": "source.xml"
+              },
+              {
+                "data": "U0VSVkVSX3lhbWxfTUFSS0VSXzAxNw==",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.yaml"
+                },
+                "name": "source.yaml"
+              },
+              {
+                "data": "U0VSVkVSX3ltbF9NQVJLRVJfMDE3",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.yml"
+                },
+                "name": "source.yml"
+              },
+              {
+                "data": "U0VSVkVSX2pzX01BUktFUl8wMTc=",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.js"
+                },
+                "name": "source.js"
+              },
+              {
+                "data": "U0VSVkVSX3RzX01BUktFUl8wMTc=",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.ts"
+                },
+                "name": "source.ts"
+              },
+              {
+                "data": "U0VSVkVSX2Nzc19NQVJLRVJfMDE3",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.css"
+                },
+                "name": "source.css"
+              },
+              {
+                "data": "U0VSVkVSX2h0bWxfTUFSS0VSXzAxNw==",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.html"
+                },
+                "name": "source.html"
+              },
+              {
+                "data": "U0VSVkVSX3B5X01BUktFUl8wMTc=",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.py"
+                },
+                "name": "source.py"
+              },
+              {
+                "data": "U0VSVkVSX2Nzdl9NQVJLRVJfMDE3",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.csv"
+                },
+                "name": "source.csv"
+              },
+              {
+                "data": "U0VSVkVSX2xvZ19NQVJLRVJfMDE3",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.log"
+                },
+                "name": "source.log"
+              }
+            ]
+          },
+          "delivery": "steer"
+        }
+      }
+    },
+    "inbox": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [
+          {
+            "id": "msg_wi017_files",
+            "sessionID": "ses_e8c5e59e0fferuUOKpPS3s1MgQ",
+            "time": {
+              "created": 1792941336620
+            },
+            "type": "user",
+            "payload": {
+              "text": "Inspect attachment fixture",
+              "files": [
+                {
+                  "data": "U0VSVkVSX0ZJTEVfTUFSS0VSXzAxNw==",
+                  "mime": "text/plain",
+                  "source": {
+                    "type": "uri",
+                    "uri": "file:///<isolated-root>/workspace/note%20%E7%A9%BA%20%23%25.txt"
+                  },
+                  "name": "note 空 #%.txt"
+                },
+                {
+                  "data": "TE9DQUxfQ09OVEVOVF9NQVJLRVJfMDE3",
+                  "mime": "text/plain",
+                  "source": {
+                    "type": "inline"
+                  },
+                  "name": "local.txt"
+                },
+                {
+                  "data": "U0VSVkVSX21kX01BUktFUl8wMTc=",
+                  "mime": "text/plain",
+                  "source": {
+                    "type": "uri",
+                    "uri": "file:///<isolated-root>/workspace/source.md"
+                  },
+                  "name": "source.md"
+                },
+                {
+                  "data": "U0VSVkVSX2NzX01BUktFUl8wMTc=",
+                  "mime": "text/plain",
+                  "source": {
+                    "type": "uri",
+                    "uri": "file:///<isolated-root>/workspace/source.cs"
+                  },
+                  "name": "source.cs"
+                },
+                {
+                  "data": "U0VSVkVSX2pzb25fTUFSS0VSXzAxNw==",
+                  "mime": "text/plain",
+                  "source": {
+                    "type": "uri",
+                    "uri": "file:///<isolated-root>/workspace/source.json"
+                  },
+                  "name": "source.json"
+                },
+                {
+                  "data": "U0VSVkVSX3htbF9NQVJLRVJfMDE3",
+                  "mime": "text/plain",
+                  "source": {
+                    "type": "uri",
+                    "uri": "file:///<isolated-root>/workspace/source.xml"
+                  },
+                  "name": "source.xml"
+                },
+                {
+                  "data": "U0VSVkVSX3lhbWxfTUFSS0VSXzAxNw==",
+                  "mime": "text/plain",
+                  "source": {
+                    "type": "uri",
+                    "uri": "file:///<isolated-root>/workspace/source.yaml"
+                  },
+                  "name": "source.yaml"
+                },
+                {
+                  "data": "U0VSVkVSX3ltbF9NQVJLRVJfMDE3",
+                  "mime": "text/plain",
+                  "source": {
+                    "type": "uri",
+                    "uri": "file:///<isolated-root>/workspace/source.yml"
+                  },
+                  "name": "source.yml"
+                },
+                {
+                  "data": "U0VSVkVSX2pzX01BUktFUl8wMTc=",
+                  "mime": "text/plain",
+                  "source": {
+                    "type": "uri",
+                    "uri": "file:///<isolated-root>/workspace/source.js"
+                  },
+                  "name": "source.js"
+                },
+                {
+                  "data": "U0VSVkVSX3RzX01BUktFUl8wMTc=",
+                  "mime": "text/plain",
+                  "source": {
+                    "type": "uri",
+                    "uri": "file:///<isolated-root>/workspace/source.ts"
+                  },
+                  "name": "source.ts"
+                },
+                {
+                  "data": "U0VSVkVSX2Nzc19NQVJLRVJfMDE3",
+                  "mime": "text/plain",
+                  "source": {
+                    "type": "uri",
+                    "uri": "file:///<isolated-root>/workspace/source.css"
+                  },
+                  "name": "source.css"
+                },
+                {
+                  "data": "U0VSVkVSX2h0bWxfTUFSS0VSXzAxNw==",
+                  "mime": "text/plain",
+                  "source": {
+                    "type": "uri",
+                    "uri": "file:///<isolated-root>/workspace/source.html"
+                  },
+                  "name": "source.html"
+                },
+                {
+                  "data": "U0VSVkVSX3B5X01BUktFUl8wMTc=",
+                  "mime": "text/plain",
+                  "source": {
+                    "type": "uri",
+                    "uri": "file:///<isolated-root>/workspace/source.py"
+                  },
+                  "name": "source.py"
+                },
+                {
+                  "data": "U0VSVkVSX2Nzdl9NQVJLRVJfMDE3",
+                  "mime": "text/plain",
+                  "source": {
+                    "type": "uri",
+                    "uri": "file:///<isolated-root>/workspace/source.csv"
+                  },
+                  "name": "source.csv"
+                },
+                {
+                  "data": "U0VSVkVSX2xvZ19NQVJLRVJfMDE3",
+                  "mime": "text/plain",
+                  "source": {
+                    "type": "uri",
+                    "uri": "file:///<isolated-root>/workspace/source.log"
+                  },
+                  "name": "source.log"
+                }
+              ]
+            },
+            "delivery": "steer"
+          }
+        ]
+      }
+    },
+    "resume": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "msg_wi017_resume",
+          "sessionID": "ses_e8c5e59e0fferuUOKpPS3s1MgQ",
+          "time": {
+            "created": 1792941336635
+          },
+          "type": "user",
+          "payload": {
+            "text": "Continue fixture"
+          },
+          "delivery": "steer"
+        }
+      }
+    },
+    "history": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [
+          {
+            "id": "msg_173a1a69f001sCoANuNM6EfRNC",
+            "time": {
+              "created": 1792941336223
+            },
+            "type": "model-switched",
+            "model": {
+              "id": "fixture",
+              "providerID": "wi017"
+            }
+          },
+          {
+            "id": "msg_wi017_files",
+            "time": {
+              "created": 1792941336652
+            },
+            "text": "Inspect attachment fixture",
+            "files": [
+              {
+                "data": "U0VSVkVSX0ZJTEVfTUFSS0VSXzAxNw==",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/note%20%E7%A9%BA%20%23%25.txt"
+                },
+                "name": "note 空 #%.txt"
+              },
+              {
+                "data": "TE9DQUxfQ09OVEVOVF9NQVJLRVJfMDE3",
+                "mime": "text/plain",
+                "source": {
+                  "type": "inline"
+                },
+                "name": "local.txt"
+              },
+              {
+                "data": "U0VSVkVSX21kX01BUktFUl8wMTc=",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.md"
+                },
+                "name": "source.md"
+              },
+              {
+                "data": "U0VSVkVSX2NzX01BUktFUl8wMTc=",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.cs"
+                },
+                "name": "source.cs"
+              },
+              {
+                "data": "U0VSVkVSX2pzb25fTUFSS0VSXzAxNw==",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.json"
+                },
+                "name": "source.json"
+              },
+              {
+                "data": "U0VSVkVSX3htbF9NQVJLRVJfMDE3",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.xml"
+                },
+                "name": "source.xml"
+              },
+              {
+                "data": "U0VSVkVSX3lhbWxfTUFSS0VSXzAxNw==",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.yaml"
+                },
+                "name": "source.yaml"
+              },
+              {
+                "data": "U0VSVkVSX3ltbF9NQVJLRVJfMDE3",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.yml"
+                },
+                "name": "source.yml"
+              },
+              {
+                "data": "U0VSVkVSX2pzX01BUktFUl8wMTc=",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.js"
+                },
+                "name": "source.js"
+              },
+              {
+                "data": "U0VSVkVSX3RzX01BUktFUl8wMTc=",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.ts"
+                },
+                "name": "source.ts"
+              },
+              {
+                "data": "U0VSVkVSX2Nzc19NQVJLRVJfMDE3",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.css"
+                },
+                "name": "source.css"
+              },
+              {
+                "data": "U0VSVkVSX2h0bWxfTUFSS0VSXzAxNw==",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.html"
+                },
+                "name": "source.html"
+              },
+              {
+                "data": "U0VSVkVSX3B5X01BUktFUl8wMTc=",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.py"
+                },
+                "name": "source.py"
+              },
+              {
+                "data": "U0VSVkVSX2Nzdl9NQVJLRVJfMDE3",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.csv"
+                },
+                "name": "source.csv"
+              },
+              {
+                "data": "U0VSVkVSX2xvZ19NQVJLRVJfMDE3",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/workspace/source.log"
+                },
+                "name": "source.log"
+              }
+            ],
+            "type": "user"
+          },
+          {
+            "id": "msg_wi017_resume",
+            "time": {
+              "created": 1792941336654
+            },
+            "text": "Continue fixture",
+            "type": "user"
+          },
+          {
+            "id": "msg_173a1a861001H9Q6uyI0floEcT",
+            "time": {
+              "created": 1792941336686,
+              "streamed": 1792941336707,
+              "completed": 1792941336708
+            },
+            "type": "assistant",
+            "agent": "build",
+            "model": {
+              "id": "fixture",
+              "providerID": "wi017",
+              "variant": "default"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Attachment fixture completed."
+              }
+            ],
+            "finish": "stop",
+            "rawFinish": "stop",
+            "cost": 0,
+            "tokens": {
+              "input": 0,
+              "output": 0,
+              "reasoning": 0,
+              "cache": {
+                "read": 0,
+                "write": 0
+              }
+            }
+          },
+          {
+            "id": "msg_173a1a888001njJixgYv75sUOS",
+            "time": {
+              "created": 1792941336712
+            },
+            "type": "idle",
+            "outcome": "succeeded"
+          }
+        ],
+        "cursor": {
+          "previous": "eyJpZCI6Im1zZ18xNzNhMWE2OWYwMDFzQ29BTnVOTTZFZlJOQyIsIm9yZGVyIjoiYXNjIiwiZGlyZWN0aW9uIjoicHJldmlvdXMifQ",
+          "next": "eyJpZCI6Im1zZ18xNzNhMWE4ODgwMDFuakppeGdZdjc1c1VPUyIsIm9yZGVyIjoiYXNjIiwiZGlyZWN0aW9uIjoibmV4dCJ9"
+        }
+      }
+    },
+    "missingFile": {
+      "status": 400,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "_tag": "InvalidRequestError",
+        "message": "Unable to read attachment: file:///<isolated-root>/workspace/missing.txt",
+        "field": "files"
+      }
+    },
+    "emptyInline": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "msg_wi017_empty",
+          "sessionID": "ses_e8c5e59e0fferuUOKpPS3s1MgQ",
+          "time": {
+            "created": 1792941336879
+          },
+          "type": "user",
+          "payload": {
+            "text": "Empty text attachment",
+            "files": [
+              {
+                "data": "",
+                "mime": "text/plain",
+                "source": {
+                  "type": "inline"
+                },
+                "name": "empty.txt"
+              }
+            ]
+          },
+          "delivery": "steer"
+        }
+      }
+    },
+    "fourBoundedInlineFiles": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "admitted": true,
+        "files": 4,
+        "bytesPerFile": 262144
+      }
+    }
+  },
+  "version": "2.1.4",
+  "supportedServerExtensions": [
+    "txt",
+    "md",
+    "cs",
+    "json",
+    "xml",
+    "yaml",
+    "yml",
+    "js",
+    "ts",
+    "css",
+    "html",
+    "py",
+    "csv",
+    "log"
+  ]
+}

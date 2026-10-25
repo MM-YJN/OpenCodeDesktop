@@ -3,7 +3,10 @@ namespace OpenCodeDesktop.Core.Workspaces;
 public sealed record TaskModel(string Id, string ProviderId, string Name);
 public sealed record TaskAgent(string Id, string Name);
 public sealed record TaskCatalog(IReadOnlyList<TaskModel> Models, IReadOnlyList<TaskAgent> Agents);
-public sealed record TaskSubmission(string Id, string Text);
+public sealed record TaskSubmission(string Id, string Text)
+{
+    public IReadOnlyList<PromptAttachment> Files { get; init; } = [];
+}
 public sealed record TaskPermission(string Id, string SessionId, string Action, IReadOnlyList<string> Resources, IReadOnlyList<string> Save);
 public sealed record TaskOption(string Value, string Label);
 public sealed record TaskCondition(string Key, string Operator, object Value);

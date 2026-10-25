@@ -41,7 +41,7 @@ public sealed partial class OpenCodeWorkspaceConnection : ITaskConnection
         }, cancellationToken).ConfigureAwait(false);
         bool active = await RequestAsync(HttpMethod.Get, "/api/session/active", null, 1048576,
             root => root.GetProperty("data").TryGetProperty(id, out _), cancellationToken).ConfigureAwait(false);
-        string[] inbox = await RequestAsync(HttpMethod.Get, Path(id) + "/inbox", null, 1048576,
+        string[] inbox = await RequestAsync(HttpMethod.Get, Path(id) + "/inbox", null, 4194304,
             root => root.GetProperty("data").EnumerateArray().Select(i => Required(i, "id")).ToArray(), cancellationToken).ConfigureAwait(false);
         TaskPermission[] permissions = await RequestAsync(HttpMethod.Get, Path(id) + "/permission", null, 1048576,
             root => root.GetProperty("data").EnumerateArray().Select(p => new TaskPermission(Required(p, "id"), Required(p, "sessionID"), Required(p, "action"), Strings(p, "resources"), Strings(p, "save"))).ToArray(), cancellationToken).ConfigureAwait(false);
@@ -60,7 +60,7 @@ public sealed partial class OpenCodeWorkspaceConnection : ITaskConnection
     {
         ArgumentNullException.ThrowIfNull(submission);
         return Task.Run(async () => _ = await RequestAsync(HttpMethod.Post, Path(id) + "/prompt",
-        JsonSerializer.Serialize(new { id = submission.Id, text = submission.Text, delivery = "steer" }), 1048576, root =>
+        JsonSerializer.Serialize(new { id = submission.Id, text = submission.Text, files = submission.Files.Select(f => new { uri = f.Uri, name = f.Name }), delivery = "steer" }), 4194304, root =>
         {
             JsonElement data = root.GetProperty("data");
             if (Required(data, "id") != submission.Id || Required(data, "sessionID") != id)
