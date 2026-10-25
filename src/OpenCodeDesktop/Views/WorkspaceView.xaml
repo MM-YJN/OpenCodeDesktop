@@ -76,7 +76,26 @@
                     </StackPanel>
                 </Grid>
             </SplitView.Pane>
-            <views:PaneOnlySplitView x:Name="DetailsLayout" PanePlacement="Right" CompactPaneLength="0" SizeChanged="DetailsLayout_SizeChanged">
+            <Grid>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <Grid ColumnSpacing="4" Background="{ThemeResource ShellSurfaceBrush}">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <Button x:Name="ProjectsToggle" Style="{StaticResource ShellQuietButtonStyle}" Click="Projects_Click" AutomationProperties.Name="Toggle Projects">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE8B7;" Style="{StaticResource ShellIconTextStyle}" />
+                                <TextBlock Text="Projects" Style="{StaticResource ShellBodyTextStyle}" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                    <TabView x:Name="WorkspaceTabStrip" Grid.Column="1" IsAddTabButtonVisible="False" CanDragTabs="False" CanReorderTabs="False" TabWidthMode="Equal" SelectionChanged="WorkspaceTabs_SelectionChangedAsync" TabCloseRequested="WorkspaceTabs_CloseRequestedAsync" AutomationProperties.Name="Workspace tabs"/>
+                </Grid>
+                <views:ProjectFilesView x:Name="FilesContent" Grid.Row="1" Visibility="Collapsed"/>
+                <StackPanel x:Name="NeutralState" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24" Spacing="12" Visibility="Collapsed">
+                    <TextBlock x:Name="NeutralWorkspace" Text="Choose a session or open Files from a project's menu." Style="{StaticResource ShellSecondaryTextStyle}"/>
+                    <Button x:Name="TabRetry" Content="Retry opening session" Click="TabRetry_ClickAsync" Visibility="Collapsed"/>
+                </StackPanel>
+                <views:PaneOnlySplitView Grid.Row="1" x:Name="DetailsLayout" PanePlacement="Right" CompactPaneLength="0" SizeChanged="DetailsLayout_SizeChanged">
                 <SplitView.Pane>
                     <Grid x:Name="DetailsRegion">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -106,14 +125,7 @@
                         <StackPanel Spacing="8">
                             <Grid ColumnSpacing="8">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                    <Button x:Name="ProjectsToggle" Style="{StaticResource ShellQuietButtonStyle}" Click="Projects_Click" AutomationProperties.Name="Toggle Projects">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <FontIcon Glyph="&#xE8B7;" Style="{StaticResource ShellIconTextStyle}" />
-                                            <TextBlock Text="Projects" Style="{StaticResource ShellBodyTextStyle}" />
-                                        </StackPanel>
-                                    </Button>
-                                </StackPanel>
+
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
                                     <Button x:Name="TerminalToggle" Style="{StaticResource ShellQuietButtonStyle}" IsEnabled="False" AutomationProperties.Name="Terminal unavailable" ToolTipService.ToolTip="Terminal is not available in this release">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -232,6 +244,7 @@
                     </ScrollViewer>
                 </Grid>
             </views:PaneOnlySplitView>
+            </Grid>
         </SplitView>
     </Grid>
 </UserControl>

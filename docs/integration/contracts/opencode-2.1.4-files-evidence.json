@@ -1,0 +1,283 @@
+{
+  "executableSha256": "B12B0613E9B4A491E5B12D90A5E9BBAE6D261FE9688C82BF73125A036963D399",
+  "version": "2.1.4",
+  "cases": {
+    "resolve": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "directory": "<isolated-root>\\project A 测试",
+        "project": {
+          "id": "f38b2a16520e948509aef6a8ea11a6bcae36ddc0",
+          "directory": "<isolated-root>\\project A 测试",
+          "canonical": "<isolated-root>\\project A 测试"
+        }
+      }
+    },
+    "listRoot": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "location": {
+          "directory": "<isolated-root>\\project A 测试"
+        },
+        "data": {
+          "sample": [
+            {
+              "path": "nested 空\\",
+              "type": "directory"
+            },
+            {
+              "path": "binary.bin",
+              "type": "file"
+            },
+            {
+              "path": "empty.txt",
+              "type": "file"
+            },
+            {
+              "path": "entry1.txt",
+              "type": "file"
+            }
+          ],
+          "count": 554
+        }
+      }
+    },
+    "listNested": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "location": {
+          "directory": "<isolated-root>\\project A 测试"
+        },
+        "data": [
+          {
+            "path": "nested 空\\hello #%.txt",
+            "type": "file"
+          }
+        ]
+      }
+    },
+    "findUnicode": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "location": {
+          "directory": "<isolated-root>\\project A 测试"
+        },
+        "data": [
+          {
+            "path": "nested 空/hello #%.txt",
+            "type": "file"
+          }
+        ]
+      }
+    },
+    "findBounded": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "location": {
+          "directory": "<isolated-root>\\project A 测试"
+        },
+        "data": {
+          "sample": [
+            {
+              "path": "entry8.txt",
+              "type": "file"
+            },
+            {
+              "path": "entry6.txt",
+              "type": "file"
+            },
+            {
+              "path": "entry2.txt",
+              "type": "file"
+            },
+            {
+              "path": "entry9.txt",
+              "type": "file"
+            }
+          ],
+          "count": 100
+        }
+      }
+    },
+    "missingList": {
+      "status": 404,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "_tag": "FileNotFoundError",
+        "path": "missing",
+        "message": "Directory not found: missing"
+      }
+    },
+    "createReferenceFixture": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "ses_e8d183daeffetDuglzmoKw8ydX",
+          "projectID": "f38b2a16520e948509aef6a8ea11a6bcae36ddc0",
+          "cost": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "time": {
+            "created": 1792929153625,
+            "updated": 1792929153625
+          },
+          "title": "WI015 reference fixture",
+          "location": {
+            "directory": "<isolated-root>\\project A 测试"
+          }
+        }
+      }
+    },
+    "importReferenceFixture": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "ses_wi015_reference",
+          "projectID": "f38b2a16520e948509aef6a8ea11a6bcae36ddc0",
+          "cost": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "time": {
+            "created": 1792929153625,
+            "updated": 1792929153652
+          },
+          "title": "WI015 reference fixture",
+          "location": {
+            "directory": "<isolated-root>\\project A 测试"
+          }
+        }
+      }
+    },
+    "readReferenceHistory": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [
+          {
+            "id": "msg_wi015_reference",
+            "time": {
+              "created": 1
+            },
+            "text": "Structured fixture file reference",
+            "files": [
+              {
+                "data": "SGVsbG8=",
+                "mime": "text/plain",
+                "source": {
+                  "type": "uri",
+                  "uri": "file:///<isolated-root>/project%20A%20%E6%B5%8B%E8%AF%95/nested%20%E7%A9%BA/hello%20%23%25.txt"
+                },
+                "name": "hello #%.txt"
+              }
+            ],
+            "type": "user"
+          }
+        ],
+        "cursor": {
+          "previous": "eyJpZCI6Im1zZ193aTAxNV9yZWZlcmVuY2UiLCJvcmRlciI6ImFzYyIsImRpcmVjdGlvbiI6InByZXZpb3VzIn0",
+          "next": "eyJpZCI6Im1zZ193aTAxNV9yZWZlcmVuY2UiLCJvcmRlciI6ImFzYyIsImRpcmVjdGlvbiI6Im5leHQifQ"
+        }
+      }
+    },
+    "unicodeRead": {
+      "contentRange": "",
+      "utf8": "Hello 世界\nsecond line",
+      "contentType": "text/plain",
+      "length": 24,
+      "status": 200
+    },
+    "rangeRead": {
+      "contentRange": "bytes 0-7/24",
+      "utf8": "Hello �",
+      "contentType": "text/plain",
+      "length": 8,
+      "status": 206
+    },
+    "emptyRead": {
+      "contentRange": "bytes */0",
+      "utf8": "",
+      "contentType": "",
+      "length": 0,
+      "status": 416
+    },
+    "binaryRead": {
+      "contentRange": "bytes 0-4/5",
+      "utf8": "\u0000\u0001\u0002�\u0000",
+      "contentType": "application/octet-stream",
+      "length": 5,
+      "status": 206
+    },
+    "largeRead": {
+      "contentRange": "bytes 0-262143/300000",
+      "utf8": "<fixture bytes omitted>",
+      "contentType": "text/plain",
+      "length": 262144,
+      "status": 206
+    },
+    "missingRead": {
+      "contentRange": "",
+      "utf8": "{\"_tag\":\"FileNotFoundError\",\"path\":\"missing.txt\",\"message\":\"File not found: missing.txt\"}",
+      "contentType": "application/json",
+      "length": 89,
+      "status": 404
+    },
+    "directoryRead": {
+      "contentRange": "",
+      "utf8": "{\"_tag\":\"FileNotFoundError\",\"path\":\"nested 空\",\"message\":\"File not found: nested 空\"}",
+      "contentType": "application/json",
+      "length": 87,
+      "status": 404
+    },
+    "unsatisfiable": {
+      "contentRange": "bytes */300000",
+      "utf8": "",
+      "contentType": "",
+      "length": 0,
+      "status": 416
+    }
+  },
+  "unobserved": [
+    "OS access denied: no ACL change made",
+    "Remote host and POSIX runtime",
+    "Symlink escape behavior"
+  ]
+}

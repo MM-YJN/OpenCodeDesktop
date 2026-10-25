@@ -406,6 +406,14 @@ public sealed partial class WorkspaceView
             WorkspaceProject? project = live.Projects.FirstOrDefault(candidate => candidate.Location.Directory == directory);
             bool active = live.Location?.Directory == directory;
 
+            MenuFlyoutItem files = MenuItem("Files", "ShellIconFolder");
+            files.IsEnabled = live.IsConnected && project is not null;
+            files.Click += async (_, _) =>
+            {
+                if (project is not null) { await OpenProjectFilesAsync(project.Location).ConfigureAwait(true); }
+            };
+            menu.Items.Add(files);
+
             MenuFlyoutItem refresh = MenuItem("Refresh sessions", "ShellIconRefresh");
             refresh.IsEnabled = project is { SessionsLoading: false };
             refresh.Click += async (_, _) =>

@@ -27,6 +27,7 @@ public sealed partial class WorkspaceView : UserControl
     public WorkspaceView()
     {
         InitializeComponent();
+        InitializeTabs();
         KeyboardAccelerator send = new() { Key = VirtualKey.Enter, Modifiers = VirtualKeyModifiers.Control };
         send.Invoked += async (_, args) =>
         {
@@ -103,6 +104,7 @@ public sealed partial class WorkspaceView : UserControl
 
         await _live.OpenProjectAsync(target.Directory).ConfigureAwait(true);
         await _live.SelectAttentionSessionAsync(target.SessionId).ConfigureAwait(true);
+        RenderLive();
         FocusPendingRequests();
     }
 

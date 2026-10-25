@@ -13,12 +13,14 @@ public sealed record WorkspaceProject(
 public sealed record WorkspaceSession(string Id, string Directory, string ProjectId, string Title);
 public enum HistoryFailureOutcome { Failed, Interrupted }
 public sealed record HistoryContentPart(int Ordinal, string Text, bool IsText);
+public sealed record HistoryFileReference(string Uri, string? Name);
 
 public sealed record HistoryMessage(string Id, string Kind, string Text)
 {
     public HistoryFailureOutcome? CompletedFailure { get; init; }
     public bool IsComplete { get; init; } = true;
     public IReadOnlyList<HistoryContentPart> Parts { get; init; } = [];
+    public IReadOnlyList<HistoryFileReference> FileReferences { get; init; } = [];
 }
 public sealed record WorkspacePage<T>(IReadOnlyList<T> Data, string? Next);
 

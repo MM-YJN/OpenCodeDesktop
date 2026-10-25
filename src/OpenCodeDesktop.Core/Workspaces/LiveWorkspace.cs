@@ -27,6 +27,7 @@ public sealed partial class LiveWorkspace : IDisposable
     }
 
     public event EventHandler? Changed;
+    public ProjectFilesWorkspace Files { get; } = new();
     public LiveTaskWorkflow? Tasks { get; private set; }
     public bool HasConnected { get; private set; }
     public bool IsConnected => _connections.Context is not null;
@@ -87,6 +88,7 @@ public sealed partial class LiveWorkspace : IDisposable
             if (!_connections.Profiles.Any(p => p.Id == id && p.Address.Display == _backends[id].Profile.Address.Display))
             {
                 _backends.Remove(id);
+                Files.ForgetConnection(id);
             }
         }
         if (_connectionGeneration == _connections.Generation)
@@ -95,6 +97,7 @@ public sealed partial class LiveWorkspace : IDisposable
         }
 
         _connectionGeneration = _connections.Generation;
+        Files.SetConnection(IsConnected ? Server?.Profile.Id : null, _connections.Context as IProjectFilesConnection);
         if (_backend is { } previous && Tasks is { } previousTasks)
         {
             previous.TaskStates = previousTasks.Sessions.Select(s => s.Retain()).ToArray();
@@ -574,6 +577,7 @@ public sealed partial class LiveWorkspace : IDisposable
             return Task.CompletedTask;
         }
 
+        UserNavigation?.Invoke(this, EventArgs.Empty);
         CancelProjectLoad(project);
         project.Creating = true;
         return RunAsync("Creating session…", async (context, token, current) =>
@@ -806,6 +810,7 @@ public sealed partial class LiveWorkspace : IDisposable
         }
 
         _disposed = true;
+        Files.Dispose();
         Tasks?.Dispose();
         Tasks = null;
         _connections.Changed -= ConnectionChangedAsync;

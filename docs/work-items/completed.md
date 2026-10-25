@@ -20,3 +20,4 @@ This index records Done items, grouped by completion year. Read the [active inde
 | [WI-012](WI-012-persist-connections-workspace.md) | Persist connections and restore the last workspace on launch | Implementation | Done | [WI-011](WI-011-multi-project-support.md), [WI-010](WI-010-detect-local-environment.md), [WI-009](WI-009-implement-session-recovery.md) | 2026-10-25 |
 | [WI-013](WI-013-polish-shell-feature-ux.md) | Polish the application shell and implemented feature UX | Implementation | Done | [WI-012](WI-012-persist-connections-workspace.md); existing shell and live workflows through WI-010 | 2026-10-25 |
 | [WI-014](WI-014-verify-native-reliability-accessibility.md) | Resolve native reliability and accessibility verification gaps | Implementation / verification | Done | WI-013 | 2026-10-25 |
+| [WI-015](WI-015-browse-preview-project-files.md) | Browse and preview project files | Implementation | Done | WI-014, WI-011 | 2026-10-25 |

@@ -210,12 +210,12 @@ public sealed partial class WorkspaceView
     }
 
     private static string Hash(ConversationEntry entry) =>
-        entry.Role + "|" + entry.Title + "|" + string.Join('\u001f', entry.Segments.Select(segment =>
+        entry.Role + "|" + entry.Title + "|" + string.Join('|', entry.FileReferences.Select(reference => reference.Uri + reference.Name)) + "|" + string.Join('\u001f', entry.Segments.Select(segment =>
             (segment.IsCode ? "code" : segment.IsTool ? "tool" : segment.IsActivity ? "activity" : "text") + ":" + segment.ToolName + ":" + segment.Text));
 
     private FrameworkElement BuildEntry(ConversationEntry entry)
     {
-        return entry.Role switch
+        FrameworkElement body = entry.Role switch
         {
             ConversationRole.User => BuildUserEntry(entry),
             ConversationRole.Assistant => BuildAssistantEntry(entry),
@@ -223,6 +223,34 @@ public sealed partial class WorkspaceView
             ConversationRole.Error => BuildErrorEntry(entry),
             _ => BuildActivityEntry(entry),
         };
+        if (_live?.Location is not { } location || entry.FileReferences.Count == 0) { return body; }
+        StackPanel wrapper = ShellUi.Stack(6);
+        wrapper.Children.Add(body);
+        foreach (HistoryFileReference reference in entry.FileReferences)
+        {
+            if (ProjectFileReferences.Candidate(location.Directory, reference.Uri) is not { } candidate) { continue; }
+            Button open = ShellUi.LabelButton("Open file · " + candidate, "ShellIconFolder", (_, _) => { }, "ShellQuietButtonStyle");
+            TextBlock status = ShellUi.Text("", "ShellCaptionTextStyle");
+            AutomationProperties.SetLiveSetting(status, Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Polite);
+            open.Click += async (_, _) =>
+            {
+                if (_live is not { } live || live.Location != location) { return; }
+                long generation = _tabGeneration;
+                open.IsEnabled = false;
+                try
+                {
+                    string? path = await live.VerifyFileReferenceAsync(reference.Uri, System.Threading.CancellationToken.None).ConfigureAwait(true);
+                    if (generation != _tabGeneration || _live != live) { return; }
+                    if (path is not null) { await OpenProjectFilesAsync(location, path).ConfigureAwait(true); }
+                    else { status.Text = "File identity could not be verified on this server."; }
+                }
+                catch (WorkspaceException) { status.Text = "Unable to verify the server file. Retry when connected."; }
+                finally { open.IsEnabled = true; }
+            };
+            wrapper.Children.Add(open);
+            wrapper.Children.Add(status);
+        }
+        return wrapper;
     }
 
     private FrameworkElement BuildUserEntry(ConversationEntry entry)

@@ -18,6 +18,7 @@ internal sealed record ConversationEntry(
     IReadOnlyList<ConversationSegment> Segments,
     bool IsWarning = false)
 {
+    internal IReadOnlyList<HistoryFileReference> FileReferences { get; init; } = [];
     internal string PlainText => string.Join("\n\n", Segments.Select(segment => segment.Text));
     internal string AutomationName => Role == ConversationRole.User ? "You said: " + PlainText : Title + ": " + PlainText;
 }
@@ -59,7 +60,7 @@ internal static class ConversationPresentation
         IReadOnlyList<ConversationSegment> segments = role == ConversationRole.Tool
             ? [new(Clean(message.Text), false, true)]
             : Segments(message.Text, role == ConversationRole.Assistant || role == ConversationRole.User);
-        return new(message.Id, role, title, segments, uncertain || role == ConversationRole.Error);
+        return new(message.Id, role, title, segments, uncertain || role == ConversationRole.Error) { FileReferences = message.FileReferences };
     }
 
     internal static IReadOnlyList<ConversationSegment> Segments(string text, bool classifyRecordedActivity)

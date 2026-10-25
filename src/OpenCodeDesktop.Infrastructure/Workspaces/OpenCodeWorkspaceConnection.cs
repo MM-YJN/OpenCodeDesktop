@@ -203,7 +203,36 @@ public sealed partial class OpenCodeWorkspaceConnection(HttpClient client, Serve
             failure = Optional(error, "type") == "aborted" ? HistoryFailureOutcome.Interrupted : HistoryFailureOutcome.Failed;
         }
 
-        return new(id, type, text) { CompletedFailure = failure, IsComplete = isComplete, Parts = parts };
+        return new(id, type, text) { CompletedFailure = failure, IsComplete = isComplete, Parts = parts, FileReferences = MessageFileReferences(value, type) };
+    }
+
+    private static IReadOnlyList<HistoryFileReference> MessageFileReferences(JsonElement value, string type)
+    {
+        List<HistoryFileReference> references = [];
+        if (type == "user" && value.TryGetProperty("files", out JsonElement files) && files.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement file in files.EnumerateArray())
+            {
+                if (file.TryGetProperty("source", out JsonElement source) && source.ValueKind == JsonValueKind.Object &&
+                    Optional(source, "type") == "uri" && Optional(source, "uri") is { } uri)
+                {
+                    references.Add(new(uri, Optional(file, "name")));
+                }
+            }
+        }
+        if (type == "assistant" && value.TryGetProperty("content", out JsonElement parts))
+        {
+            foreach (JsonElement part in parts.EnumerateArray())
+            {
+                if (Optional(part, "type") != "tool" || !part.TryGetProperty("state", out JsonElement state) ||
+                    !state.TryGetProperty("content", out JsonElement content) || content.ValueKind != JsonValueKind.Array) { continue; }
+                foreach (JsonElement item in content.EnumerateArray())
+                {
+                    if (Optional(item, "type") == "file" && Optional(item, "uri") is { } uri) { references.Add(new(uri, Optional(item, "name"))); }
+                }
+            }
+        }
+        return references.Take(100).ToArray();
     }
 
     private static List<HistoryContentPart> AssistantParts(JsonElement value)

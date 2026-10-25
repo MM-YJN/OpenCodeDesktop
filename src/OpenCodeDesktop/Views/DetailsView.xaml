@@ -10,7 +10,6 @@
                     <StackPanel x:Name="InfoPanel" Padding="0,4,0,16" Spacing="12" />
                 </ScrollViewer>
             </PivotItem>
-            <PivotItem Header="Files" IsEnabled="False" ToolTipService.ToolTip="File browsing is not available in this release" />
             <PivotItem Header="Changes" IsEnabled="False" ToolTipService.ToolTip="Change review is not available in this release" />
         </Pivot>
     </Grid>

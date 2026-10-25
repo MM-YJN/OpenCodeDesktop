@@ -23,7 +23,9 @@ public sealed partial class WorkspaceView
     internal void Bind(LiveWorkspace workspace)
     {
         _live = workspace;
+        FilesContent.Bind(workspace.Files);
         workspace.Changed += LiveChanged;
+        workspace.UserNavigation += ProjectSessionNavigationRequested;
         workspace.UserNavigation += TreeNavigationRequested;
         _treeConnectionKey = null;
         _treeActiveKey = null;
@@ -36,6 +38,8 @@ public sealed partial class WorkspaceView
     internal void Unbind()
     {
         _live?.Changed -= LiveChanged;
+        _live?.UserNavigation -= ProjectSessionNavigationRequested;
+        FilesContent.Unbind();
         _live?.UserNavigation -= TreeNavigationRequested;
         _live = null;
         ClearProjectTree();
@@ -67,6 +71,7 @@ public sealed partial class WorkspaceView
         }
 
         var presentation = LiveWorkspacePresentation.From(live);
+        ProjectWorkspaceTabs(live);
         OpenProjectState(live);
         SessionTitle.Text = presentation.Title;
         SessionPath.Text = presentation.Path.Replace("\n", " · ");
@@ -74,10 +79,14 @@ public sealed partial class WorkspaceView
         ShellUi.Tooltip(SessionPath, presentation.Path);
         AutomationProperties.SetName(ConversationScroll, "Conversation history for " + presentation.Title);
         RenderLiveProjects(live);
-        RenderLiveHistory(live, presentation);
-        RenderLiveComposer(live, presentation.DraftOwner);
-        RenderTaskControls();
-        DetailsContent.Update(DetailsPresentationFactory.From(live, CurrentTask));
+        if (_tabs.Active is { IsFiles: false } active && !_tabNavigation &&
+            active.Directory == live.Location?.Directory && active.SessionId == live.SelectedSessionId)
+        {
+            RenderLiveHistory(live, presentation);
+            RenderLiveComposer(live, presentation.DraftOwner);
+            RenderTaskControls();
+            DetailsContent.Update(DetailsPresentationFactory.From(live, CurrentTask));
+        }
         TerminalToggle.IsEnabled = false;
     }
 

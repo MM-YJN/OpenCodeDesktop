@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-25",
+  "version": "2.1.4",
+  "executableSha256": "B12B0613E9B4A491E5B12D90A5E9BBAE6D261FE9688C82BF73125A036963D399",
+  "environment": "Windows; disposable synthetic 19-byte file; current account denied ReadData temporarily",
+  "request": {
+    "path": "/api/fs/read/<encoded-owned-file>",
+    "range": "bytes=0-262143",
+    "method": "GET"
+  },
+  "observation": {
+    "probe": {
+      "contentRange": "bytes 0-18/19",
+      "status": 206,
+      "bytesRead": 0,
+      "bodyOmitted": true,
+      "readFailure": "HttpIOException",
+      "contentLength": 19
+    },
+    "clientStatus": "Unable to load from the server. Check the connection or permissions and retry.",
+    "aclRestoredInFinally": true
+  },
+  "recovery": "Restore original ACL in finally, then explicit native Retry successfully previews fixture text",
+  "limitations": [
+    "No file body, account identity, credentials or private path retained",
+    "This is an observed Windows ACL case, not a guarantee of POSIX or symlink behavior"
+  ]
+}

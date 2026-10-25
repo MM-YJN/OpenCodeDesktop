@@ -18,7 +18,7 @@ internal sealed record LiveWorkspacePresentation(string Title, string Path, stri
         string name = trimmed[(separator + 1)..];
         return new ProjectListPresentation(name.Length == 0 ? path : name, path, project.IsSelected, project.Error);
     }).ToArray();
-    internal const string UnavailableDetails = "Details files, changes and terminal are unavailable in this release. Task activity and pending requests appear in the workspace.";
+    internal const string UnavailableDetails = "Changes and terminal are unavailable in this release. Open project Files from the project menu. Task activity and pending requests appear in the workspace.";
 
     internal static string SessionTitle(WorkspaceSession? session) =>
         session is null ? "New-session draft" : string.IsNullOrWhiteSpace(session.Title) ? "Untitled session" : session.Title;
