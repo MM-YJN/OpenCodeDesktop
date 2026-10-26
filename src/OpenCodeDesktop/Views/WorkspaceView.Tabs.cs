@@ -102,6 +102,18 @@ public sealed partial class WorkspaceView
         }
         if (connection is { } id && live.Location is { } location)
         {
+            foreach (WorkspaceProject project in live.Projects)
+            {
+                foreach (WorkspaceSession session in project.Sessions.Concat(live.Selected is { } selected && selected.Directory == project.Location.Directory ? [selected] : Array.Empty<WorkspaceSession>()))
+                {
+                    _tabs.Rename(new(id, session.Directory, session.Id, false), session.Title + " · " + ProjectName(session.Directory));
+                }
+            }
+            if (!_tabNavigation && live.SelectedSessionId is null && live.Error is not null &&
+                _tabs.Active is { IsFiles: false, SessionId: not null } previousSession && previousSession.Directory == location.Directory)
+            {
+                _sessionNavigationPending = true;
+            }
             WorkspaceTabKey key = new(id, location.Directory, live.SelectedSessionId, false);
             if (!_tabNavigation && !live.IsLoading && _sessionNavigationPending)
             {
@@ -116,6 +128,14 @@ public sealed partial class WorkspaceView
         }
         RenderTabStrip();
         ApplyWorkspaceMode();
+    }
+
+    private void SessionMetadataReconciled(object? sender, WorkspaceSession session)
+    {
+        if (_live?.Server is { } server)
+        {
+            _tabs.Rename(new(server.Profile.Id, session.Directory, session.Id, false), session.Title + " · " + ProjectName(session.Directory));
+        }
     }
 
     private static string ProjectName(string path)

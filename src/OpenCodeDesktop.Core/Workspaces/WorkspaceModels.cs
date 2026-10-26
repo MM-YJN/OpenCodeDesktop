@@ -9,8 +9,15 @@ public sealed record WorkspaceProject(
     bool SessionsLoaded,
     bool SessionsLoading,
     string? SessionsError,
-    bool CanLoadMoreSessions);
-public sealed record WorkspaceSession(string Id, string Directory, string ProjectId, string Title);
+    bool CanLoadMoreSessions)
+{
+    public SessionHistoryFilter Filter { get; init; } = new();
+    public bool OrganizationBusy { get; init; }
+}
+public sealed record WorkspaceSession(string Id, string Directory, string ProjectId, string Title)
+{
+    public bool Archived { get; init; }
+}
 public enum HistoryFailureOutcome { Failed, Interrupted }
 public sealed record HistoryContentPart(int Ordinal, string Text, bool IsText);
 public sealed record HistoryFileReference(string Uri, string? Name);

@@ -80,6 +80,12 @@ public sealed class WorkspaceTabs
         }
     }
 
+    public void Rename(WorkspaceTabKey key, string title)
+    {
+        int index = _tabs.FindIndex(t => t.Key == key);
+        if (index >= 0) { _tabs[index] = _tabs[index] with { Title = title }; }
+    }
+
     public void Close(WorkspaceTabKey key)
     {
         WorkspaceTab[] visible = OpenTabs.ToArray();

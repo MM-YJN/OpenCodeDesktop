@@ -28,6 +28,7 @@ public sealed partial class WorkspaceView
         DetailsContent.Bind(workspace.Review);
         DetailsContent.PreviewRequested += ReviewPreviewRequestedAsync;
         workspace.Changed += LiveChanged;
+        workspace.SessionMetadataReconciled += SessionMetadataReconciled;
         workspace.UserNavigation += ProjectSessionNavigationRequested;
         workspace.UserNavigation += TreeNavigationRequested;
         _treeConnectionKey = null;
@@ -41,6 +42,7 @@ public sealed partial class WorkspaceView
     internal void Unbind()
     {
         _live?.Changed -= LiveChanged;
+        _live?.SessionMetadataReconciled -= SessionMetadataReconciled;
         _live?.UserNavigation -= ProjectSessionNavigationRequested;
         FilesContent.Unbind();
         DetailsContent.PreviewRequested -= ReviewPreviewRequestedAsync;

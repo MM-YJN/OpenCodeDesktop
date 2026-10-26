@@ -94,7 +94,7 @@ internal sealed class ProjectRowView : IProjectTreeRow
         AutomationProperties.SetName(Root, accessible);
         AutomationProperties.SetName(_newSession, "New session draft in " + model.Label);
         AutomationProperties.SetName(_more, "More actions for " + model.Label);
-        ShellUi.Tooltip(Root, model.Path);
+        ShellUi.Tooltip(Root, model.Path + (model.Detail is { Length: > 0 } ? "\n" + model.Detail : ""));
         ShellUi.Tooltip(_newSession, "New session draft in " + model.Label);
         ShellUi.Tooltip(_more, "More actions for " + model.Label);
     }
@@ -116,15 +116,23 @@ internal sealed class SessionRowView : IProjectTreeRow
         };
         _title = ShellUi.Text("", "ShellBodyTextStyle", TextWrapping.NoWrap);
         _title.TextTrimming = TextTrimming.CharacterEllipsis;
+        Root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        Root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         Root.Children.Add(_title);
+        MoreButton = ShellUi.IconButton("ShellIconMore", "Session actions", (_, _) => { }, "ShellTreeActionButtonStyle");
+        Grid.SetColumn(MoreButton, 1);
+        Root.Children.Add(MoreButton);
         Update(model, true);
     }
 
     public Grid Root { get; }
 
+    internal Button MoreButton { get; }
+
     public void Update(ProjectTreeNodePresentation model, bool _)
     {
         _title.Text = model.Label;
+        AutomationProperties.SetName(MoreButton, "Actions for session " + model.Label);
         AutomationProperties.SetName(Root, "Session " + model.Label + " in " + ProjectTreeNodePresentation.DisplayName(model.Directory));
         ShellUi.Tooltip(Root, model.Label);
     }

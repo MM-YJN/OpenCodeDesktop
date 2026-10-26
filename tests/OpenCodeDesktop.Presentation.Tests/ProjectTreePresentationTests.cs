@@ -6,6 +6,19 @@ namespace OpenCodeDesktop.Presentation.Tests;
 
 public sealed class ProjectTreePresentationTests
 {
+    [Theory]
+    [InlineData(false, "needle", "No matching sessions.")]
+    [InlineData(true, "", "No archived sessions.")]
+    public void FilteredEmptyHistoryNamesItsScope(bool archived, string search, string empty)
+    {
+        WorkspaceProject project = new(new("/project", "p"), false, null, [], true, false, null, false)
+        { Filter = new(search, archived) };
+        ProjectTreeNodePresentation row = ProjectTreeNodePresentation.Project(project, null, false);
+        Assert.Contains(empty, row.Detail, StringComparison.Ordinal);
+        Assert.Contains(archived ? "Archived history" : "Active history", row.Detail, StringComparison.Ordinal);
+        Assert.Empty(row.Children);
+    }
+
     [Fact]
     public async Task TreeShowsProjectsSessionsActiveSelectionAndFullPaths()
     {

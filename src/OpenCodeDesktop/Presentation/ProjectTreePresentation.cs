@@ -60,9 +60,15 @@ internal sealed record ProjectTreeNodePresentation(
         }
         else if (detail is null && project.SessionsLoaded && project.Sessions.Count == 0)
         {
-            detail = "No sessions yet.";
+            detail = project.Filter.Search.Length > 0 ? "No matching sessions." : project.Filter.Archived ? "No archived sessions." : "No sessions yet.";
         }
 
+        if (project.Filter.Search.Length > 0 || project.Filter.Archived)
+        {
+            detail = (project.Filter.Archived ? "Archived history" : "Active history") +
+                (project.Filter.Search.Length > 0 ? " · Search: " + project.Filter.Search : "") +
+                (detail is null ? "" : " · " + detail);
+        }
         bool isError = project.Error is not null || project.SessionsError is not null;
         return new(
             ProjectTreeItemKind.Project,

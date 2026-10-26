@@ -137,6 +137,7 @@ public sealed partial class LiveTaskWorkflow : IDisposable
         _scheduler = scheduler ?? new RecoveryScheduler();
     }
     public event EventHandler? Changed;
+    public event EventHandler<TaskEvent>? SessionMetadataChanged;
     public IReadOnlyList<SessionTaskState> Sessions => _sessions.Values.ToArray();
     public string? AttentionError { get; private set; }
     public void Restore(IEnumerable<SessionTaskState> sessions)
@@ -666,6 +667,10 @@ public sealed partial class LiveTaskWorkflow : IDisposable
                     {
                         _eventIds.Remove(_eventOrder.Dequeue());
                     }
+                }
+                if (e.Type is "session.renamed" or "session.archived" or "session.unarchived")
+                {
+                    SessionMetadataChanged?.Invoke(this, e);
                 }
                 IEnumerable<SessionTaskState> affected = e.SessionId is { } id && _sessions.TryGetValue(id, out SessionTaskState? owned) ? [owned] : _sessions.Values;
                 foreach (SessionTaskState state in affected)

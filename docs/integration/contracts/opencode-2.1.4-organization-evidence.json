@@ -1,0 +1,1267 @@
+{
+  "version": "2.1.4",
+  "cases": {
+    "create": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "ses_e879ee5afffePcDMxqyQWldaBj",
+          "projectID": "6e642a800533f915cdb095b8f52c94a036346b35",
+          "cost": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "time": {
+            "created": 1793020992092,
+            "updated": 1793020992092
+          },
+          "title": "Older # % 测试",
+          "location": {
+            "directory": "<isolated-root>\\project A 测试"
+          }
+        }
+      }
+    },
+    "createSecond": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "ses_e879ee591ffeNlODL0GVKygM7d",
+          "projectID": "6e642a800533f915cdb095b8f52c94a036346b35",
+          "cost": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "time": {
+            "created": 1793020992118,
+            "updated": 1793020992118
+          },
+          "title": "Newer # % 测试",
+          "location": {
+            "directory": "<isolated-root>\\project A 测试"
+          }
+        }
+      }
+    },
+    "firstFilteredPage": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [
+          {
+            "id": "ses_e879ee591ffeNlODL0GVKygM7d",
+            "projectID": "6e642a800533f915cdb095b8f52c94a036346b35",
+            "cost": 0,
+            "tokens": {
+              "input": 0,
+              "output": 0,
+              "reasoning": 0,
+              "cache": {
+                "read": 0,
+                "write": 0
+              }
+            },
+            "time": {
+              "created": 1793020992118,
+              "updated": 1793020992118
+            },
+            "title": "Newer # % 测试",
+            "location": {
+              "directory": "<isolated-root>\\project A 测试"
+            }
+          }
+        ],
+        "cursor": {
+          "previous": "<opaque-cursor>",
+          "next": "<opaque-cursor>"
+        }
+      }
+    },
+    "nextFilteredPage": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [
+          {
+            "id": "ses_e879ee5afffePcDMxqyQWldaBj",
+            "projectID": "6e642a800533f915cdb095b8f52c94a036346b35",
+            "cost": 0,
+            "tokens": {
+              "input": 0,
+              "output": 0,
+              "reasoning": 0,
+              "cache": {
+                "read": 0,
+                "write": 0
+              }
+            },
+            "time": {
+              "created": 1793020992092,
+              "updated": 1793020992092
+            },
+            "title": "Older # % 测试",
+            "location": {
+              "directory": "<isolated-root>\\project A 测试"
+            }
+          }
+        ],
+        "cursor": {
+          "previous": "<opaque-cursor>",
+          "next": "<opaque-cursor>"
+        }
+      }
+    },
+    "rename": {
+      "status": 204,
+      "contentType": "",
+      "challenge": "",
+      "retryAfter": "",
+      "body": ""
+    },
+    "renamedMetadata": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "ses_e879ee5afffePcDMxqyQWldaBj",
+          "projectID": "6e642a800533f915cdb095b8f52c94a036346b35",
+          "cost": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "time": {
+            "created": 1793020992092,
+            "updated": 1793020992239
+          },
+          "title": "Renamed 世界 # %",
+          "location": {
+            "directory": "<isolated-root>\\project A 测试"
+          }
+        }
+      }
+    },
+    "emptyTitle": {
+      "status": 204,
+      "contentType": "",
+      "challenge": "",
+      "retryAfter": "",
+      "body": ""
+    },
+    "emptyTitleMetadata": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "ses_e879ee5afffePcDMxqyQWldaBj",
+          "projectID": "6e642a800533f915cdb095b8f52c94a036346b35",
+          "cost": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "time": {
+            "created": 1793020992092,
+            "updated": 1793020992239
+          },
+          "title": "Renamed 世界 # %",
+          "location": {
+            "directory": "<isolated-root>\\project A 测试"
+          }
+        }
+      }
+    },
+    "restoreTitle": {
+      "status": 204,
+      "contentType": "",
+      "challenge": "",
+      "retryAfter": "",
+      "body": ""
+    },
+    "importHistory": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "ses_wi018_content",
+          "projectID": "6e642a800533f915cdb095b8f52c94a036346b35",
+          "cost": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "time": {
+            "created": 1793020992092,
+            "updated": 1793020992548
+          },
+          "title": "Renamed 世界 # %",
+          "location": {
+            "directory": "<isolated-root>\\project A 测试"
+          }
+        }
+      }
+    },
+    "historyBeforeArchive": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [
+          {
+            "id": "msg_wi018_content",
+            "time": {
+              "created": 1
+            },
+            "text": "Archive preserves this history",
+            "type": "user"
+          }
+        ],
+        "cursor": {
+          "previous": "<opaque-cursor>",
+          "next": "<opaque-cursor>"
+        }
+      }
+    },
+    "archive": {
+      "status": 204,
+      "contentType": "",
+      "challenge": "",
+      "retryAfter": "",
+      "body": ""
+    },
+    "archivedMetadata": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "ses_wi018_content",
+          "projectID": "6e642a800533f915cdb095b8f52c94a036346b35",
+          "cost": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "time": {
+            "created": 1793020992092,
+            "updated": 1793020992564,
+            "archived": 1793020992564
+          },
+          "title": "Renamed 世界 # %",
+          "location": {
+            "directory": "<isolated-root>\\project A 测试"
+          }
+        }
+      }
+    },
+    "activeSearch": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [
+          {
+            "id": "ses_e879ee5afffePcDMxqyQWldaBj",
+            "projectID": "6e642a800533f915cdb095b8f52c94a036346b35",
+            "cost": 0,
+            "tokens": {
+              "input": 0,
+              "output": 0,
+              "reasoning": 0,
+              "cache": {
+                "read": 0,
+                "write": 0
+              }
+            },
+            "time": {
+              "created": 1793020992092,
+              "updated": 1793020992515
+            },
+            "title": "Renamed 世界 # %",
+            "location": {
+              "directory": "<isolated-root>\\project A 测试"
+            }
+          }
+        ],
+        "cursor": {
+          "previous": "<opaque-cursor>",
+          "next": "<opaque-cursor>"
+        }
+      }
+    },
+    "archivedSearch": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [
+          {
+            "id": "ses_wi018_content",
+            "projectID": "6e642a800533f915cdb095b8f52c94a036346b35",
+            "cost": 0,
+            "tokens": {
+              "input": 0,
+              "output": 0,
+              "reasoning": 0,
+              "cache": {
+                "read": 0,
+                "write": 0
+              }
+            },
+            "time": {
+              "created": 1793020992092,
+              "updated": 1793020992564,
+              "archived": 1793020992564
+            },
+            "title": "Renamed 世界 # %",
+            "location": {
+              "directory": "<isolated-root>\\project A 测试"
+            }
+          }
+        ],
+        "cursor": {
+          "previous": "<opaque-cursor>",
+          "next": "<opaque-cursor>"
+        }
+      }
+    },
+    "historyAfterArchive": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [
+          {
+            "id": "msg_wi018_content",
+            "time": {
+              "created": 1
+            },
+            "text": "Archive preserves this history",
+            "type": "user"
+          }
+        ],
+        "cursor": {
+          "previous": "<opaque-cursor>",
+          "next": "<opaque-cursor>"
+        }
+      }
+    },
+    "archiveAgain": {
+      "status": 204,
+      "contentType": "",
+      "challenge": "",
+      "retryAfter": "",
+      "body": ""
+    },
+    "restore": {
+      "status": 204,
+      "contentType": "",
+      "challenge": "",
+      "retryAfter": "",
+      "body": ""
+    },
+    "restoredMetadata": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "ses_wi018_content",
+          "projectID": "6e642a800533f915cdb095b8f52c94a036346b35",
+          "cost": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "time": {
+            "created": 1793020992092,
+            "updated": 1793020992677
+          },
+          "title": "Renamed 世界 # %",
+          "location": {
+            "directory": "<isolated-root>\\project A 测试"
+          }
+        }
+      }
+    },
+    "noMatches": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": [],
+        "cursor": {
+          "previous": null,
+          "next": null
+        }
+      }
+    },
+    "invalidTitleType": {
+      "status": 400,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "_tag": "InvalidRequestError",
+        "message": "Expected string | null\n  at [\"title\"]",
+        "kind": "Payload"
+      }
+    },
+    "missingMutation": {
+      "status": 404,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "_tag": "SessionNotFoundError",
+        "sessionID": "ses_missing",
+        "message": "Session not found: ses_missing"
+      }
+    },
+    "createRunning": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "ses_e879ee347ffe5X6RwY1awueq5y",
+          "projectID": "6e642a800533f915cdb095b8f52c94a036346b35",
+          "cost": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "time": {
+            "created": 1793020992702,
+            "updated": 1793020992702
+          },
+          "title": "Running archive fixture",
+          "location": {
+            "directory": "<isolated-root>\\project A 测试"
+          }
+        }
+      }
+    },
+    "runningModel": {
+      "status": 204,
+      "contentType": "",
+      "challenge": "",
+      "retryAfter": "",
+      "body": ""
+    },
+    "runningAgent": {
+      "status": 204,
+      "contentType": "",
+      "challenge": "",
+      "retryAfter": "",
+      "body": ""
+    },
+    "startRunning": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "msg_178611cd0001FZ39Q7XdH83Dpu",
+          "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y",
+          "time": {
+            "created": 1793020992722
+          },
+          "type": "user",
+          "payload": {
+            "text": "WI007:stall"
+          },
+          "delivery": "steer"
+        }
+      }
+    },
+    "activeBeforeArchive": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "ses_e879ee347ffe5X6RwY1awueq5y": {
+            "type": "running"
+          }
+        }
+      }
+    },
+    "archiveRunning": {
+      "status": 204,
+      "contentType": "",
+      "challenge": "",
+      "retryAfter": "",
+      "body": ""
+    },
+    "activeAfterArchive": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "ses_e879ee347ffe5X6RwY1awueq5y": {
+            "type": "running"
+          }
+        }
+      }
+    },
+    "archivedRunningMetadata": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "ses_e879ee347ffe5X6RwY1awueq5y",
+          "projectID": "6e642a800533f915cdb095b8f52c94a036346b35",
+          "agent": "build",
+          "model": {
+            "id": "fixture",
+            "providerID": "wi007",
+            "variant": "default"
+          },
+          "cost": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "time": {
+            "created": 1793020992702,
+            "updated": 1793020992784,
+            "archived": 1793020992784
+          },
+          "title": "Running archive fixture",
+          "location": {
+            "directory": "<isolated-root>\\project A 测试"
+          }
+        }
+      }
+    },
+    "stopRunning": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "interrupted": true
+      }
+    },
+    "archivedAskRule": {
+      "status": 204,
+      "contentType": "",
+      "challenge": "",
+      "retryAfter": "",
+      "body": ""
+    },
+    "archivedPermission": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "data": {
+          "id": "per_178611d36001k3FENslY4yjGpS",
+          "effect": "ask"
+        }
+      }
+    },
+    "archivedGlobalAttention": {
+      "status": 200,
+      "contentType": "application/json",
+      "challenge": "",
+      "retryAfter": "",
+      "body": {
+        "location": {
+          "directory": "<isolated-root>\\project A 测试"
+        },
+        "data": [
+          {
+            "id": "per_178611d36001k3FENslY4yjGpS",
+            "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y",
+            "action": "wi018",
+            "resources": [
+              "preserved.txt"
+            ],
+            "save": [
+              "*"
+            ]
+          }
+        ]
+      }
+    },
+    "replyArchivedPermission": {
+      "status": 204,
+      "contentType": "",
+      "challenge": "",
+      "retryAfter": "",
+      "body": ""
+    },
+    "filePreserved": {
+      "unchanged": true
+    }
+  },
+  "events": [
+    {
+      "id": "evt_178611a15001kTGqwFCpCq409G",
+      "type": "server.connected",
+      "data": {}
+    },
+    {
+      "id": "evt_178611a5c0016Nn8P6AJDbalQ5",
+      "created": 1793020992092,
+      "type": "session.created",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_e879ee5afffePcDMxqyQWldaBj",
+        "slug": "witty-otter",
+        "version": "2.1.4",
+        "projectID": "6e642a800533f915cdb095b8f52c94a036346b35",
+        "location": {
+          "directory": "<isolated-root>\\project A 测试"
+        },
+        "subpath": "",
+        "title": "Older # % 测试"
+      },
+      "durable": {
+        "aggregateID": "ses_e879ee5afffePcDMxqyQWldaBj",
+        "seq": 0,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611a76001W4Mk6uUEzMQqow",
+      "created": 1793020992118,
+      "type": "session.created",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_e879ee591ffeNlODL0GVKygM7d",
+        "slug": "eager-meadow",
+        "version": "2.1.4",
+        "projectID": "6e642a800533f915cdb095b8f52c94a036346b35",
+        "location": {
+          "directory": "<isolated-root>\\project A 测试"
+        },
+        "subpath": "",
+        "title": "Newer # % 测试"
+      },
+      "durable": {
+        "aggregateID": "ses_e879ee591ffeNlODL0GVKygM7d",
+        "seq": 0,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611a97001hx5rHtIMx3eD6h",
+      "created": 1793020992151,
+      "type": "project.updated",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "id": "6e642a800533f915cdb095b8f52c94a036346b35",
+        "canonical": "<isolated-root>\\project A 测试",
+        "time": {
+          "created": 1793020992089,
+          "updated": 1793020992089,
+          "active": 1793020992150
+        },
+        "sandboxes": []
+      }
+    },
+    {
+      "id": "evt_178611aef001mQ1kMO1h7Yw2A2",
+      "created": 1793020992239,
+      "type": "session.renamed",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_e879ee5afffePcDMxqyQWldaBj",
+        "title": "Renamed 世界 # %"
+      },
+      "durable": {
+        "aggregateID": "ses_e879ee5afffePcDMxqyQWldaBj",
+        "seq": 1,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611c02001alYZvB8bdDH5MA",
+      "created": 1793020992515,
+      "type": "session.renamed",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_e879ee5afffePcDMxqyQWldaBj",
+        "title": "Renamed 世界 # %"
+      },
+      "durable": {
+        "aggregateID": "ses_e879ee5afffePcDMxqyQWldaBj",
+        "seq": 2,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611c24001DHr4HH82VtubmO",
+      "created": 1793020992548,
+      "type": "session.created",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_wi018_content",
+        "slug": "witty-circuit",
+        "version": "2.1.4",
+        "projectID": "6e642a800533f915cdb095b8f52c94a036346b35",
+        "location": {
+          "directory": "<isolated-root>\\project A 测试"
+        },
+        "subpath": "",
+        "title": "Renamed 世界 # %"
+      },
+      "durable": {
+        "aggregateID": "ses_wi018_content",
+        "seq": 0,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611c34001uj1vO9k4y7JM6z",
+      "created": 1793020992564,
+      "type": "session.archived",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_wi018_content"
+      },
+      "durable": {
+        "aggregateID": "ses_wi018_content",
+        "seq": 2,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611c43001lZ9ol2Kr5f4Of1",
+      "created": 1793020992579,
+      "type": "integration.updated",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {}
+    },
+    {
+      "id": "evt_178611c49001xGOHwaykg5Tgrv",
+      "created": 1793020992585,
+      "type": "provider.updated",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {}
+    },
+    {
+      "id": "evt_178611c53001JvG34bqr0VU3OL",
+      "created": 1793020992595,
+      "type": "model.updated",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {}
+    },
+    {
+      "id": "evt_178611c540014At14fMY1ohKxh",
+      "created": 1793020992596,
+      "type": "agent.updated",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {}
+    },
+    {
+      "id": "evt_178611c55001oT2fzaH8LeQ1ar",
+      "created": 1793020992597,
+      "type": "command.updated",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {}
+    },
+    {
+      "id": "evt_178611c55002wbsdu4QzhTTxJW",
+      "created": 1793020992597,
+      "type": "skill.updated",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {}
+    },
+    {
+      "id": "evt_178611c59001hX1kt676TBiTBm",
+      "created": 1793020992601,
+      "type": "websearch.updated",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {}
+    },
+    {
+      "id": "evt_178611c74001Ofh8kKn0DQK8yG",
+      "created": 1793020992628,
+      "type": "reference.updated",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {}
+    },
+    {
+      "id": "evt_178611c75001mqULAPkjNbRWl2",
+      "created": 1793020992629,
+      "type": "plugin.updated",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {}
+    },
+    {
+      "id": "evt_178611ca5001XTzPdKCB6XkSdT",
+      "created": 1793020992677,
+      "type": "session.unarchived",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_wi018_content"
+      },
+      "durable": {
+        "aggregateID": "ses_wi018_content",
+        "seq": 3,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611cbe001vNNaxWRghsyGJJ",
+      "created": 1793020992702,
+      "type": "session.created",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "slug": "brave-orchid",
+        "version": "2.1.4",
+        "projectID": "6e642a800533f915cdb095b8f52c94a036346b35",
+        "location": {
+          "directory": "<isolated-root>\\project A 测试"
+        },
+        "subpath": "",
+        "title": "Running archive fixture"
+      },
+      "durable": {
+        "aggregateID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "seq": 0,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611cc5001uu1uzT26UjSsRS",
+      "created": 1793020992709,
+      "type": "session.model.selected",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "model": {
+          "id": "fixture",
+          "providerID": "wi007"
+        }
+      },
+      "durable": {
+        "aggregateID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "seq": 1,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611ccb0017FGoQIvdnmWpJO",
+      "created": 1793020992715,
+      "type": "session.agent.selected",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "agent": "build"
+      },
+      "durable": {
+        "aggregateID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "seq": 2,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611cd2001wmcz24T0m6C1gk",
+      "created": 1793020992722,
+      "type": "session.inbox.enqueued",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "inboxID": "msg_178611cd0001FZ39Q7XdH83Dpu",
+        "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "item": {
+          "type": "user",
+          "payload": {
+            "text": "WI007:stall"
+          },
+          "delivery": "steer"
+        }
+      },
+      "durable": {
+        "aggregateID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "seq": 3,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611cd50014CWBBzCz2XBL5v",
+      "created": 1793020992725,
+      "type": "session.execution.started",
+      "data": {
+        "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y"
+      },
+      "durable": {
+        "aggregateID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "seq": 4,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611ce1001ybMMtjqWLYch7f",
+      "created": 1793020992737,
+      "metadata": {
+        "instructions": {
+          "initial": true
+        }
+      },
+      "type": "session.instructions.updated",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "delta": {
+          "core/codemode": "e6428fd7742161f6c3a6c86e53cbbe2c6e4dcc462bbf1a1a07bc4fcbeb9e0b0b",
+          "core/skill-guidance": "8394362d28c82fa4d13c7a9f5568c05680f6687e07db8f426a0e3c92f3027dc9",
+          "core/date": "b508cd29a4ff9b06a17ee0919a0b97e4e19290a8e0f732f4966861e57553bdf4",
+          "core/environment": "69bebe6da4de66dee558c3e0be03f8361c8aa9f9ad982666c5fa3077df02b61e"
+        }
+      },
+      "durable": {
+        "aggregateID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "seq": 5,
+        "version": 2
+      }
+    },
+    {
+      "id": "evt_178611ce4001b8pHWxlf5w01xI",
+      "created": 1793020992740,
+      "type": "session.inbox.delivered",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "inboxID": "msg_178611cd0001FZ39Q7XdH83Dpu"
+      },
+      "durable": {
+        "aggregateID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "seq": 6,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611d08001kkpYqixGI0A8Ta",
+      "created": 1793020992776,
+      "type": "session.step.started",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "agent": "build",
+        "model": {
+          "id": "fixture",
+          "providerID": "wi007",
+          "variant": "default"
+        },
+        "assistantMessageID": "msg_178611cec001gL2YODWhoGiPYE",
+        "started": 1793020992760
+      },
+      "durable": {
+        "aggregateID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "seq": 7,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611d0b001Lb9Kk63yHb1CXx",
+      "created": 1793020992779,
+      "type": "session.text.started",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "assistantMessageID": "msg_178611cec001gL2YODWhoGiPYE",
+        "ordinal": 0
+      },
+      "durable": {
+        "aggregateID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "seq": 8,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611d10001enD1x3yuelxAXE",
+      "created": 1793020992784,
+      "type": "session.archived",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y"
+      },
+      "durable": {
+        "aggregateID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "seq": 9,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611d24001ATmmDcfvyqb1sI",
+      "created": 1793020992804,
+      "type": "session.text.delta",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "assistantMessageID": "msg_178611cec001gL2YODWhoGiPYE",
+        "ordinal": 0,
+        "delta": "WI007 waiting for interruption."
+      }
+    },
+    {
+      "id": "evt_178611d24002HEkGTDx6SV2T8Y",
+      "created": 1793020992804,
+      "type": "session.text.ended",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "assistantMessageID": "msg_178611cec001gL2YODWhoGiPYE",
+        "ordinal": 0,
+        "text": "WI007 waiting for interruption."
+      },
+      "durable": {
+        "aggregateID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "seq": 10,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611d26001z0ZgICnenzXifL",
+      "created": 1793020992806,
+      "type": "session.step.streamed",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "assistantMessageID": "msg_178611cec001gL2YODWhoGiPYE"
+      },
+      "durable": {
+        "aggregateID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "seq": 11,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611d28001BvFuSsGW2KPqrC",
+      "created": 1793020992808,
+      "type": "session.step.failed",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "assistantMessageID": "msg_178611cec001gL2YODWhoGiPYE",
+        "error": {
+          "type": "aborted",
+          "message": "Step interrupted"
+        }
+      },
+      "durable": {
+        "aggregateID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "seq": 12,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611d2b001oAnTRrQOnbDTad",
+      "created": 1793020992811,
+      "type": "session.execution.interrupted",
+      "data": {
+        "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "reason": "user"
+      },
+      "durable": {
+        "aggregateID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "seq": 13,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611d30001DtUAR4wpcgJ141",
+      "created": 1793020992816,
+      "type": "session.permissions",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "permissions": [
+          {
+            "action": "wi018",
+            "resource": "*",
+            "effect": "ask"
+          }
+        ]
+      },
+      "durable": {
+        "aggregateID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "seq": 14,
+        "version": 1
+      }
+    },
+    {
+      "id": "evt_178611d36002kApa8DWCXa5En3",
+      "created": 1793020992822,
+      "type": "permission.asked",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "id": "per_178611d36001k3FENslY4yjGpS",
+        "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "action": "wi018",
+        "resources": [
+          "preserved.txt"
+        ],
+        "save": [
+          "*"
+        ]
+      }
+    },
+    {
+      "id": "evt_178611d42001hojA9kMO0RGX2j",
+      "created": 1793020992834,
+      "type": "permission.replied",
+      "location": {
+        "directory": "<isolated-root>\\project A 测试"
+      },
+      "data": {
+        "sessionID": "ses_e879ee347ffe5X6RwY1awueq5y",
+        "requestID": "per_178611d36001k3FENslY4yjGpS",
+        "reply": "reject"
+      }
+    }
+  ],
+  "unobserved": [
+    "Atomic archive eligibility is not provided by the contract",
+    "Remote host and POSIX runtime"
+  ],
+  "executableSha256": "B12B0613E9B4A491E5B12D90A5E9BBAE6D261FE9688C82BF73125A036963D399"
+}

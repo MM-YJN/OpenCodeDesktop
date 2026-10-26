@@ -87,3 +87,7 @@ Final restoration: original workspace settings were restored byte-for-byte, owne
 ## Completion acceptance (2026-10-26)
 
 Marked Done by explicit user acceptance. Moved the row to the completed index, retained the unchecked native verification criterion and recorded limitations, and set WI-018 as next without starting it. This documentation-only update verified unique index membership, the status link and `git diff --check`; no application build, tests or native checks were rerun.
+
+## Reverification (2026-10-26)
+
+A repeated request to implement WI-017 was checked against the completed index and existing source. The attachment models, scoped/versioned drafts, local reader, transport mapping, composer controls and history rendering are already present; no implementation change or status transition was needed. Reran the three shared test commands sequentially: Core 168 passed, Infrastructure 127 passed / 4 opt-in tests skipped, Presentation 28 passed; 323 passed and 0 failed overall. The pinned executable opt-ins were not enabled for this rerun. Existing analyzer/style warnings remain. No contract probe, App build or native UI check was rerun; the previously documented native verification limitations remain unverified.

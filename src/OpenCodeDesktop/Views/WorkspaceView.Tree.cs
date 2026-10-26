@@ -194,6 +194,13 @@ public sealed partial class WorkspaceView
         // Naming only the selected container leaves every other row with the native
         // TreeViewNode type name in the accessibility tree.
         row.Root.Loaded += (_, _) => UpdateTreeAutomationName(node);
+        if (row is SessionRowView sessionRow && _live is { } workspace && model.SessionId is { } sessionId)
+        {
+            sessionRow.MoreButton.Flyout = SessionMenu(workspace, model.Directory, sessionId);
+            sessionRow.Root.ContextFlyout = SessionMenu(workspace, model.Directory, sessionId);
+            sessionRow.MoreButton.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, _) => SuppressTreeInvoke()), true);
+            sessionRow.MoreButton.Click += (_, _) => SuppressTreeInvoke();
+        }
         if (row is ProjectRowView projectRow)
         {
             projectRow.NewSessionButton.AddHandler(
@@ -406,6 +413,20 @@ public sealed partial class WorkspaceView
             WorkspaceProject? project = live.Projects.FirstOrDefault(candidate => candidate.Location.Directory == directory);
             bool active = live.Location?.Directory == directory;
 
+            MenuFlyoutItem search = new() { Text = "Search sessions…" };
+            search.Click += async (_, _) => await SearchProjectSessionsAsync(live, directory).ConfigureAwait(true);
+            menu.Items.Add(search);
+            MenuFlyoutItem history = new() { Text = project?.Filter.Archived == true ? "Show active history" : "Show archived history" };
+            history.Click += async (_, _) =>
+            {
+                ExpandProject(directory);
+                await live.FilterProjectSessionsAsync(directory, (project?.Filter ?? new()) with { Archived = project?.Filter.Archived != true }).ConfigureAwait(true);
+                ExpandProject(directory);
+                RenderProjectTree(live);
+                FocusOrganizationRow(directory, null);
+            };
+            menu.Items.Add(history);
+
             MenuFlyoutItem files = MenuItem("Files", "ShellIconFolder");
             files.IsEnabled = live.IsConnected && project is not null;
             files.Click += async (_, _) =>
@@ -515,7 +536,7 @@ public sealed partial class WorkspaceView
 
     private static string TreeAutomationName(ProjectTreeNodePresentation model) => model.Kind switch
     {
-        ProjectTreeItemKind.Project => "Project " + model.Label + ", " + model.Path,
+        ProjectTreeItemKind.Project => "Project " + model.Label + ", " + model.Path + (model.Detail is { Length: > 0 } ? ", " + model.Detail : ""),
         ProjectTreeItemKind.Session => "Session " + model.Label + " in " + ProjectTreeNodePresentation.DisplayName(model.Directory),
         ProjectTreeItemKind.Draft => "New session draft in " + ProjectTreeNodePresentation.DisplayName(model.Directory),
         _ => "Load more sessions for " + ProjectTreeNodePresentation.DisplayName(model.Directory),

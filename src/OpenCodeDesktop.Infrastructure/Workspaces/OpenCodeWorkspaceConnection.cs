@@ -151,7 +151,8 @@ public sealed partial class OpenCodeWorkspaceConnection(HttpClient client, Serve
     }
 
     private static WorkspaceSession Session(JsonElement value) => new(Required(value, "id"), Required(value.GetProperty("location"), "directory"),
-        Required(value, "projectID"), Optional(value, "title") is { Length: > 0 } title ? title : "Untitled session");
+        Required(value, "projectID"), Optional(value, "title") is { Length: > 0 } title ? title : "Untitled session")
+        { Archived = value.TryGetProperty("time", out JsonElement time) && time.TryGetProperty("archived", out JsonElement archived) && archived.ValueKind == JsonValueKind.Number };
 
     private static WorkspacePage<T> Page<T>(JsonElement root, Func<JsonElement, T> map)
     {
