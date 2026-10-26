@@ -77,6 +77,9 @@ public sealed partial class WorkspaceView : UserControl
         };
     }
 
+    private T WorkspaceTemplate<T>(string key) where T : FrameworkElement =>
+        (T)((DataTemplate)Resources[key]).LoadContent();
+
     internal void FocusWorkspace() => ProjectsToggle.Focus(FocusState.Programmatic);
 
     private void RefreshThemeProjections()
@@ -169,32 +172,11 @@ public sealed partial class WorkspaceView : UserControl
             return;
         }
 
-        TextBox input = new()
-        {
-            Header = "Server-side directory",
-            PlaceholderText = "Path on the selected server",
-            Text = live.Location?.Directory ?? "",
-            MaxLength = 4096,
-        };
-        AutomationProperties.SetName(input, "Server-side project directory");
-        ContentDialog dialog = new()
-        {
-            Title = "Add project",
-            Content = new StackPanel
-            {
-                Spacing = ShellUi.Dimension("ShellSpaceSmall"),
-                Children =
-                {
-                    ShellUi.Text("Open a directory that exists on the selected server. The client does not read this path locally.", "ShellSecondaryTextStyle"),
-                    input,
-                },
-            },
-            PrimaryButtonText = "Add project",
-            CloseButtonText = "Cancel",
-            DefaultButton = ContentDialogButton.Primary,
-            IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(input.Text),
-            XamlRoot = XamlRoot,
-        };
+        ContentDialog dialog = WorkspaceTemplate<ContentDialog>("AddProjectDialogTemplate");
+        dialog.XamlRoot = XamlRoot;
+        TextBox input = ShellUi.Part<TextBox>(dialog, "Directory");
+        input.Text = live.Location?.Directory ?? "";
+        dialog.IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(input.Text);
         input.TextChanged += (_, _) => dialog.IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(input.Text);
         if (await dialog.ShowAsync() == ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(input.Text))
         {

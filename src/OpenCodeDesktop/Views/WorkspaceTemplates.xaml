@@ -1,15 +1,97 @@
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <DataTemplate x:Key="BodyTextTemplate">
-        <TextBlock Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+    <DataTemplate x:Key="AddProjectDialogTemplate">
+        <ContentDialog Title="Add project" PrimaryButtonText="Add project" CloseButtonText="Cancel" DefaultButton="Primary">
+            <StackPanel Spacing="{StaticResource ShellSpaceSmall}">
+                <TextBlock Text="Open a directory that exists on the selected server. The client does not read this path locally." Style="{StaticResource ShellSecondaryTextStyle}" VerticalAlignment="Center" />
+                <TextBox x:Name="Directory" Header="Server-side directory" PlaceholderText="Path on the selected server" MaxLength="4096"
+                         AutomationProperties.Name="Server-side project directory" AutomationProperties.AutomationId="AddProjectDirectory" />
+            </StackPanel>
+        </ContentDialog>
     </DataTemplate>
-    <DataTemplate x:Key="MessageTemplate">
-        <Border Style="{StaticResource ShellCardStyle}">
-            <TextBlock x:Name="Message" Style="{StaticResource ShellSelectableBodyTextStyle}"/>
+    <DataTemplate x:Key="SearchSessionsDialogTemplate">
+        <ContentDialog PrimaryButtonText="Search" CloseButtonText="Cancel" DefaultButton="Primary">
+            <StackPanel Spacing="12">
+                <AutoSuggestBox x:Name="Query" Header="Session title" PlaceholderText="Empty search shows all titles"
+                                AutomationProperties.Name="Search session titles" AutomationProperties.AutomationId="SessionTitleSearch" />
+                <ToggleSwitch x:Name="Archived" Header="Archived history" AutomationProperties.AutomationId="SessionSearchArchived" />
+            </StackPanel>
+        </ContentDialog>
+    </DataTemplate>
+    <DataTemplate x:Key="RenameSessionDialogTemplate">
+        <ContentDialog Title="Rename session" PrimaryButtonText="Rename" CloseButtonText="Cancel" DefaultButton="Primary">
+            <StackPanel Spacing="12">
+                <TextBox x:Name="TitleInput" Header="Session title" AutomationProperties.Name="New session title" AutomationProperties.AutomationId="SessionRenameTitle" />
+                <TextBlock x:Name="Guidance" Style="{StaticResource ShellSecondaryTextStyle}" VerticalAlignment="Center" />
+            </StackPanel>
+        </ContentDialog>
+    </DataTemplate>
+    <DataTemplate x:Key="ConversationNoticeTemplate">
+        <Border Style="{StaticResource ShellSubtleCardStyle}" Padding="12,9">
+            <StackPanel Orientation="Horizontal" Spacing="{StaticResource ShellSpaceSmall}">
+                <FontIcon x:Name="Icon" Glyph="{StaticResource ShellIconInfo}" FontFamily="{StaticResource ShellIconFontFamily}" FontSize="{StaticResource ShellIconSmall}" IsHitTestVisible="False" />
+                <TextBlock x:Name="Message" Style="{StaticResource ShellSecondaryTextStyle}" VerticalAlignment="Center" />
+            </StackPanel>
         </Border>
     </DataTemplate>
-    <DataTemplate x:Key="ActionTemplate">
-        <Button/>
+    <DataTemplate x:Key="UserEntryTemplate">
+        <Border Background="{ThemeResource ShellAccentSurfaceBrush}" BorderBrush="{ThemeResource ShellAccentBrush}"
+                BorderThickness="{StaticResource ShellHairlineThickness}" CornerRadius="{StaticResource ShellCornerRadiusLarge}"
+                Padding="14,10" MaxWidth="620" HorizontalAlignment="Left">
+            <StackPanel x:Name="Segments" Spacing="6">
+                <TextBlock x:Name="Title" Style="{StaticResource ShellCaptionTextStyle}" FontWeight="SemiBold" Foreground="{ThemeResource ShellAccentTextBrush}" VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+    </DataTemplate>
+    <DataTemplate x:Key="AssistantEntryTemplate">
+        <Grid ColumnSpacing="12">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+            <Border Width="30" Height="30" CornerRadius="{StaticResource ShellCornerRadiusMedium}" Background="{ThemeResource ShellAccentSurfaceBrush}"
+                    BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="{StaticResource ShellHairlineThickness}" VerticalAlignment="Top">
+                <FontIcon Glyph="{StaticResource ShellIconAssistant}" FontFamily="{StaticResource ShellIconFontFamily}" FontSize="{StaticResource ShellIconMedium}" Foreground="{ThemeResource ShellAccentTextBrush}" IsHitTestVisible="False" />
+            </Border>
+            <StackPanel x:Name="Segments" Grid.Column="1" Spacing="6">
+                <TextBlock x:Name="Title" Style="{StaticResource ShellCaptionTextStyle}" FontWeight="SemiBold" VerticalAlignment="Center" />
+            </StackPanel>
+        </Grid>
+    </DataTemplate>
+    <DataTemplate x:Key="ActivityEntryTemplate">
+        <Border Padding="10,8" CornerRadius="{StaticResource ShellCornerRadiusMedium}" Background="{ThemeResource ShellSubtleSurfaceBrush}">
+            <StackPanel Orientation="Horizontal" Spacing="{StaticResource ShellSpaceSmall}">
+                <FontIcon Glyph="{StaticResource ShellIconInfo}" FontFamily="{StaticResource ShellIconFontFamily}" FontSize="{StaticResource ShellIconSmall}" Foreground="{ThemeResource ShellTextTertiaryBrush}" IsHitTestVisible="False" />
+                <StackPanel Spacing="2">
+                    <TextBlock x:Name="Title" Style="{StaticResource ShellTertiaryTextStyle}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="Message" Style="{StaticResource ShellTertiaryTextStyle}" VerticalAlignment="Center" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </DataTemplate>
+    <DataTemplate x:Key="ToolEntryTemplate">
+        <Border Style="{StaticResource ShellCardStyle}" Padding="12,10">
+            <StackPanel x:Name="Segments" Spacing="6">
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource ShellSpaceSmall}">
+                    <FontIcon x:Name="Icon" Glyph="{StaticResource ShellIconTool}" FontFamily="{StaticResource ShellIconFontFamily}" FontSize="{StaticResource ShellIconSmall}" IsHitTestVisible="False" />
+                    <TextBlock x:Name="Title" Style="{StaticResource ShellBodyStrongTextStyle}" VerticalAlignment="Center" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </DataTemplate>
+    <DataTemplate x:Key="ErrorEntryTemplate">
+        <Border Style="{StaticResource ShellCardStyle}" Background="{ThemeResource ShellDangerSurfaceBrush}" BorderBrush="{ThemeResource ShellDangerBrush}" Padding="12,10">
+            <StackPanel x:Name="Segments" Spacing="6">
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource ShellSpaceSmall}">
+                    <FontIcon Glyph="{StaticResource ShellIconError}" FontFamily="{StaticResource ShellIconFontFamily}" FontSize="{StaticResource ShellIconSmall}" Foreground="{ThemeResource ShellDangerBrush}" IsHitTestVisible="False" />
+                    <TextBlock x:Name="Title" Style="{StaticResource ShellBodyStrongTextStyle}" VerticalAlignment="Center" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </DataTemplate>
+    <DataTemplate x:Key="CodeBlockTemplate">
+        <Border Style="{StaticResource ShellCodeBlockStyle}" Padding="0">
+            <ScrollViewer x:Name="Scroll" MaxHeight="280" VerticalScrollBarVisibility="Auto" VerticalScrollMode="Auto" Padding="10,8">
+                <TextBlock x:Name="Code" VerticalAlignment="Center" />
+            </ScrollViewer>
+        </Border>
     </DataTemplate>
 </ResourceDictionary>

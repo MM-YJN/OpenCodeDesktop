@@ -9,6 +9,8 @@
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
                 <ResourceDictionary Source="Themes/ShellResources.xaml" />
+                <ResourceDictionary Source="Views/ShellFragments.xaml" />
+                <ResourceDictionary Source="Views/ConnectionTemplates.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

@@ -1,0 +1,94 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Loaded as independent instances; presenters supply data and event handlers. -->
+    <DataTemplate x:Key="ShellIconTemplate">
+        <FontIcon FontFamily="{StaticResource ShellIconFontFamily}" FontSize="{StaticResource ShellIconMedium}"
+                  VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False" />
+    </DataTemplate>
+    <DataTemplate x:Key="ShellTextTemplate">
+        <TextBlock Style="{StaticResource ShellBodyTextStyle}" VerticalAlignment="Center" />
+    </DataTemplate>
+    <DataTemplate x:Key="ShellLabelButtonTemplate">
+        <Button HorizontalContentAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="{StaticResource ShellSpaceSmall}" VerticalAlignment="Center">
+                <FontIcon x:Name="Icon" FontFamily="{StaticResource ShellIconFontFamily}" FontSize="{StaticResource ShellIconMedium}"
+                          VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False" />
+                <TextBlock x:Name="Label" Style="{StaticResource ShellBodyTextStyle}" TextWrapping="NoWrap" VerticalAlignment="Center" />
+            </StackPanel>
+        </Button>
+    </DataTemplate>
+    <DataTemplate x:Key="ShellIconButtonTemplate">
+        <Button>
+            <FontIcon x:Name="Icon" FontFamily="{StaticResource ShellIconFontFamily}" FontSize="{StaticResource ShellIconMedium}"
+                      VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False" />
+        </Button>
+    </DataTemplate>
+    <DataTemplate x:Key="ShellBadgeTemplate">
+        <Border Style="{StaticResource ShellBadgeStyle}" HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal" Spacing="{StaticResource ShellSpaceTiny}">
+                <FontIcon x:Name="Icon" FontFamily="{StaticResource ShellIconFontFamily}" FontSize="{StaticResource ShellIconSmall}"
+                          VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False" />
+                <TextBlock x:Name="Label" Style="{StaticResource ShellCaptionTextStyle}" FontWeight="SemiBold" TextWrapping="NoWrap" VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+    </DataTemplate>
+    <DataTemplate x:Key="ShellStatePanelTemplate">
+        <Border HorizontalAlignment="Center" VerticalAlignment="Top">
+            <StackPanel x:Name="Body" HorizontalAlignment="Center" MaxWidth="440">
+                <Border x:Name="IconSurface" Width="40" Height="40" CornerRadius="{StaticResource ShellCornerRadiusLarge}"
+                        BorderThickness="{StaticResource ShellHairlineThickness}" HorizontalAlignment="Center">
+                    <FontIcon x:Name="Icon" FontFamily="{StaticResource ShellIconFontFamily}" FontSize="{StaticResource ShellIconLarge}"
+                              VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False" />
+                </Border>
+                <TextBlock x:Name="Heading" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" />
+                <TextBlock x:Name="Description" Style="{StaticResource ShellSecondaryTextStyle}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" />
+                <StackPanel x:Name="Actions" Orientation="Horizontal" Spacing="{StaticResource ShellSpaceSmall}" HorizontalAlignment="Center" />
+            </StackPanel>
+        </Border>
+    </DataTemplate>
+    <DataTemplate x:Key="ProjectRowTemplate">
+        <Grid MinHeight="{StaticResource ShellTreeProjectRowHeight}" ColumnSpacing="{StaticResource ShellSpaceTiny}"
+              Padding="0,2,0,2" HorizontalAlignment="Stretch" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+            <!-- Fill the minimum height to stay centered beside the native chevron. -->
+            <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+            <FontIcon x:Name="Folder" Glyph="{StaticResource ShellIconFolder}" FontFamily="{StaticResource ShellIconFontFamily}"
+                      FontSize="{StaticResource ShellIconSmall}" VerticalAlignment="Center" IsHitTestVisible="False" />
+            <TextBlock x:Name="Label" Grid.Column="1" Style="{StaticResource ShellBodyTextStyle}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+            <StackPanel Grid.Column="2" Spacing="2" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button x:Name="NewSession" Style="{StaticResource ShellTreeActionButtonStyle}" AutomationProperties.AutomationId="ProjectNewSession">
+                    <FontIcon Glyph="{StaticResource ShellIconAdd}" FontFamily="{StaticResource ShellIconFontFamily}" FontSize="{StaticResource ShellIconMedium}" IsHitTestVisible="False" />
+                </Button>
+                <Button x:Name="More" Style="{StaticResource ShellTreeActionButtonStyle}" AutomationProperties.AutomationId="ProjectMoreActions">
+                    <FontIcon Glyph="{StaticResource ShellIconMore}" FontFamily="{StaticResource ShellIconFontFamily}" FontSize="{StaticResource ShellIconMedium}" IsHitTestVisible="False" />
+                </Button>
+            </StackPanel>
+            <TextBlock x:Name="Detail" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Style="{StaticResource ShellCaptionTextStyle}"
+                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        </Grid>
+    </DataTemplate>
+    <DataTemplate x:Key="SessionRowTemplate">
+        <Grid MinHeight="{StaticResource ShellTreeSessionRowHeight}" HorizontalAlignment="Stretch" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+            <TextBlock x:Name="Label" Style="{StaticResource ShellBodyTextStyle}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+            <Button x:Name="More" Grid.Column="1" Style="{StaticResource ShellTreeActionButtonStyle}"
+                    AutomationProperties.Name="Session actions" AutomationProperties.AutomationId="SessionMoreActions" ToolTipService.ToolTip="Session actions">
+                <FontIcon Glyph="{StaticResource ShellIconMore}" FontFamily="{StaticResource ShellIconFontFamily}" FontSize="{StaticResource ShellIconMedium}" IsHitTestVisible="False" />
+            </Button>
+        </Grid>
+    </DataTemplate>
+    <DataTemplate x:Key="DraftRowTemplate">
+        <Grid MinHeight="{StaticResource ShellTreeSessionRowHeight}" ColumnSpacing="{StaticResource ShellSpaceSmall}" HorizontalAlignment="Stretch" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+            <FontIcon x:Name="Icon" Glyph="{StaticResource ShellIconAdd}" FontFamily="{StaticResource ShellIconFontFamily}" FontSize="{StaticResource ShellIconSmall}" IsHitTestVisible="False" />
+            <TextBlock Grid.Column="1" Text="New session draft" Style="{StaticResource ShellSecondaryTextStyle}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        </Grid>
+    </DataTemplate>
+    <DataTemplate x:Key="LoadMoreRowTemplate">
+        <Grid MinHeight="{StaticResource ShellTreeSessionRowHeight}" HorizontalAlignment="Stretch" VerticalAlignment="Center">
+            <TextBlock Text="Load more sessions" Style="{StaticResource ShellTertiaryTextStyle}" TextWrapping="NoWrap" VerticalAlignment="Center" />
+        </Grid>
+    </DataTemplate>
+</ResourceDictionary>

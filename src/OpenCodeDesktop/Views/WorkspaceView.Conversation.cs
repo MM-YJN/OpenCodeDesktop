@@ -136,18 +136,13 @@ public sealed partial class WorkspaceView
         }
     }
 
-    private static Border Notice(string text, ShellTone tone)
+    private Border Notice(string text, ShellTone tone)
     {
-        StackPanel content = ShellUi.Stack(ShellUi.Dimension("ShellSpaceSmall"), Orientation.Horizontal);
-        content.Children.Add(ShellUi.Icon("ShellIconInfo", ShellUi.Dimension("ShellIconSmall"), ShellUi.ToneBrush(tone)));
-        content.Children.Add(ShellUi.Text(text, "ShellSecondaryTextStyle"));
-        return new Border
-        {
-            Style = ShellUi.Resource<Style>("ShellSubtleCardStyle"),
-            Background = ShellUi.ToneSurface(tone),
-            Padding = new Thickness(12, 9, 12, 9),
-            Child = content,
-        };
+        Border notice = WorkspaceTemplate<Border>("ConversationNoticeTemplate");
+        notice.Background = ShellUi.ToneSurface(tone);
+        ShellUi.Part<FontIcon>(notice, "Icon").Foreground = ShellUi.ToneBrush(tone);
+        ShellUi.Part<TextBlock>(notice, "Message").Text = text;
+        return notice;
     }
 
     private void RenderEntries(IReadOnlyList<ConversationEntry> entries, bool restorePending)
@@ -272,110 +267,47 @@ public sealed partial class WorkspaceView
 
     private FrameworkElement BuildUserEntry(ConversationEntry entry)
     {
-        StackPanel content = ShellUi.Stack(6);
-        TextBlock title = ShellUi.Text(entry.Title, "ShellCaptionTextStyle");
-        title.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
-        title.Foreground = ShellUi.Brush("ShellAccentTextBrush");
-        content.Children.Add(title);
-        AddSegments(content, entry, ShellUi.Brush("ShellTextPrimaryBrush"));
-        Border bubble = new()
-        {
-            Background = ShellUi.Brush("ShellAccentSurfaceBrush"),
-            BorderBrush = ShellUi.Brush("ShellAccentBrush"),
-            BorderThickness = ShellUi.Resource<Thickness>("ShellHairlineThickness"),
-            CornerRadius = ShellUi.Resource<CornerRadius>("ShellCornerRadiusLarge"),
-            Padding = new Thickness(14, 10, 14, 10),
-            MaxWidth = 620,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Child = content,
-        };
+        Border bubble = WorkspaceTemplate<Border>("UserEntryTemplate");
+        ShellUi.Part<TextBlock>(bubble, "Title").Text = entry.Title;
+        AddSegments(ShellUi.Part<StackPanel>(bubble, "Segments"), entry, ShellUi.Brush("ShellTextPrimaryBrush"));
         AutomationProperties.SetName(bubble, entry.AutomationName);
         return bubble;
     }
 
     private FrameworkElement BuildAssistantEntry(ConversationEntry entry)
     {
-        Grid layout = new() { ColumnSpacing = 12 };
-        layout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        Border avatar = new()
-        {
-            Width = 30,
-            Height = 30,
-            CornerRadius = ShellUi.Resource<CornerRadius>("ShellCornerRadiusMedium"),
-            Background = ShellUi.Brush("ShellAccentSurfaceBrush"),
-            BorderBrush = ShellUi.Brush("ShellBorderBrush"),
-            BorderThickness = ShellUi.Resource<Thickness>("ShellHairlineThickness"),
-            Child = ShellUi.Icon("ShellIconAssistant", ShellUi.Dimension("ShellIconMedium"), ShellUi.Brush("ShellAccentTextBrush")),
-            VerticalAlignment = VerticalAlignment.Top,
-        };
-        layout.Children.Add(avatar);
-        StackPanel content = ShellUi.Stack(6);
-        Grid.SetColumn(content, 1);
-        TextBlock title = ShellUi.Text(entry.Title, "ShellCaptionTextStyle");
-        title.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
-        content.Children.Add(title);
-        AddSegments(content, entry, ShellUi.Brush("ShellTextPrimaryBrush"));
-        layout.Children.Add(content);
+        Grid layout = WorkspaceTemplate<Grid>("AssistantEntryTemplate");
+        ShellUi.Part<TextBlock>(layout, "Title").Text = entry.Title;
+        AddSegments(ShellUi.Part<StackPanel>(layout, "Segments"), entry, ShellUi.Brush("ShellTextPrimaryBrush"));
         AutomationProperties.SetName(layout, entry.AutomationName);
         return layout;
     }
 
     private FrameworkElement BuildActivityEntry(ConversationEntry entry)
     {
-        StackPanel content = ShellUi.Stack(ShellUi.Dimension("ShellSpaceSmall"), Orientation.Horizontal);
-        content.Children.Add(ShellUi.Icon("ShellIconInfo", ShellUi.Dimension("ShellIconSmall"), ShellUi.Brush("ShellTextTertiaryBrush")));
-        StackPanel text = ShellUi.Stack(2);
-        text.Children.Add(ShellUi.Text(entry.Title, "ShellTertiaryTextStyle"));
-        text.Children.Add(ShellUi.Text(entry.PlainText, "ShellTertiaryTextStyle"));
-        content.Children.Add(text);
-        Border card = new()
-        {
-            Padding = new Thickness(10, 8, 10, 8),
-            CornerRadius = ShellUi.Resource<CornerRadius>("ShellCornerRadiusMedium"),
-            Background = ShellUi.Brush("ShellSubtleSurfaceBrush"),
-            Child = content,
-        };
+        Border card = WorkspaceTemplate<Border>("ActivityEntryTemplate");
+        ShellUi.Part<TextBlock>(card, "Title").Text = entry.Title;
+        ShellUi.Part<TextBlock>(card, "Message").Text = entry.PlainText;
         AutomationProperties.SetName(card, entry.AutomationName);
         return card;
     }
 
     private FrameworkElement BuildToolEntry(string title, string text, string? toolName, bool warning)
     {
-        StackPanel content = ShellUi.Stack(6);
-        StackPanel header = ShellUi.Stack(ShellUi.Dimension("ShellSpaceSmall"), Orientation.Horizontal);
-        header.Children.Add(ShellUi.Icon("ShellIconTool", ShellUi.Dimension("ShellIconSmall"), warning ? ShellUi.Brush("ShellWarningBrush") : ShellUi.Brush("ShellAccentBrush")));
-        header.Children.Add(ShellUi.Text(toolName is { Length: > 0 } ? "Tool · " + toolName : title, "ShellBodyStrongTextStyle"));
-
-        content.Children.Add(header);
-        content.Children.Add(CodeBlock(text, wrap: true));
-        Border card = new()
-        {
-            Style = ShellUi.Resource<Style>("ShellCardStyle"),
-            Padding = new Thickness(12, 10, 12, 10),
-            BorderBrush = warning ? ShellUi.Brush("ShellWarningBrush") : ShellUi.Brush("ShellBorderBrush"),
-            Child = content,
-        };
+        Border card = WorkspaceTemplate<Border>("ToolEntryTemplate");
+        ShellUi.Part<TextBlock>(card, "Title").Text = toolName is { Length: > 0 } ? "Tool · " + toolName : title;
+        ShellUi.Part<FontIcon>(card, "Icon").Foreground = ShellUi.Brush(warning ? "ShellWarningBrush" : "ShellAccentBrush");
+        ShellUi.Part<StackPanel>(card, "Segments").Children.Add(CodeBlock(text, wrap: true));
+        card.BorderBrush = ShellUi.Brush(warning ? "ShellWarningBrush" : "ShellBorderBrush");
         AutomationProperties.SetName(card, title + ": " + text);
         return card;
     }
 
     private FrameworkElement BuildErrorEntry(ConversationEntry entry)
     {
-        StackPanel content = ShellUi.Stack(6);
-        StackPanel header = ShellUi.Stack(ShellUi.Dimension("ShellSpaceSmall"), Orientation.Horizontal);
-        header.Children.Add(ShellUi.Icon("ShellIconError", ShellUi.Dimension("ShellIconSmall"), ShellUi.Brush("ShellDangerBrush")));
-        header.Children.Add(ShellUi.Text(entry.Title, "ShellBodyStrongTextStyle"));
-        content.Children.Add(header);
-        AddSegments(content, entry, ShellUi.Brush("ShellDangerBrush"));
-        Border card = new()
-        {
-            Style = ShellUi.Resource<Style>("ShellCardStyle"),
-            Background = ShellUi.Brush("ShellDangerSurfaceBrush"),
-            BorderBrush = ShellUi.Brush("ShellDangerBrush"),
-            Padding = new Thickness(12, 10, 12, 10),
-            Child = content,
-        };
+        Border card = WorkspaceTemplate<Border>("ErrorEntryTemplate");
+        ShellUi.Part<TextBlock>(card, "Title").Text = entry.Title;
+        AddSegments(ShellUi.Part<StackPanel>(card, "Segments"), entry, ShellUi.Brush("ShellDangerBrush"));
         AutomationProperties.SetName(card, entry.AutomationName);
         return card;
     }
@@ -407,24 +339,15 @@ public sealed partial class WorkspaceView
         }
     }
 
-    private static Border CodeBlock(string text, bool wrap)
+    private Border CodeBlock(string text, bool wrap)
     {
-        TextBlock code = ShellUi.Text(text, wrap ? "ShellWrappedCodeTextStyle" : "ShellCodeTextStyle");
-        ScrollViewer scroll = new()
-        {
-            Content = code,
-            MaxHeight = 280,
-            HorizontalScrollBarVisibility = wrap ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Auto,
-            HorizontalScrollMode = wrap ? ScrollMode.Disabled : ScrollMode.Auto,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            VerticalScrollMode = ScrollMode.Auto,
-            Padding = new Thickness(10, 8, 10, 8),
-        };
-        return new Border
-        {
-            Style = ShellUi.Resource<Style>("ShellCodeBlockStyle"),
-            Padding = new Thickness(0),
-            Child = scroll,
-        };
+        Border block = WorkspaceTemplate<Border>("CodeBlockTemplate");
+        TextBlock code = ShellUi.Part<TextBlock>(block, "Code");
+        code.Text = text;
+        code.Style = ShellUi.Resource<Style>(wrap ? "ShellWrappedCodeTextStyle" : "ShellCodeTextStyle");
+        ScrollViewer scroll = ShellUi.Part<ScrollViewer>(block, "Scroll");
+        scroll.HorizontalScrollBarVisibility = wrap ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Auto;
+        scroll.HorizontalScrollMode = wrap ? ScrollMode.Disabled : ScrollMode.Auto;
+        return block;
     }
 }

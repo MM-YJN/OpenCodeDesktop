@@ -140,99 +140,51 @@ public sealed partial class ConnectionView : UserControl
         foreach (ServerProfile profile in _connections.Profiles)
         {
             ConnectionCardPresentation presentation = ShellPresentation.ConnectionCard(profile, _connections.Active, _connections.ConnectingId, busy);
-            Border card = new()
-            {
-                Style = ShellUi.Resource<Style>("ShellCardStyle"),
-                Padding = new Thickness(14, 12, 12, 12),
-                Background = presentation.IsActive ? ShellUi.Brush("ShellAccentSurfaceBrush") : ShellUi.Brush("ShellCardSurfaceBrush"),
-                BorderBrush = presentation.IsActive ? ShellUi.Brush("ShellAccentBrush") : ShellUi.Brush("ShellBorderBrush"),
-            };
-
-            Grid layout = new() { ColumnSpacing = 12 };
-            layout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            layout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            Border iconSurface = new()
-            {
-                Width = 32,
-                Height = 32,
-                CornerRadius = ShellUi.Resource<CornerRadius>("ShellCornerRadiusMedium"),
-                Background = presentation.IsActive ? ShellUi.Brush("ShellConnectedSurfaceBrush") : ShellUi.Brush("ShellSubtleSurfaceBrush"),
-                BorderBrush = presentation.IsActive ? ShellUi.Brush("ShellConnectedBrush") : ShellUi.Brush("ShellBorderBrush"),
-                BorderThickness = ShellUi.Resource<Thickness>("ShellHairlineThickness"),
-                Child = ShellUi.Icon(presentation.IsActive ? "ShellIconCheck" : "ShellIconServer", ShellUi.Dimension("ShellIconMedium"),
-                    presentation.IsActive ? ShellUi.Brush("ShellConnectedBrush") : ShellUi.Brush("ShellTextSecondaryBrush")),
-                VerticalAlignment = VerticalAlignment.Top,
-            };
-            layout.Children.Add(iconSurface);
-
-            StackPanel details = ShellUi.Stack(4);
-            Grid.SetColumn(details, 1);
-            TextBlock name = ShellUi.Text(presentation.Name, "ShellBodyStrongTextStyle");
-            TextBlock address = ShellUi.Text(presentation.Address, "ShellTertiaryTextStyle", TextWrapping.NoWrap);
-            address.TextTrimming = TextTrimming.CharacterEllipsis;
+            Border card = ShellUi.Template<Border>("ConnectionCardTemplate");
+            card.Background = ShellUi.Brush(presentation.IsActive ? "ShellAccentSurfaceBrush" : "ShellCardSurfaceBrush");
+            card.BorderBrush = ShellUi.Brush(presentation.IsActive ? "ShellAccentBrush" : "ShellBorderBrush");
+            Border iconSurface = ShellUi.Part<Border>(card, "IconSurface");
+            iconSurface.Background = ShellUi.Brush(presentation.IsActive ? "ShellConnectedSurfaceBrush" : "ShellSubtleSurfaceBrush");
+            iconSurface.BorderBrush = ShellUi.Brush(presentation.IsActive ? "ShellConnectedBrush" : "ShellBorderBrush");
+            FontIcon icon = ShellUi.Part<FontIcon>(card, "Icon");
+            icon.Glyph = ShellUi.Glyph(presentation.IsActive ? "ShellIconCheck" : "ShellIconServer");
+            icon.Foreground = ShellUi.Brush(presentation.IsActive ? "ShellConnectedBrush" : "ShellTextSecondaryBrush");
+            ShellUi.Part<TextBlock>(card, "Name").Text = presentation.Name;
+            TextBlock address = ShellUi.Part<TextBlock>(card, "Address");
+            address.Text = presentation.Address;
             ShellUi.Tooltip(address, presentation.Address);
-            StackPanel stateRow = ShellUi.Stack(8, Orientation.Horizontal);
-            stateRow.Children.Add(ShellUi.Badge(presentation.StateLabel, presentation.IsActive ? ShellTone.Success : presentation.IsConnecting ? ShellTone.Info : ShellTone.Neutral,
-                presentation.IsActive ? "ShellIconCheck" : presentation.IsConnecting ? "ShellIconClock" : null));
-            if (presentation.IsActive && _connections.Active is { } active)
+            ShellUi.Part<ContentControl>(card, "State").Content = ShellUi.Badge(presentation.StateLabel,
+                presentation.IsActive ? ShellTone.Success : presentation.IsConnecting ? ShellTone.Info : ShellTone.Neutral,
+                presentation.IsActive ? "ShellIconCheck" : presentation.IsConnecting ? "ShellIconClock" : null);
+            TextBlock version = ShellUi.Part<TextBlock>(card, "Version");
+            version.Text = presentation.IsActive && _connections.Active is { } active ? "OpenCode " + active.Version : "";
+            version.Visibility = version.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            Button select = ShellUi.Part<Button>(card, "Select");
+            select.Content = presentation.PrimaryActionLabel;
+            select.Style = ShellUi.Resource<Style>(presentation.IsActive ? "ShellSecondaryButtonStyle" : "ShellPrimaryButtonStyle");
+            AutomationProperties.SetName(select, presentation.AutomationName);
+            select.Click += (_, _) => Edit(profile);
+            Button disconnect = ShellUi.Part<Button>(card, "Disconnect");
+            disconnect.Visibility = presentation.IsActive ? Visibility.Visible : Visibility.Collapsed;
+            disconnect.Click += (_, _) =>
             {
-                stateRow.Children.Add(ShellUi.Text("OpenCode " + active.Version, "ShellCaptionTextStyle", TextWrapping.NoWrap));
-            }
-
-            details.Children.Add(name);
-            details.Children.Add(address);
-            details.Children.Add(stateRow);
-            layout.Children.Add(details);
-
-            StackPanel actions = ShellUi.Stack(8, Orientation.Horizontal);
-            Grid.SetColumn(actions, 2);
-            actions.VerticalAlignment = VerticalAlignment.Center;
-            Button select = ShellUi.LabelButton(presentation.PrimaryActionLabel, null, (_, _) => Edit(profile),
-                presentation.IsActive ? "ShellSecondaryButtonStyle" : "ShellPrimaryButtonStyle", presentation.AutomationName);
-            actions.Children.Add(select);
-            if (presentation.IsActive)
+                ClearPassword();
+                _connections.Disconnect();
+                _showFeedback = true;
+                Refresh();
+            };
+            Button more = ShellUi.Part<Button>(card, "More");
+            more.Visibility = !presentation.IsActive && presentation.CanRemove ? Visibility.Visible : Visibility.Collapsed;
+            AutomationProperties.SetName(more, "More actions for " + profile.Name);
+            ShellUi.Tooltip(more, "More actions for " + profile.Name);
+            ShellUi.Part<MenuFlyoutItem>(card, "Edit").Click += (_, _) => Edit(profile);
+            ShellUi.Part<MenuFlyoutItem>(card, "Remove").Click += (_, _) =>
             {
-                Button disconnect = ShellUi.LabelButton("Disconnect", null, (_, _) =>
-                {
-                    ClearPassword();
-                    _connections.Disconnect();
-                    _showFeedback = true;
-                    Refresh();
-                }, "ShellQuietButtonStyle", "Disconnect active server");
-                actions.Children.Add(disconnect);
-            }
-            else if (presentation.CanRemove)
-            {
-                Button more = ShellUi.IconButton("ShellIconMore", "More actions for " + profile.Name, (_, _) => { });
-                more.Flyout = BuildProfileMenu(profile);
-                actions.Children.Add(more);
-            }
-
-            layout.Children.Add(actions);
-            card.Child = layout;
+                if (_connections.Remove(profile.Id) && _editingId == profile.Id) { Edit(null); }
+            };
             AutomationProperties.SetName(card, presentation.AutomationName);
             ServerList.Children.Add(card);
         }
-    }
-
-    private MenuFlyout BuildProfileMenu(ServerProfile profile)
-    {
-        MenuFlyout menu = new();
-        MenuFlyoutItem edit = new() { Text = "Edit server", Icon = new FontIcon { Glyph = ShellUi.Glyph("ShellIconEdit") } };
-        edit.Click += (_, _) => Edit(profile);
-        menu.Items.Add(edit);
-        MenuFlyoutItem remove = new() { Text = "Remove server", Icon = new FontIcon { Glyph = ShellUi.Glyph("ShellIconDelete") } };
-        remove.Click += (_, _) =>
-        {
-            if (_connections.Remove(profile.Id) && _editingId == profile.Id)
-            {
-                Edit(null);
-            }
-        };
-        menu.Items.Add(remove);
-        return menu;
     }
 
     private ServerProfile? Save()

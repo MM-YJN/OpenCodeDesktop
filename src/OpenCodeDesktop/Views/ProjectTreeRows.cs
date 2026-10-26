@@ -26,47 +26,14 @@ internal sealed class ProjectRowView : IProjectTreeRow
 
     internal ProjectRowView(ProjectTreeNodePresentation model, Action newSession)
     {
-        Root = new Grid
-        {
-            MinHeight = ShellUi.Dimension("ShellTreeProjectRowHeight"),
-            ColumnSpacing = ShellUi.Dimension("ShellSpaceTiny"),
-            Padding = new Thickness(0, 2, 0, 2),
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        Root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        Root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        Root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        // Fill the minimum row height so the header stays centered beside the native chevron.
-        Root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        Root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-        _folder = ShellUi.Icon("ShellIconFolder", ShellUi.Dimension("ShellIconSmall"));
-        _folder.VerticalAlignment = VerticalAlignment.Center;
-        Root.Children.Add(_folder);
-
-        _name = ShellUi.Text("", "ShellBodyTextStyle", TextWrapping.NoWrap);
-        _name.TextTrimming = TextTrimming.CharacterEllipsis;
-        _name.VerticalAlignment = VerticalAlignment.Center;
-        Grid.SetColumn(_name, 1);
-        Root.Children.Add(_name);
-
-        StackPanel actions = ShellUi.Stack(2, Orientation.Horizontal);
-        actions.VerticalAlignment = VerticalAlignment.Center;
-        _newSession = ShellUi.IconButton("ShellIconAdd", "New session draft", (_, _) => newSession(), "ShellTreeActionButtonStyle");
-        _more = ShellUi.IconButton("ShellIconMore", "More actions", (_, _) => { }, "ShellTreeActionButtonStyle");
-        actions.Children.Add(_newSession);
-        actions.Children.Add(_more);
-        Grid.SetColumn(actions, 2);
-        Root.Children.Add(actions);
-
-        _detail = ShellUi.Text("", "ShellCaptionTextStyle", TextWrapping.NoWrap);
-        _detail.TextTrimming = TextTrimming.CharacterEllipsis;
+        Root = ShellUi.Template<Grid>("ProjectRowTemplate");
+        _folder = ShellUi.Part<FontIcon>(Root, "Folder");
+        _name = ShellUi.Part<TextBlock>(Root, "Label");
+        _newSession = ShellUi.Part<Button>(Root, "NewSession");
+        _newSession.Click += (_, _) => newSession();
+        _more = ShellUi.Part<Button>(Root, "More");
+        _detail = ShellUi.Part<TextBlock>(Root, "Detail");
         _detail.Margin = new Thickness(ShellUi.Dimension("ShellIconSmall") + ShellUi.Dimension("ShellSpaceTiny"), 0, 0, 0);
-        Grid.SetRow(_detail, 1);
-        Grid.SetColumn(_detail, 1);
-        Grid.SetColumnSpan(_detail, 2);
-        Root.Children.Add(_detail);
 
         Update(model, true);
     }
@@ -107,21 +74,10 @@ internal sealed class SessionRowView : IProjectTreeRow
 
     internal SessionRowView(ProjectTreeNodePresentation model)
     {
-        Root = new Grid
-        {
-            MinHeight = ShellUi.Dimension("ShellTreeSessionRowHeight"),
-            Padding = new Thickness(2, 0, ShellUi.Dimension("ShellSpaceSmall"), 0),
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        _title = ShellUi.Text("", "ShellBodyTextStyle", TextWrapping.NoWrap);
-        _title.TextTrimming = TextTrimming.CharacterEllipsis;
-        Root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        Root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        Root.Children.Add(_title);
-        MoreButton = ShellUi.IconButton("ShellIconMore", "Session actions", (_, _) => { }, "ShellTreeActionButtonStyle");
-        Grid.SetColumn(MoreButton, 1);
-        Root.Children.Add(MoreButton);
+        Root = ShellUi.Template<Grid>("SessionRowTemplate");
+        Root.Padding = new Thickness(2, 0, ShellUi.Dimension("ShellSpaceSmall"), 0);
+        _title = ShellUi.Part<TextBlock>(Root, "Label");
+        MoreButton = ShellUi.Part<Button>(Root, "More");
         Update(model, true);
     }
 
@@ -145,22 +101,9 @@ internal sealed class DraftRowView : IProjectTreeRow
 
     internal DraftRowView(ProjectTreeNodePresentation model)
     {
-        Root = new Grid
-        {
-            MinHeight = ShellUi.Dimension("ShellTreeSessionRowHeight"),
-            ColumnSpacing = ShellUi.Dimension("ShellSpaceSmall"),
-            Padding = new Thickness(2, 0, ShellUi.Dimension("ShellSpaceSmall"), 0),
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        Root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        Root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        _icon = ShellUi.Icon("ShellIconAdd", ShellUi.Dimension("ShellIconSmall"));
-        Root.Children.Add(_icon);
-        TextBlock label = ShellUi.Text("New session draft", "ShellSecondaryTextStyle", TextWrapping.NoWrap);
-        label.TextTrimming = TextTrimming.CharacterEllipsis;
-        Grid.SetColumn(label, 1);
-        Root.Children.Add(label);
+        Root = ShellUi.Template<Grid>("DraftRowTemplate");
+        Root.Padding = new Thickness(2, 0, ShellUi.Dimension("ShellSpaceSmall"), 0);
+        _icon = ShellUi.Part<FontIcon>(Root, "Icon");
         Update(model, true);
     }
 
@@ -179,15 +122,8 @@ internal sealed class LoadMoreRowView : IProjectTreeRow
 {
     internal LoadMoreRowView(ProjectTreeNodePresentation model)
     {
-        Root = new Grid
-        {
-            MinHeight = ShellUi.Dimension("ShellTreeSessionRowHeight"),
-            Padding = new Thickness(2, 0, ShellUi.Dimension("ShellSpaceSmall"), 0),
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        TextBlock label = ShellUi.Text("Load more sessions", "ShellTertiaryTextStyle", TextWrapping.NoWrap);
-        Root.Children.Add(label);
+        Root = ShellUi.Template<Grid>("LoadMoreRowTemplate");
+        Root.Padding = new Thickness(2, 0, ShellUi.Dimension("ShellSpaceSmall"), 0);
         Update(model, true);
     }
 

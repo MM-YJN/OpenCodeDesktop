@@ -28,17 +28,13 @@ public sealed partial class WorkspaceView
     {
         WorkspaceProject? project = live.Projects.FirstOrDefault(p => p.Location.Directory == directory);
         if (project is null) { return; }
-        AutoSuggestBox query = new() { Header = "Session title", Text = project.Filter.Search, PlaceholderText = "Empty search shows all titles" };
-        AutomationProperties.SetName(query, "Search session titles");
-        AutomationProperties.SetAutomationId(query, "SessionTitleSearch");
-        ToggleSwitch archived = new() { Header = "Archived history", IsOn = project.Filter.Archived };
-        AutomationProperties.SetAutomationId(archived, "SessionSearchArchived");
-        ContentDialog dialog = new()
-        {
-            Title = "Search sessions in " + ProjectTreeNodePresentation.DisplayName(directory),
-            Content = new StackPanel { Spacing = 12, Children = { query, archived } },
-            PrimaryButtonText = "Search", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = XamlRoot,
-        };
+        ContentDialog dialog = WorkspaceTemplate<ContentDialog>("SearchSessionsDialogTemplate");
+        dialog.Title = "Search sessions in " + ProjectTreeNodePresentation.DisplayName(directory);
+        dialog.XamlRoot = XamlRoot;
+        AutoSuggestBox query = ShellUi.Part<AutoSuggestBox>(dialog, "Query");
+        query.Text = project.Filter.Search;
+        ToggleSwitch archived = ShellUi.Part<ToggleSwitch>(dialog, "Archived");
+        archived.IsOn = project.Filter.Archived;
         bool submitted = false;
         query.QuerySubmitted += (_, _) => { submitted = true; dialog.Hide(); };
         ContentDialogResult result = await ShowOrganizationDialogAsync(dialog);
@@ -81,18 +77,13 @@ public sealed partial class WorkspaceView
 
     private async Task RenameSessionDialogAsync(LiveWorkspace live, WorkspaceSession session)
     {
-        TextBox title = new() { Header = "Session title", Text = session.Title, MaxLength = SessionTitles.MaximumLength };
-        AutomationProperties.SetName(title, "New session title");
-        AutomationProperties.SetAutomationId(title, "SessionRenameTitle");
-        ContentDialog dialog = new()
-        {
-            Title = "Rename session", Content = new StackPanel
-            {
-                Spacing = 12, Children = { title, ShellUi.Text(SessionTitles.Guidance, "ShellSecondaryTextStyle") },
-            },
-            PrimaryButtonText = "Rename", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary,
-            IsPrimaryButtonEnabled = SessionTitles.IsValid(title.Text), XamlRoot = XamlRoot,
-        };
+        ContentDialog dialog = WorkspaceTemplate<ContentDialog>("RenameSessionDialogTemplate");
+        dialog.XamlRoot = XamlRoot;
+        TextBox title = ShellUi.Part<TextBox>(dialog, "TitleInput");
+        title.Text = session.Title;
+        title.MaxLength = SessionTitles.MaximumLength;
+        ShellUi.Part<TextBlock>(dialog, "Guidance").Text = SessionTitles.Guidance;
+        dialog.IsPrimaryButtonEnabled = SessionTitles.IsValid(title.Text);
         title.TextChanged += (_, _) => dialog.IsPrimaryButtonEnabled = SessionTitles.IsValid(title.Text);
         if (await ShowOrganizationDialogAsync(dialog) == ContentDialogResult.Primary && _live == live)
         {
