@@ -22,12 +22,14 @@ public sealed partial class WorkspaceView : UserControl
     private double _detailsWidth = ShellUi.Dimension("ShellDetailsWidth");
 
     public event EventHandler? SettingsRequested;
+    internal event EventHandler? ProjectsPaneChanged;
     internal Button ConnectionSelector => ServerSelector;
 
     public WorkspaceView()
     {
         InitializeComponent();
         InitializeTabs();
+        ProjectsLayout.RegisterPropertyChangedCallback(SplitView.IsPaneOpenProperty, (_, _) => ProjectsPaneChanged?.Invoke(this, EventArgs.Empty));
         KeyboardAccelerator send = new() { Key = VirtualKey.Enter, Modifiers = VirtualKeyModifiers.Control };
         send.Invoked += async (_, args) =>
         {
@@ -80,7 +82,21 @@ public sealed partial class WorkspaceView : UserControl
     private T WorkspaceTemplate<T>(string key) where T : FrameworkElement =>
         (T)((DataTemplate)Resources[key]).LoadContent();
 
-    internal void FocusWorkspace() => ProjectsToggle.Focus(FocusState.Programmatic);
+    internal bool IsProjectsPaneOpen => ProjectsLayout.IsPaneOpen;
+
+    internal void ToggleProjectsPane() => ProjectsLayout.IsPaneOpen = !ProjectsLayout.IsPaneOpen;
+
+    internal void FocusWorkspace()
+    {
+        if (ProjectsLayout.IsPaneOpen)
+        {
+            ServerSelector.Focus(FocusState.Programmatic);
+        }
+        else
+        {
+            DetailsToggle.Focus(FocusState.Programmatic);
+        }
+    }
 
     private void RefreshThemeProjections()
     {
@@ -145,7 +161,6 @@ public sealed partial class WorkspaceView : UserControl
     }
 
     private void Settings_Click(object sender, RoutedEventArgs args) => SettingsRequested?.Invoke(this, EventArgs.Empty);
-    private void Projects_Click(object sender, RoutedEventArgs args) => ProjectsLayout.IsPaneOpen = !ProjectsLayout.IsPaneOpen;
     private void Details_Click(object sender, RoutedEventArgs args) => DetailsLayout.IsPaneOpen = !DetailsLayout.IsPaneOpen;
 
     private void CloseDetails_Click(object sender, RoutedEventArgs args)

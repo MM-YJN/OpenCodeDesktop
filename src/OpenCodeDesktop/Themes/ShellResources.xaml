@@ -155,7 +155,7 @@
     <x:Double x:Key="ShellWindowInitialHeight">900</x:Double>
     <x:Double x:Key="ShellWindowMinimumWidth">640</x:Double>
     <x:Double x:Key="ShellWindowMinimumHeight">480</x:Double>
-    <x:Double x:Key="ShellTitleBarHeight">32</x:Double>
+    <x:Double x:Key="ShellTitleBarHeight">48</x:Double>
     <x:Double x:Key="ShellStatusIndicatorSize">8</x:Double>
     <x:Double x:Key="ShellProjectsPanelWidth">288</x:Double>
     <x:Double x:Key="ShellProjectsInlineThreshold">1000</x:Double>

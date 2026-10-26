@@ -100,6 +100,7 @@ Keep deliverables and their work item records consistent and, when committing, i
 - For XAML, Windows API, startup, or native UI verification work, use the repository-local [winapp-workflow skill](.agents/skills/winapp-workflow/SKILL.md). It adds project-specific build, launch, and evidence requirements and routes to the vendored Microsoft skills for discovery, design, UI Automation, live XAML inspection, and diagnostics. See the [skill source and maintenance notes](.agents/skills/README.md).
 
 - Inspect existing code before editing and preserve unrelated work.
+- Prefer XAML for creating controls and defining layouts, styles, and templates. Use XAML templates or reusable XAML views for repeated and dynamically populated UI. Keep C# focused on data, state updates, and event handling; create controls directly in C# only when runtime requirements make XAML impractical.
 - Place code in the module that owns its responsibility; introduce folders when there is actual code to organize.
 - Follow the existing nullable-reference and formatting conventions.
 - Keep the Core and Infrastructure libraries on their UI-independent target framework unless a concrete requirement justifies a change.

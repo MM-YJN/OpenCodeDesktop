@@ -47,7 +47,7 @@ Dynamic brush assignments in code must use `ShellUi.Brush` rather than indexing 
 
 ## Typography, spacing and sizing
 
-All dimensions are DIPs. System text scaling remains enabled. The custom title bar is 32 DIP tall, matching the Windows caption-button height.
+All dimensions are DIPs. System text scaling remains enabled. The custom title bar is 48 DIP tall, using the Tall caption-button option, and hosts the brand row plus the Projects pane toggle.
 
 | Resources | Value / purpose |
 | --- | --- |
@@ -58,7 +58,7 @@ All dimensions are DIPs. System text scaling remains enabled. The custom title b
 | `ShellSpaceTiny`, `ShellSpaceSmall`, `ShellSpaceCompact`, `ShellSpaceMedium`, `ShellSpaceLarge`, `ShellSpaceXLarge` | 4, 8, 12, 16, 24, 32 |
 | `ShellCardPadding`, `ShellCardSpaciousPadding` | 16 and 24 |
 | `ShellCornerRadiusSmall`, `ShellCornerRadiusMedium`, `ShellCardCornerRadius`, `ShellCornerRadiusLarge`, `ShellCornerRadiusBadge` | 4, 6, 8, 12 and badge |
-| `ShellTitleBarHeight`, `ShellTitleBarPadding` | 32; 16 DIP left inset for the brand row |
+| `ShellTitleBarHeight`, `ShellTitleBarPadding` | 48; 16 DIP left inset for the brand row and Projects pane toggle |
 | `ShellStatusIndicatorSize`, `ShellStatusIndicatorCornerRadius` | 8; 2. Use a rounded rectangle, never a circle/ellipse |
 | `ShellContentMaximumWidth`, `ShellComposerMaximumWidth` | 760 and 860 for readable line lengths |
 | `ShellWindowInitialWidth`, `ShellWindowInitialHeight` | 1440 × 900 DIP, capped to the current display work area |

@@ -343,7 +343,7 @@ public sealed partial class WorkspaceView
                 }
                 else
                 {
-                    ProjectsToggle.Focus(FocusState.Programmatic);
+                    FocusWorkspace();
                 }
             }
         }
@@ -387,7 +387,7 @@ public sealed partial class WorkspaceView
         }
         if (_tabs.Active is null)
         {
-            ProjectsToggle.Focus(FocusState.Programmatic);
+            FocusWorkspace();
         }
     }
 }

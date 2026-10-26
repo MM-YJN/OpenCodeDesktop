@@ -78,17 +78,8 @@
             </SplitView.Pane>
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                <Grid ColumnSpacing="4" Background="{ThemeResource ShellSurfaceBrush}">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <StackPanel Orientation="Horizontal" Spacing="4">
-                        <Button x:Name="ProjectsToggle" Style="{StaticResource ShellQuietButtonStyle}" Click="Projects_Click" AutomationProperties.Name="Toggle Projects">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon Glyph="&#xE8B7;" Style="{StaticResource ShellIconTextStyle}" />
-                                <TextBlock Text="Projects" Style="{StaticResource ShellBodyTextStyle}" />
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
-                    <TabView x:Name="WorkspaceTabStrip" Grid.Column="1" IsAddTabButtonVisible="False" CanDragTabs="False" CanReorderTabs="False" TabWidthMode="Equal" SelectionChanged="WorkspaceTabs_SelectionChangedAsync" TabCloseRequested="WorkspaceTabs_CloseRequestedAsync" AutomationProperties.Name="Workspace tabs"/>
+                <Grid Background="{ThemeResource ShellSurfaceBrush}">
+                    <TabView x:Name="WorkspaceTabStrip" IsAddTabButtonVisible="False" CanDragTabs="False" CanReorderTabs="False" TabWidthMode="Equal" SelectionChanged="WorkspaceTabs_SelectionChangedAsync" TabCloseRequested="WorkspaceTabs_CloseRequestedAsync" AutomationProperties.Name="Workspace tabs"/>
                 </Grid>
                 <views:ProjectFilesView x:Name="FilesContent" Grid.Row="1" Visibility="Collapsed"/>
                 <StackPanel x:Name="NeutralState" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24" Spacing="12" Visibility="Collapsed">

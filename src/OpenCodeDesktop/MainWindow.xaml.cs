@@ -6,6 +6,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 
 using OpenCodeDesktop.Core.Connections;
 using OpenCodeDesktop.Core.Workspaces;
@@ -44,6 +45,7 @@ public sealed partial class MainWindow : Window
         ShellContentHost.Children.Add(_settingsView);
         _settingsView.Visibility = Visibility.Collapsed;
         _workspaceView.SettingsRequested += (_, _) => ShowSettings(true);
+        _workspaceView.ProjectsPaneChanged += WorkspaceView_PaneChanged;
         _settingsView.ReturnRequested += (_, _) => ShowSettings(false);
         _connections.Changed += Connections_Changed;
         _liveWorkspace.Changed += Workspace_Changed;
@@ -69,6 +71,7 @@ public sealed partial class MainWindow : Window
     {
         _workspaceView.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
         _settingsView.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        ProjectsPaneToggle.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
         if (show)
         {
             _notifications.RefreshStatus();
@@ -87,6 +90,27 @@ public sealed partial class MainWindow : Window
     {
         ShowSettings(true);
         _settingsView.ShowConnections(profile);
+    }
+
+    private void ProjectsPaneToggle_Click(object sender, RoutedEventArgs args) => _workspaceView.ToggleProjectsPane();
+
+    private void WorkspaceView_PaneChanged(object? sender, EventArgs args) => SyncProjectsPaneToggle();
+
+    private void ProjectsAccelerator_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (_workspaceView.Visibility == Visibility.Visible)
+        {
+            _workspaceView.ToggleProjectsPane();
+        }
+
+        args.Handled = true;
+    }
+
+    private void SyncProjectsPaneToggle()
+    {
+        bool open = _workspaceView.IsProjectsPaneOpen;
+        ProjectsPaneToggle.IsChecked = open;
+        ShellUi.Tooltip(ProjectsPaneToggle, open ? "Hide the Projects pane (Ctrl+B)." : "Show the Projects pane (Ctrl+B).");
     }
 
     private void Connections_Changed(object? sender, EventArgs args) => UpdateConnectionStatus();
@@ -193,7 +217,7 @@ public sealed partial class MainWindow : Window
         }
 
         AppWindowTitleBar bar = AppWindow.TitleBar;
-        bar.PreferredHeightOption = TitleBarHeightOption.Standard;
+        bar.PreferredHeightOption = TitleBarHeightOption.Tall;
         AccessibilitySettings accessibility = new();
         UISettings settings = new();
         bool highContrast = accessibility.HighContrast;
@@ -209,8 +233,9 @@ public sealed partial class MainWindow : Window
             ? Windows.UI.Color.FromArgb(120, foreground.R, foreground.G, foreground.B)
             : dark ? Windows.UI.Color.FromArgb(64, 255, 255, 255) : Windows.UI.Color.FromArgb(48, 0, 0, 0);
 
-        // The app draws its own 32 DIP title-bar row; the system only owns the
-        // caption buttons, so their background must stay transparent.
+        // The app draws its own 48 DIP title-bar row hosting the Projects pane
+        // toggle; the system only owns the caption buttons, so their background
+        // must stay transparent. The Tall option aligns them with the custom row.
         bar.BackgroundColor = transparent;
         bar.InactiveBackgroundColor = transparent;
         bar.ForegroundColor = foreground;
@@ -282,6 +307,7 @@ public sealed partial class MainWindow : Window
         AppWindow.Closing -= AppWindow_ClosingAsync;
         _settingsView.ClearPassword();
         _settingsView.Shutdown();
+        _workspaceView.ProjectsPaneChanged -= WorkspaceView_PaneChanged;
         _workspaceView.Unbind();
         _liveWorkspace.Changed -= Workspace_Changed;
         _liveWorkspace.Dispose();
