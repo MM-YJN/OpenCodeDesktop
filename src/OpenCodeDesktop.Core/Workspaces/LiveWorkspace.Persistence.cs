@@ -11,6 +11,8 @@ public sealed partial class LiveWorkspace
 
     internal void RestoreNavigation(WorkspaceSettings settings)
     {
+        NotificationPreferences = settings.Notifications;
+        _notificationTargets.AddRange(settings.NotificationTargets);
         foreach (SavedConnection saved in settings.Connections)
         {
             ServerProfile profile = _connections.Profiles.Single(p => p.Id == saved.Id);
@@ -39,5 +41,5 @@ public sealed partial class LiveWorkspace
             return new SavedConnection(profile.Id, profile.Name, profile.Address.Display, profile.RememberCredentials,
                 profile.CredentialReference, backend?.Directory, backend?.Projects.Values.Where(p => p.Listed)
                     .Select(p => new SavedProject(p.Location.Directory, p.Location.ProjectId, p.ConfirmedId)).ToArray() ?? []);
-        }).ToArray());
+        }).ToArray()) { Notifications = NotificationPreferences, NotificationTargets = _notificationTargets.ToArray() };
 }

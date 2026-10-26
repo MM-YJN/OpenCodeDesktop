@@ -13,6 +13,24 @@ public sealed class WorkspaceSettingsStoreTests : IDisposable
     private string SettingsPath => Path.Combine(_directory, "workspace.v1.json");
 
     [Fact]
+    public async Task NotificationPreferencesMigrateAndDestinationsSurviveRestart()
+    {
+        Directory.CreateDirectory(_directory);
+        await File.WriteAllTextAsync(SettingsPath, "{\"version\":1,\"connections\":[]}", TestContext.Current.CancellationToken);
+        JsonWorkspaceSettingsStore store = new(_directory);
+        WorkspaceSettings original = (await store.LoadAsync(TestContext.Current.CancellationToken))!;
+        Assert.Equal(new NotificationPreferences(), original.Notifications);
+        TaskNotificationTarget target = new(Guid.NewGuid(), Guid.NewGuid(), "http://127.0.0.1:4096", "/project", "project", "session",
+            TaskNotificationKind.Form, "request", DateTimeOffset.UtcNow);
+        await store.SaveAsync(original with { Notifications = new(false, true), NotificationTargets = [target] }, TestContext.Current.CancellationToken);
+        WorkspaceSettings restored = (await new JsonWorkspaceSettingsStore(_directory).LoadAsync(TestContext.Current.CancellationToken))!;
+        Assert.Equal(new NotificationPreferences(false, true), restored.Notifications);
+        Assert.Equal(target, Assert.Single(restored.NotificationTargets));
+        await store.SaveAsync(restored with { Notifications = new(true, false) }, TestContext.Current.CancellationToken);
+        Assert.Equal(new NotificationPreferences(true, false), (await store.LoadAsync(TestContext.Current.CancellationToken))!.Notifications);
+    }
+
+    [Fact]
     public async Task RoundTripRetainsVersionOwnershipAndReferencesOnly()
     {
         JsonWorkspaceSettingsStore store = new(_directory);
@@ -34,6 +52,8 @@ public sealed class WorkspaceSettingsStoreTests : IDisposable
     [InlineData("null")]
     [InlineData("{\"version\":999,\"connections\":[]}")]
     [InlineData("{\"version\":1,\"connections\":null}")]
+    [InlineData("{\"version\":1,\"connections\":[],\"notifications\":null}")]
+    [InlineData("{\"version\":1,\"connections\":[],\"notificationTargets\":[null]}")]
     [InlineData("{\"version\":1,\"connections\":[null]}")]
     public async Task CorruptOrUnsupportedDataCannotBeOverwrittenWithoutExplicitReset(string json)
     {

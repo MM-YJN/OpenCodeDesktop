@@ -32,6 +32,10 @@ public sealed class SessionTaskState(string id, string directory, string project
     internal Task? Refresh { get; set; }
     internal string? HistoryCursor { get; set; }
     internal double? Idle { get; set; }
+    internal bool AttentionBaselineKnown { get; set; }
+    public NotificationObservation NotificationObservation => new(Id, Directory, ProjectId,
+        Hydrated && !Stale && !Loading, Outcome == "Completed" && !Active, Idle,
+        Permissions.Select(p => p.Id).ToArray(), Forms.Select(f => f.Id).ToArray(), AttentionBaselineKnown);
     internal double? SubmissionIdle { get; set; }
     internal bool Accepted { get; set; }
     internal SessionTaskState Retain()
@@ -55,6 +59,7 @@ public sealed class SessionTaskState(string id, string directory, string project
             Idle = Idle,
             SubmissionIdle = SubmissionIdle,
             Accepted = Accepted,
+            AttentionBaselineKnown = AttentionBaselineKnown,
         };
         foreach (KeyValuePair<string, Dictionary<string, object>> answer in Answers)
         {
@@ -127,6 +132,7 @@ public sealed partial class LiveTaskWorkflow : IDisposable
     private int _pendingEvents;
     private Task? _watch;
     private readonly Dictionary<string, string> _directories = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _attentionBaselines = new(StringComparer.Ordinal);
     private bool _discovering;
     private TaskCompletionSource _connected = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -213,6 +219,7 @@ public sealed partial class LiveTaskWorkflow : IDisposable
 
                     await RefreshAsync(Track(session), reconnect: false).ConfigureAwait(true);
                 }
+                _attentionBaselines.Add(directory.Key);
             }
         }
         catch (Exception error)
@@ -235,7 +242,7 @@ public sealed partial class LiveTaskWorkflow : IDisposable
         ArgumentNullException.ThrowIfNull(session);
         if (!_sessions.TryGetValue(session.Id, out SessionTaskState? state))
         {
-            state = new(session.Id, session.Directory, session.ProjectId);
+            state = new(session.Id, session.Directory, session.ProjectId) { AttentionBaselineKnown = _attentionBaselines.Contains(session.Directory) };
             _sessions.Add(session.Id, state);
         }
         return state;

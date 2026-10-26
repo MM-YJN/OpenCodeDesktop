@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
 using OpenCodeDesktop.Core.Connections;
+using OpenCodeDesktop.Core.Workspaces;
 using OpenCodeDesktop.Presentation;
 
 namespace OpenCodeDesktop.Views;
@@ -11,17 +12,21 @@ namespace OpenCodeDesktop.Views;
 public sealed partial class SettingsView : UserControl
 {
     private readonly ConnectionView _connectionsView;
+    private readonly LiveWorkspace _workspace;
+    private bool _refreshingNotifications;
+    internal string NotificationStatus { set => NotificationStatusText.Text = value; }
     public event EventHandler? ReturnRequested;
 
-    public SettingsView(ServerConnections connections, ILocalServerDiscovery localDiscovery)
+    public SettingsView(ServerConnections connections, ILocalServerDiscovery localDiscovery, LiveWorkspace workspace)
     {
+        _workspace = workspace;
         InitializeComponent();
         _connectionsView = new ConnectionView(connections, localDiscovery);
         ConnectionsHost.Content = _connectionsView;
         Sections.SelectedIndex = 0;
         ActualThemeChanged += (_, _) =>
         {
-            if (Sections.SelectedIndex != 0)
+            if (Sections.SelectedIndex is > 0 and < 5)
             {
                 BuildUnavailable(Sections.SelectedIndex);
             }
@@ -73,8 +78,10 @@ public sealed partial class SettingsView : UserControl
 
         bool connections = index == 0;
         ConnectionsHost.Visibility = connections ? Visibility.Visible : Visibility.Collapsed;
-        UnavailableHost.Visibility = connections ? Visibility.Collapsed : Visibility.Visible;
-        if (!connections)
+        UnavailableHost.Visibility = index is 0 or 5 ? Visibility.Collapsed : Visibility.Visible;
+        NotificationsHost.Visibility = index == 5 ? Visibility.Visible : Visibility.Collapsed;
+        if (index == 5) { RefreshNotificationPreferences(); }
+        if (index is > 0 and < 5)
         {
             BuildUnavailable(index);
         }
@@ -92,4 +99,20 @@ public sealed partial class SettingsView : UserControl
     }
 
     private void Return_Click(object sender, RoutedEventArgs args) => ReturnRequested?.Invoke(this, EventArgs.Empty);
+
+    internal void RefreshNotificationPreferences()
+    {
+        _refreshingNotifications = true;
+        CompletionNotifications.IsOn = _workspace.NotificationPreferences.Completion;
+        AttentionNotifications.IsOn = _workspace.NotificationPreferences.Attention;
+        _refreshingNotifications = false;
+    }
+
+    private void Notifications_Toggled(object sender, RoutedEventArgs args)
+    {
+        if (!_refreshingNotifications && CompletionNotifications is not null && AttentionNotifications is not null)
+        {
+            _workspace.SetNotificationPreferences(new(CompletionNotifications.IsOn, AttentionNotifications.IsOn));
+        }
+    }
 }

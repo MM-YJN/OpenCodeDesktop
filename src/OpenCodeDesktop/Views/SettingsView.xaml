@@ -40,6 +40,16 @@
         <Grid x:Name="Pages" Grid.Row="1" Padding="24,0,24,16">
             <ContentControl x:Name="ConnectionsHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
             <ContentControl x:Name="UnavailableHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Visibility="Collapsed" />
+            <ScrollViewer x:Name="NotificationsHost" Visibility="Collapsed" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="16" MaxWidth="680" HorizontalAlignment="Left">
+                    <TextBlock Text="Notifications" Style="{StaticResource ShellTitleTextStyle}" AutomationProperties.HeadingLevel="Level2" />
+                    <TextBlock Text="Get notified about observed sessions on the connected server while you are elsewhere. Monitoring stops when the app closes." Style="{StaticResource ShellSecondaryTextStyle}" TextWrapping="Wrap" />
+                    <ToggleSwitch x:Name="CompletionNotifications" Header="Task completion" AutomationProperties.AutomationId="CompletionNotifications" AutomationProperties.Name="Task completion notifications" Toggled="Notifications_Toggled" />
+                    <ToggleSwitch x:Name="AttentionNotifications" Header="Pending permissions and questions" AutomationProperties.AutomationId="AttentionNotifications" AutomationProperties.Name="Attention notifications" Toggled="Notifications_Toggled" />
+                    <TextBlock Text="Notifications are suppressed while the owning session is visible in the foreground. Existing requests and completion history are not announced when first loaded." Style="{StaticResource ShellSecondaryTextStyle}" TextWrapping="Wrap" />
+                    <TextBlock x:Name="NotificationStatusText" Style="{StaticResource ShellSecondaryTextStyle}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                </StackPanel>
+            </ScrollViewer>
         </Grid>
     </Grid>
 </UserControl>

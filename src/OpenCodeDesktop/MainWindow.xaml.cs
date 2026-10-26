@@ -36,7 +36,7 @@ public sealed partial class MainWindow : Window
         _liveWorkspace = new LiveWorkspace(connections);
         _persistence = new(connections, _liveWorkspace, settings, credentials);
         _workspaceView.Bind(_liveWorkspace);
-        _settingsView = new SettingsView(connections, localDiscovery);
+        _settingsView = new SettingsView(connections, localDiscovery, _liveWorkspace);
         InitializeComponent();
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
@@ -60,6 +60,9 @@ public sealed partial class MainWindow : Window
         Closed += MainWindow_Closed;
         _persistence.Changed += PersistenceChanged;
         AppWindow.Closing += AppWindow_ClosingAsync;
+        InitializeNotifications();
+        _settingsView.NotificationStatus = _notifications.Status;
+        _liveWorkspace.Changed += ObserveNotificationsAsync;
     }
 
     private void ShowSettings(bool show)
@@ -68,6 +71,8 @@ public sealed partial class MainWindow : Window
         _settingsView.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         if (show)
         {
+            _notifications.RefreshStatus();
+            _settingsView.NotificationStatus = _notifications.Status;
             _settingsView.Activate();
             _settingsView.FocusInitial();
         }
@@ -146,6 +151,8 @@ public sealed partial class MainWindow : Window
         ResizeInitialWindow();
         _workspaceView.FocusWorkspace();
         await _persistence.StartAsync().ConfigureAwait(true);
+        _notificationReady.TrySetResult();
+        _settingsView.RefreshNotificationPreferences();
     }
 
     private void ResizeInitialWindow()
@@ -266,6 +273,10 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
+        _notificationReady.TrySetResult();
+        _liveWorkspace.Changed -= ObserveNotificationsAsync;
+        _notifications.Invoked -= NotificationInvoked;
+        _notifications.Dispose();
         _persistence.Changed -= PersistenceChanged;
         _persistence.Dispose();
         AppWindow.Closing -= AppWindow_ClosingAsync;

@@ -122,6 +122,16 @@ public sealed partial class WorkspaceView : UserControl
         }
     }
 
+    internal void FocusNotificationRequest(TaskNotificationTarget target)
+    {
+        if (target.RequestId is { } id && _notificationRequestActions.TryGetValue((target.Kind, id), out Button? action))
+        {
+            action.StartBringIntoView();
+            action.Focus(FocusState.Programmatic);
+        }
+        else { FocusWorkspace(); }
+    }
+
     private async void NewTask_ClickAsync(object sender, RoutedEventArgs args)
     {
         if (_live is not null)

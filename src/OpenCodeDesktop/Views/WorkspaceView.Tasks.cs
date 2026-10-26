@@ -19,6 +19,7 @@ public sealed partial class WorkspaceView
     private string _catalogKey = "";
     private string _attentionKey = "";
     private readonly List<Button> _requestActions = [];
+    private readonly Dictionary<(TaskNotificationKind Kind, string Id), Button> _notificationRequestActions = [];
     private readonly List<Control> _requestInputs = [];
     private SessionTaskState? CurrentTask => _live?.Tasks?.Find(_live.SelectedSessionId);
 
@@ -166,6 +167,7 @@ public sealed partial class WorkspaceView
         _attentionKey = key;
         PendingRequests.Children.Clear();
         _requestActions.Clear();
+        _notificationRequestActions.Clear();
         _requestInputs.Clear();
         if (state is null || _live?.Tasks is not { } workflow)
         {
@@ -174,13 +176,17 @@ public sealed partial class WorkspaceView
 
         foreach (TaskPermission permission in state.Permissions)
         {
+            int first = _requestActions.Count;
             PendingRequests.Children.Add(BuildPermissionCard(state, permission, workflow));
+            _notificationRequestActions[(TaskNotificationKind.Permission, permission.Id)] = _requestActions[first];
         }
 
         TaskFormPresenter forms = new(_requestActions, _requestInputs);
         foreach (TaskForm form in state.Forms)
         {
+            int first = _requestActions.Count;
             PendingRequests.Children.Add(forms.Build(state, form, workflow));
+            if (_requestActions.Count > first) { _notificationRequestActions[(TaskNotificationKind.Form, form.Id)] = _requestActions[first]; }
         }
     }
 

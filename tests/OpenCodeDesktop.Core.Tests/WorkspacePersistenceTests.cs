@@ -6,6 +6,26 @@ namespace OpenCodeDesktop.Core.Tests;
 public sealed class WorkspacePersistenceTests
 {
     [Fact]
+    public async Task IndependentNotificationPreferencesAreCapturedAndRestored()
+    {
+        MemorySettings store = new();
+        MemoryCredentials credentials = new();
+        using (Harness h = new(store, credentials))
+        {
+            await h.Persistence.StartAsync();
+            h.Workspace.SetNotificationPreferences(new(false, true));
+            await h.Persistence.FlushAsync();
+            Assert.Equal(new NotificationPreferences(false, true), store.Value!.Notifications);
+        }
+        using Harness restarted = new(store, credentials);
+        await restarted.Persistence.StartAsync();
+        Assert.Equal(new NotificationPreferences(false, true), restarted.Workspace.NotificationPreferences);
+        restarted.Workspace.SetNotificationPreferences(new(true, false));
+        await restarted.Persistence.FlushAsync();
+        Assert.Equal(new NotificationPreferences(true, false), store.Value!.Notifications);
+    }
+
+    [Fact]
     public async Task TwoConnectionsRestoreIndependentProjectsSelectionsAndSavedPassword()
     {
         MemorySettings store = new();

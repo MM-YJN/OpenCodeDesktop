@@ -62,7 +62,11 @@
             </Grid>
         </Border>
 
-        <Grid x:Name="ShellContentHost" Grid.Row="2" />
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <InfoBar x:Name="NotificationGuidance" Title="Notification" IsOpen="False" IsClosable="True" Severity="Informational" AutomationProperties.AutomationId="NotificationGuidance" />
+            <Grid x:Name="ShellContentHost" Grid.Row="1" />
+        </Grid>
 
         <Border
             Grid.Row="3"

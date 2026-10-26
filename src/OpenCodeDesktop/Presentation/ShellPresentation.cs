@@ -157,7 +157,7 @@ internal static class ShellPresentation
         2 => new("Extensions", "MCP servers, plugins, commands and skills are not available in this release.", false),
         3 => new("Permissions", "Permission requests appear in the workspace when the server asks. Global permission policies are not available in this release.", false),
         4 => new("Appearance", "OpenCode Desktop follows the Windows system theme, including high contrast. Theme preference persistence is not available in this release.", false),
-        5 => new("Notifications", "Task completion and attention notifications are not available in this release.", false),
+        5 => new("Notifications", "Choose task completion and attention notifications for observed sessions on the connected server.", true),
         _ => new("Settings", "Select a section.", true),
     };
 }

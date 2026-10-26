@@ -6,6 +6,8 @@ public sealed record SavedConnection(Guid Id, string Name, string Address, bool 
 public sealed record WorkspaceSettings(int Version, Guid? ActiveConnectionId, IReadOnlyList<SavedConnection> Connections)
 {
     public const int CurrentVersion = 1;
+    public NotificationPreferences Notifications { get; init; } = new();
+    public IReadOnlyList<TaskNotificationTarget> NotificationTargets { get; init; } = [];
 }
 
 public interface IWorkspaceSettingsStore

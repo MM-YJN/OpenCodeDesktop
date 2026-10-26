@@ -71,7 +71,8 @@ public sealed class ShellPresentationTests
         Assert.True(connections.IsAvailable);
         Assert.Equal("Connections", connections.Title);
 
-        for (int index = 1; index < 6; index++)
+        Assert.True(ShellPresentation.Section(5).IsAvailable);
+        for (int index = 1; index < 5; index++)
         {
             SettingsSectionPresentation section = ShellPresentation.Section(index);
             Assert.False(section.IsAvailable);

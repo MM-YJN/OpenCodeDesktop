@@ -141,12 +141,24 @@ public sealed class JsonWorkspaceSettingsStore(string directory) : IWorkspaceSet
 
     private static void Validate(WorkspaceSettings settings)
     {
-        if (settings.Version != WorkspaceSettings.CurrentVersion || settings.Connections is null || settings.Connections.Count > 128)
+        if (settings.Version != WorkspaceSettings.CurrentVersion || settings.Connections is null || settings.Connections.Count > 128 ||
+            settings.Notifications is null || settings.NotificationTargets is null || settings.NotificationTargets.Count > 128)
         {
             throw new InvalidDataException("Unsupported settings format.");
         }
 
         HashSet<Guid> ids = [];
+        HashSet<Guid> tokens = [];
+        foreach (TaskNotificationTarget target in settings.NotificationTargets)
+        {
+            if (target is null || target.Token == Guid.Empty || !tokens.Add(target.Token) || target.ConnectionId == Guid.Empty ||
+                !ServerAddress.TryParse(target.Address, out _) || !Text(target.Directory, 32768) || !Text(target.ProjectId, 4096) ||
+                !Text(target.SessionId, 4096) || !Enum.IsDefined(target.Kind) ||
+                (target.Kind == TaskNotificationKind.Completion ? target.RequestId is not null : !Text(target.RequestId, 4096)))
+            {
+                throw new InvalidDataException("Invalid notification destination.");
+            }
+        }
         HashSet<string> addresses = new(StringComparer.Ordinal);
         foreach (SavedConnection connection in settings.Connections)
         {

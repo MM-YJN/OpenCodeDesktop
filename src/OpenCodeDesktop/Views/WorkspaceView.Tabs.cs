@@ -25,6 +25,8 @@ public sealed partial class WorkspaceView
     private long _tabGeneration;
     private bool _sessionDetailsOpen;
     private readonly Dictionary<Guid, string> _tabOrigins = [];
+    internal bool IsSessionVisible(SessionTaskState state) => !_tabNavigation && _tabs.Active is { IsFiles: false } active &&
+        active.SessionId == state.Id && active.Directory == state.Directory && _live?.SelectedSessionId == state.Id;
 
     private void InitializeTabs()
     {
