@@ -125,6 +125,7 @@ public sealed partial class LiveTaskWorkflow : IDisposable
     private readonly ITaskConnection _api;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly Dictionary<string, SessionTaskState> _sessions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, TaskCatalog> _catalogs = new(StringComparer.Ordinal);
     private readonly HashSet<string> _eventIds = new(StringComparer.Ordinal);
     private readonly Queue<string> _eventOrder = new();
     private bool _disposed;
@@ -155,6 +156,28 @@ public sealed partial class LiveTaskWorkflow : IDisposable
         }
     }
     public SessionTaskState? Find(string? id) => id is not null ? _sessions.GetValueOrDefault(id) : null;
+
+    /// <summary>The last confirmed model/agent catalog for a directory, when the server has been read.</summary>
+    public TaskCatalog? DirectoryCatalog(string directory) => _catalogs.GetValueOrDefault(directory);
+
+    /// <summary>Read and cache a directory catalog so a sessionless draft can offer model and agent selection.</summary>
+    public async Task OpenDirectoryCatalogAsync(ProjectLocation location)
+    {
+        ArgumentNullException.ThrowIfNull(location);
+        try
+        {
+            TaskCatalog catalog = await _api.CatalogAsync(location.Directory, _lifetime.Token).ConfigureAwait(true);
+            if (!_disposed && !Equals(_catalogs.GetValueOrDefault(location.Directory), catalog))
+            {
+                _catalogs[location.Directory] = catalog;
+                Notify();
+            }
+        }
+        catch (Exception)
+        {
+            // The draft catalog is a best-effort cache; the composer reports the missing selection choices.
+        }
+    }
     public async Task OpenDirectoryAsync(ProjectLocation location)
     {
         ArgumentNullException.ThrowIfNull(location);
@@ -290,6 +313,10 @@ public sealed partial class LiveTaskWorkflow : IDisposable
         {
             await EnsureStreamAsync().ConfigureAwait(true);
             TaskCatalog catalog = await _api.CatalogAsync(state.Directory, _lifetime.Token).ConfigureAwait(true);
+            if (!_disposed)
+            {
+                _catalogs[state.Directory] = catalog;
+            }
             // Invalidate concurrent reads; these endpoints do not form an atomic snapshot.
             for (int attempt = 0; attempt < 8; attempt++)
             {
@@ -385,6 +412,8 @@ public sealed partial class LiveTaskWorkflow : IDisposable
         state.Inbox = snapshot.Inbox;
         state.Model ??= state.Catalog.Models.FirstOrDefault(m => m.Id == snapshot.Model?.Id && m.ProviderId == snapshot.Model.ProviderId);
         state.Agent ??= state.Catalog.Agents.FirstOrDefault(a => a.Id == snapshot.Agent)?.Id;
+        // A server with exactly one agent mode offers no real choice; select it as soon as the catalog confirms it.
+        state.Agent ??= state.Catalog.Agents is [TaskAgent only] ? only.Id : null;
         bool found = state.Submission is { } submitted && (messages.Any(m => m.Id == submitted.Id) || snapshot.Inbox.Contains(submitted.Id));
         if (found)
         {

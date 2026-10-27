@@ -76,6 +76,15 @@ public sealed partial class WorkspaceView
         {
             _tabGeneration++;
         }
+        // The draft send itself navigates once (session creation); any later navigation is the user's.
+        if (_draftSendExpectsNavigation)
+        {
+            _draftSendExpectsNavigation = false;
+        }
+        else
+        {
+            _sendingDraft = false;
+        }
         _sessionNavigationPending = true;
     }
 
@@ -203,7 +212,9 @@ public sealed partial class WorkspaceView
     private void ApplyWorkspaceMode()
     {
         bool session = !_tabNavigation && _tabs.Active is { IsFiles: false } active &&
-            _live?.Location?.Directory == active.Directory && _live.SelectedSessionId == active.SessionId;
+            _live?.Location?.Directory == active.Directory &&
+            // A draft tab stays the active workspace while the session it created catches up.
+            (active.SessionId == _live.SelectedSessionId || _sendingDraft && active.SessionId is null);
         bool files = _tabs.Active is { IsFiles: true };
         DetailsLayout.Visibility = session ? Visibility.Visible : Visibility.Collapsed;
         FilesContent.Visibility = files ? Visibility.Visible : Visibility.Collapsed;

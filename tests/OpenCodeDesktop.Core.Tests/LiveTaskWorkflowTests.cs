@@ -243,6 +243,74 @@ public sealed partial class LiveTaskWorkflowTests
         Assert.Equal("unsent", workspace.Draft);
     }
 
+    [Fact]
+    public async Task SingleCatalogAgentIsSelectedWhenTheServerReportsNone()
+    {
+        using Api api = new();
+        api.Snapshot = api.Snapshot with { Agent = null };
+        using LiveTaskWorkflow workflow = new(api, api);
+        await workflow.OpenAsync(api.Session);
+        SessionTaskState state = workflow.Find("s")!;
+        Assert.Equal("build", state.Agent);
+        Assert.True(state.CanSend);
+    }
+
+    [Fact]
+    public async Task DraftSendCreatesTheSessionAppliesAndRemembersTheProjectSelection()
+    {
+        using Api api = new();
+        api.Catalog = new([new("model-a", "provider-a", "Model A"), new("model-b", "provider-b", "Model B")], [new("build", "Build"), new("plan", "Plan")]);
+        api.Snapshot = api.Snapshot with { Model = new("model-a", "provider-a", "Model A"), Agent = "build" };
+        using ServerConnections connections = new(new Service(api));
+        ServerProfile profile = connections.Save(null, "Test", "http://127.0.0.1:4096")!;
+        await connections.ConnectAsync(profile.Id, "secret");
+        using LiveWorkspace workspace = new(connections);
+        await workspace.OpenProjectAsync("/dir");
+
+        Assert.Null(workspace.SelectedSessionId);
+        Assert.NotNull(workspace.DraftCatalog);
+        workspace.Draft = "draft task";
+        workspace.RememberModelPreference(new("model-b", "provider-b", "Model B"));
+        workspace.RememberAgentPreference("plan");
+        await workspace.SendDraftTaskAsync();
+
+        Assert.Equal(1, api.CreateCalls);
+        Assert.Equal("created", workspace.SelectedSessionId);
+        Assert.Equal(new TaskModel("model-b", "provider-b", "Model B"), api.ModelSelections.Single().Model);
+        Assert.Equal("plan", Assert.Single(api.AgentSelections).Agent);
+        Assert.Equal(1, api.Submissions);
+        Assert.Equal("draft task", workspace.Tasks!.Find("created")!.Submission!.Text);
+        Assert.Empty(workspace.Draft);
+        SessionTaskState state = workspace.Tasks.Find("created")!;
+        Assert.Equal("model-b", state.Model!.Id);
+        Assert.Equal("plan", state.Agent);
+        Assert.False(state.DeliveryUncertain);
+    }
+
+    [Fact]
+    public async Task DraftSendWithoutContentOrSelectionOutsideTheCatalogDoesNotCreate()
+    {
+        using Api api = new();
+        using ServerConnections connections = new(new Service(api));
+        ServerProfile profile = connections.Save(null, "Test", "http://127.0.0.1:4096")!;
+        await connections.ConnectAsync(profile.Id, "secret");
+        using LiveWorkspace workspace = new(connections);
+        await workspace.OpenProjectAsync("/dir");
+
+        await workspace.SendDraftTaskAsync();
+        Assert.Equal(0, api.CreateCalls);
+
+        workspace.Draft = "draft task";
+        workspace.RememberModelPreference(new("missing", "missing", "Missing"));
+        workspace.RememberAgentPreference("missing");
+        await workspace.SendDraftTaskAsync();
+        // The session was still created, but the fallback snapshot selection was used.
+        Assert.Equal(1, api.CreateCalls);
+        Assert.Equal(1, api.Submissions);
+        Assert.Equal(new TaskModel("model", "provider", "Model"), api.ModelSelections.Single().Model);
+        Assert.Equal("build", Assert.Single(api.AgentSelections).Agent);
+    }
+
     private sealed class Service(Api api) : IServerConnectionService, IWorkspaceConnectionFactory
     {
         public IWorkspaceConnection Create(ServerAddress address, string password) => api;
@@ -444,11 +512,14 @@ public sealed partial class LiveTaskWorkflowTests
         public bool LoseAcknowledgement { get; set; }
         public bool RecoverInOlderHistory { get; set; }
         public int Submissions { get; private set; }
+        public int CreateCalls { get; private set; }
         public int AnswerCount { get; private set; }
         public int PermissionCount { get; private set; }
         public int Watches { get; private set; }
         public int CancelCount { get; private set; }
         public bool RejectAnswer { get; set; }
+        public List<(string Id, TaskModel Model)> ModelSelections { get; } = [];
+        public List<(string Id, string Agent)> AgentSelections { get; } = [];
         public Exception? ReadFailure { get; set; }
         public Exception? StreamFailure { get; set; }
         public Exception? HistoryFailure { get; set; }
@@ -476,12 +547,28 @@ public sealed partial class LiveTaskWorkflowTests
         }
         public Task SelectModelAsync(string id, TaskModel model, CancellationToken cancellationToken)
         {
-            Snapshot = Snapshot with { Model = model };
+            ModelSelections.Add((id, model));
+            if (OtherSnapshots.TryGetValue(id, out TaskSnapshot? snapshot))
+            {
+                OtherSnapshots[id] = snapshot with { Model = model };
+            }
+            else
+            {
+                Snapshot = Snapshot with { Model = model };
+            }
             return Task.CompletedTask;
         }
         public Task SelectAgentAsync(string id, string agent, CancellationToken cancellationToken)
         {
-            Snapshot = Snapshot with { Agent = agent };
+            AgentSelections.Add((id, agent));
+            if (OtherSnapshots.TryGetValue(id, out TaskSnapshot? snapshot))
+            {
+                OtherSnapshots[id] = snapshot with { Agent = agent };
+            }
+            else
+            {
+                Snapshot = Snapshot with { Agent = agent };
+            }
             return Task.CompletedTask;
         }
         public async Task SubmitAsync(string id, TaskSubmission submission, CancellationToken cancellationToken)
@@ -556,7 +643,13 @@ public sealed partial class LiveTaskWorkflowTests
         public Task<ProjectLocation> ResolveAsync(string directory, CancellationToken cancellationToken) => Task.FromResult(new ProjectLocation(directory, "project"));
         public Task ValidateDirectoryAsync(string directory, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<WorkspacePage<WorkspaceSession>> SessionsAsync(string directory, string? cursor, CancellationToken cancellationToken) => Task.FromResult(new WorkspacePage<WorkspaceSession>([Session], null));
-        public Task<WorkspaceSession> CreateAsync(string directory, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<WorkspaceSession> CreateAsync(string directory, CancellationToken cancellationToken)
+        {
+            CreateCalls++;
+            WorkspaceSession created = new("created", directory, "project", "Created");
+            OtherSnapshots[created.Id] = Snapshot with { Session = created };
+            return Task.FromResult(created);
+        }
         public Task<WorkspaceSession> SessionAsync(string id, CancellationToken cancellationToken) => Task.FromResult(OtherSnapshots.GetValueOrDefault(id)?.Session ?? Session);
         public void Dispose() { }
     }

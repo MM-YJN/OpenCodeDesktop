@@ -134,21 +134,32 @@ internal static class ShellPresentation
     {
         var task = LiveTaskPresentation.From(state, draft, workspace.Tasks?.AttentionError, workspace.Tasks, workspace.CurrentDraft?.Files.Count ?? 0);
         bool available = workspace.Location is not null;
-        string hint = !available ? "Open a project to compose a task."
-            : state is null ? "Create or select a session to run a task."
-            : state.Loading ? "Checking live state…"
-            : state.Busy ? "Working. You can interrupt when the server supports it."
-            : state.Stale ? "Live state is unavailable. Recover before sending."
-            : state.Catalog.Models.Count == 0 || state.Catalog.Agents.Count == 0 ? "A usable model and agent are required."
-            : "Ctrl+Enter to send";
+        bool composingDraft = available && workspace.SelectedSessionId is null;
+        TaskCatalog? draftCatalog = composingDraft ? workspace.DraftCatalog : null;
+        bool draftCatalogUsable = draftCatalog is { Models.Count: > 0, Agents.Count: > 0 };
+        bool hasContent = !string.IsNullOrWhiteSpace(draft) || (workspace.CurrentDraft?.Files.Count ?? 0) > 0;
+        bool canSendDraft = composingDraft && hasContent && workspace.CanCreate && draftCatalogUsable;
         string? queue = state is { Inbox.Count: > 0 } queued
             ? queued.Inbox.Count + (queued.Inbox.Count == 1 ? " queued input" : " queued inputs")
             : null;
         string? delivery = state is { DeliveryUncertain: true } ? "Delivery unconfirmed — reconcile before resending." : null;
         int requests = state?.Permissions.Count + state?.Forms.Count ?? 0;
         string? attention = requests > 0 ? "Waiting for you: " + requests + (requests == 1 ? " request" : " requests") : null;
-        return new(available, task.CanSend, task.CanStop, task.IsBusy, hint, queue, delivery, attention);
+        string hint = Hint(available, composingDraft, draftCatalog, draftCatalogUsable, state);
+        return new(available, task.CanSend || canSendDraft, task.CanStop, task.IsBusy, hint, queue, delivery, attention);
     }
+
+    private static string Hint(bool available, bool composingDraft, TaskCatalog? draftCatalog, bool draftCatalogUsable, SessionTaskState? state) =>
+        !available ? "Open a project to compose a task."
+        : composingDraft ? draftCatalog is null ? "Loading the model and agent catalog…"
+            : !draftCatalogUsable ? "A usable model and agent are required."
+            : "Ctrl+Enter to send. A session is created on the server when you send."
+        : state is null ? "Create or select a session to run a task."
+        : state.Loading ? "Checking live state…"
+        : state.Busy ? "Working. You can interrupt when the server supports it."
+        : state.Stale ? "Live state is unavailable. Recover before sending."
+        : state.Catalog.Models.Count == 0 || state.Catalog.Agents.Count == 0 ? "A usable model and agent are required."
+        : "Ctrl+Enter to send";
 
     internal static SettingsSectionPresentation Section(int index) => index switch
     {

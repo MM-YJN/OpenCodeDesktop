@@ -112,6 +112,7 @@ public sealed class WorkspaceSettingsStoreTests : IDisposable
             good.Connections[0] with { SelectedDirectory = "/missing" },
             good.Connections[0] with { Address = "https://example.com" },
             good.Connections[0] with { Projects = [new("/same", "global", null), new("/same", "global", null)] },
+            good.Connections[0] with { Projects = [new("/p", "global", null) { TaskSelection = new(new string('x', 4097), null, null) }] },
         })
         {
             await Assert.ThrowsAsync<InvalidDataException>(() => store.SaveAsync(good with { Connections = [invalid] }, TestContext.Current.CancellationToken));
@@ -148,7 +149,7 @@ public sealed class WorkspaceSettingsStoreTests : IDisposable
     private static WorkspaceSettings Sample()
     {
         var id = Guid.NewGuid();
-        return new(1, id, [new(id, "Local", ServerAddress.DefaultOrigin, true, Guid.NewGuid().ToString("N"), "/项目 one", [new("/项目 one", "global", "session-a"), new("/two", "global", null)])]);
+        return new(1, id, [new(id, "Local", ServerAddress.DefaultOrigin, true, Guid.NewGuid().ToString("N"), "/项目 one", [new("/项目 one", "global", "session-a") { TaskSelection = new("provider-a", "model-a", "build") }, new("/two", "global", null)])]);
     }
 
     public void Dispose()

@@ -67,6 +67,13 @@ public sealed partial class WorkspaceView
     private void UpdateConversationState(LiveWorkspace live, LiveWorkspacePresentation presentation, bool hasEntries)
     {
         string message = presentation.ConversationNotice;
+        if (_sendingDraft && !hasEntries)
+        {
+            // Draft send in flight: keep the current content (usually the draft guidance)
+            // until the submitted message renders, instead of flashing transient loading or empty states.
+            return;
+        }
+
         if (!live.IsConnected)
         {
             ConversationStateHost.Content = ConversationState("ShellIconServer", "Connect to OpenCode",
@@ -92,11 +99,9 @@ public sealed partial class WorkspaceView
 
         if (live.Selected is null && !hasEntries)
         {
-            ConversationStateHost.Content = ConversationState("ShellIconMessage", "Start a session",
-                "Create a session to run a task, or keep an unsent draft below. No session is created until you choose Create session.",
-                ShellTone.Neutral,
-                ShellUi.LabelButton("Create session", "ShellIconAdd", async (_, _) => await live.CreateSessionAsync().ConfigureAwait(true), "ShellPrimaryButtonStyle"),
-                ShellUi.LabelButton("Keep draft", null, (_, _) => DraftBox.Focus(FocusState.Programmatic), "ShellQuietButtonStyle"));
+            ConversationStateHost.Content = ConversationState("ShellIconMessage", "New-session draft",
+                "Describe a task below. The session is created on the server when you send; your choice of model and agent is used.",
+                ShellTone.Neutral);
             return;
         }
 

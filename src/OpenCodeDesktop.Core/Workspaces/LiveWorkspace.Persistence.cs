@@ -23,6 +23,10 @@ public sealed partial class LiveWorkspace
                 {
                     SelectedId = project.SessionId,
                     ConfirmedId = project.SessionId,
+                    PreferredModel = project.TaskSelection is { ModelId: { Length: > 0 } model, ModelProviderId: { Length: > 0 } provider }
+                        ? new(model, provider, model)
+                        : null,
+                    PreferredAgent = project.TaskSelection is { AgentId: { Length: > 0 } agent } ? agent : null,
                 });
             }
             _backends.Add(profile.Id, backend);
@@ -40,6 +44,11 @@ public sealed partial class LiveWorkspace
 
             return new SavedConnection(profile.Id, profile.Name, profile.Address.Display, profile.RememberCredentials,
                 profile.CredentialReference, backend?.Directory, backend?.Projects.Values.Where(p => p.Listed)
-                    .Select(p => new SavedProject(p.Location.Directory, p.Location.ProjectId, p.ConfirmedId)).ToArray() ?? []);
+                    .Select(p => new SavedProject(p.Location.Directory, p.Location.ProjectId, p.ConfirmedId)
+                    {
+                        TaskSelection = p.PreferredModel is not null || p.PreferredAgent is not null
+                            ? new(p.PreferredModel?.ProviderId, p.PreferredModel?.Id, p.PreferredAgent)
+                            : null,
+                    }).ToArray() ?? []);
         }).ToArray()) { Notifications = NotificationPreferences, NotificationTargets = _notificationTargets.ToArray() };
 }

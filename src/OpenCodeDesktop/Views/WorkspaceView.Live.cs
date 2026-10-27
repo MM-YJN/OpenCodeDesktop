@@ -113,7 +113,6 @@ public sealed partial class WorkspaceView
     private void OpenProjectState(LiveWorkspace live)
     {
         bool connected = live.IsConnected;
-        NewTaskButton.IsEnabled = live.Location is not null;
         AddProjectButton.IsEnabled = connected && !live.IsLoading;
         ProjectsCount.Text = live.Projects.Count == 0 ? "" : "· " + live.Projects.Count;
         WorkspaceLoading.Visibility = live.IsLoading ? Visibility.Visible : Visibility.Collapsed;

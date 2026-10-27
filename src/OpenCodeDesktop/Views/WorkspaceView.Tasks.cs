@@ -18,6 +18,14 @@ public sealed partial class WorkspaceView
     private const string PermissionActionStyle = "ShellPrimaryButtonStyle";
     private string _catalogKey = "";
     private string _attentionKey = "";
+    // The last model/agent rendered into the selectors. SelectionChanged echoes of
+    // programmatic assignments compare equal; only a real user choice differs.
+    private TaskModel? _expectedModel;
+    private string? _expectedAgent;
+    // Set for the duration of a draft send (session creation + submission) so transient
+    // navigation states do not flash the conversation area.
+    private bool _sendingDraft;
+    private bool _draftSendExpectsNavigation;
     private readonly List<Button> _requestActions = [];
     private readonly Dictionary<(TaskNotificationKind Kind, string Id), Button> _notificationRequestActions = [];
     private readonly List<Control> _requestInputs = [];
@@ -82,32 +90,77 @@ public sealed partial class WorkspaceView
 
     private void UpdateTaskCatalog(SessionTaskState? state, bool canSelect)
     {
-        ModelSelector.IsEnabled = canSelect;
-        AgentSelector.IsEnabled = canSelect;
-        string catalogKey = (_live?.SelectedSessionId ?? "") + "|" +
-            string.Join('|', state?.Catalog.Models.Select(model => model.ProviderId + "/" + model.Id) ?? []) + ":" +
-            string.Join('|', state?.Catalog.Agents.Select(agent => agent.Id) ?? []);
+        LiveWorkspace? live = _live;
+        // A sessionless draft offers the directory catalog directly; a tracked session offers its own snapshot.
+        bool draft = state is null && live is { IsConnected: true, Location: not null, SelectedSessionId: null };
+        TaskCatalog? catalog = state?.Catalog ?? (draft ? live!.DraftCatalog : null);
+        IReadOnlyList<TaskModel> models = catalog?.Models ?? [];
+        IReadOnlyList<TaskAgent> agents = catalog?.Agents ?? [];
+        bool selectable = state is not null ? canSelect : draft && catalog is not null;
+        ModelSelector.IsEnabled = selectable;
+        AgentSelector.IsEnabled = selectable;
+        string catalogKey = (live?.SelectedSessionId ?? "draft:" + live?.Location?.Directory) + "|" +
+            string.Join('|', models.Select(model => model.ProviderId + "/" + model.Id)) + ":" +
+            string.Join('|', agents.Select(agent => agent.Id));
         if (_catalogKey != catalogKey)
         {
             _catalogKey = catalogKey;
-            ModelSelector.ItemsSource = state?.Catalog.Models;
+            ModelSelector.ItemsSource = models;
             ModelSelector.DisplayMemberPath = nameof(TaskModel.Name);
-            AgentSelector.ItemsSource = state?.Catalog.Agents;
+            AgentSelector.ItemsSource = agents;
             AgentSelector.DisplayMemberPath = nameof(TaskAgent.Name);
         }
 
-        ModelSelector.SelectedItem = state?.Model;
-        AgentSelector.SelectedItem = state?.Catalog.Agents.FirstOrDefault(agent => agent.Id == state.Agent);
+        TaskModel? modelSelection = state?.Model ??
+            (draft ? models.FirstOrDefault(model => model.Id == live!.PreferredModel?.Id && model.ProviderId == live.PreferredModel.ProviderId) : null);
+        TaskAgent? agentSelection = state is not null
+            ? agents.FirstOrDefault(agent => agent.Id == state.Agent)
+            : draft
+                ? agents.FirstOrDefault(agent => agent.Id == live!.PreferredAgent) ?? (agents is [TaskAgent only] ? only : null)
+                : null;
+        _expectedModel = modelSelection;
+        _expectedAgent = agentSelection?.Id;
+        ModelSelector.SelectedItem = modelSelection;
+        AgentSelector.SelectedItem = agentSelection;
     }
 
     private void UpdateSend()
     {
-        SendButton.IsEnabled = CurrentTask?.CanSend == true && (!string.IsNullOrWhiteSpace(DraftBox.Text) || _live?.CurrentDraft?.Files.Count > 0);
+        SendButton.IsEnabled = _live is { } active && ShellPresentation.Composer(active, CurrentTask, DraftBox.Text).CanSend;
     }
 
     private async Task SendTaskAsync()
     {
-        if (_live is not { } live || CurrentTask is not { CanSend: true })
+        if (_live is not { } live)
+        {
+            return;
+        }
+
+        if (live.SelectedSessionId is null)
+        {
+            // Draft mode: the session is created on the server as part of sending.
+            _sendingDraft = true;
+            _draftSendExpectsNavigation = true;
+            try
+            {
+                await live.SendDraftTaskAsync().ConfigureAwait(true);
+            }
+            finally
+            {
+                _sendingDraft = false;
+                _draftSendExpectsNavigation = false;
+                LiveChanged(this, EventArgs.Empty);
+            }
+
+            if (DraftBox.Text != live.Draft)
+            {
+                DraftBox.Text = live.Draft;
+            }
+
+            return;
+        }
+
+        if (CurrentTask is not { CanSend: true })
         {
             return;
         }

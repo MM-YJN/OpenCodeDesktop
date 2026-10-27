@@ -61,18 +61,40 @@ public sealed partial class WorkspaceView : UserControl
         };
         ModelSelector.SelectionChanged += (_, _) =>
         {
-            if (CurrentTask is { Busy: false, Active: false } state && ModelSelector.SelectedItem is TaskModel model)
+            if (ModelSelector.SelectedItem is TaskModel model)
             {
-                state.Model = model;
+                if (CurrentTask is { Busy: false, Active: false } state)
+                {
+                    state.Model = model;
+                }
+
+                // Echoes of programmatic selection (possibly deferred after an ItemsSource rebind)
+                // match the last rendered value; only an actual user choice differs.
+                if (!Equals(model, _expectedModel))
+                {
+                    _live?.RememberModelPreference(model);
+                }
+
+                _expectedModel = model;
             }
 
             UpdateSend();
         };
         AgentSelector.SelectionChanged += (_, _) =>
         {
-            if (CurrentTask is { Busy: false, Active: false } state && AgentSelector.SelectedItem is TaskAgent agent)
+            if (AgentSelector.SelectedItem is TaskAgent agent)
             {
-                state.Agent = agent.Id;
+                if (CurrentTask is { Busy: false, Active: false } state)
+                {
+                    state.Agent = agent.Id;
+                }
+
+                if (agent.Id != _expectedAgent)
+                {
+                    _live?.RememberAgentPreference(agent.Id);
+                }
+
+                _expectedAgent = agent.Id;
             }
 
             UpdateSend();
@@ -149,15 +171,6 @@ public sealed partial class WorkspaceView : UserControl
             action.Focus(FocusState.Programmatic);
         }
         else { FocusWorkspace(); }
-    }
-
-    private async void NewTask_ClickAsync(object sender, RoutedEventArgs args)
-    {
-        if (_live is not null)
-        {
-            await _live.SelectSessionAsync(null).ConfigureAwait(true);
-            DraftBox.Focus(FocusState.Programmatic);
-        }
     }
 
     private void Settings_Click(object sender, RoutedEventArgs args) => SettingsRequested?.Invoke(this, EventArgs.Empty);

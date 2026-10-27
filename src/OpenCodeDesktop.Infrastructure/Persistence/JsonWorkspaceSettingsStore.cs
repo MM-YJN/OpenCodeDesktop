@@ -186,7 +186,11 @@ public sealed class JsonWorkspaceSettingsStore(string directory) : IWorkspaceSet
         foreach (SavedProject project in connection.Projects)
         {
             if (project is null || !Text(project.Directory, 32768) || !directories.Add(project.Directory)
-                || !Text(project.ProjectId, 4096) || (project.SessionId is not null && !Text(project.SessionId, 4096)))
+                || !Text(project.ProjectId, 4096) || (project.SessionId is not null && !Text(project.SessionId, 4096))
+                || project.TaskSelection is { } selection &&
+                ((selection.ModelId is not null && !Text(selection.ModelId, 4096)) ||
+                 (selection.ModelProviderId is not null && !Text(selection.ModelProviderId, 4096)) ||
+                 (selection.AgentId is not null && !Text(selection.AgentId, 4096))))
             {
                 throw new InvalidDataException("Invalid saved project.");
             }

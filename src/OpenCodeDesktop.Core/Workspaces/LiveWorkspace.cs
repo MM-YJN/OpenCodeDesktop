@@ -68,6 +68,33 @@ public sealed partial class LiveWorkspace : IDisposable
         }
     }
 
+    /// <summary>The catalog cached for the open project when no session exists yet, so a draft can offer a direct model and agent choice.</summary>
+    public TaskCatalog? DraftCatalog => _project is { } project ? Tasks?.DirectoryCatalog(project.Location.Directory) : null;
+    public TaskModel? PreferredModel => _project?.PreferredModel;
+    public string? PreferredAgent => _project?.PreferredAgent;
+
+    /// <summary>Remember the model the user last chose in this project; persisted with the saved workspace.</summary>
+    public void RememberModelPreference(TaskModel model)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        if (_project is { } project && project.PreferredModel != model)
+        {
+            project.PreferredModel = model;
+            NavigationChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>Remember the agent mode the user last chose in this project; persisted with the saved workspace.</summary>
+    public void RememberAgentPreference(string agent)
+    {
+        ArgumentNullException.ThrowIfNull(agent);
+        if (_project is { } project && project.PreferredAgent != agent)
+        {
+            project.PreferredAgent = agent;
+            NavigationChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
     private void ConnectionChangedAsync(object? sender, EventArgs args)
     {
         if (!_disposed && _connectionGeneration != _connections.Generation)
@@ -305,6 +332,7 @@ public sealed partial class LiveWorkspace : IDisposable
             if (Tasks is { } tasks)
             {
                 await tasks.OpenDirectoryAsync(location).ConfigureAwait(true);
+                await tasks.OpenDirectoryCatalogAsync(location).ConfigureAwait(true);
                 if (current() && selected is not null)
                 {
                     await tasks.OpenAsync(selected).ConfigureAwait(true);
@@ -378,11 +406,13 @@ public sealed partial class LiveWorkspace : IDisposable
         _retry = null;
         if (id is null)
         {
-            Status = "New-session draft. Create a session to keep this conversation on the server.";
+            Status = "New-session draft. Send a task to create the session on the server.";
             _project.ConfirmedId = null;
             NavigationChanged?.Invoke(this, EventArgs.Empty);
             Notify();
-            return Task.CompletedTask;
+            return Tasks is { } tasks && tasks.DirectoryCatalog(_project.Location.Directory) is null
+                ? tasks.OpenDirectoryCatalogAsync(_project.Location)
+                : Task.CompletedTask;
         }
         Project project = _project;
         return RunAsync("Loading conversation history…", (context, token, current) => ReadHistoryAsync(context, project, id, current, token), () => SelectSessionAsync(id));
@@ -718,9 +748,45 @@ public sealed partial class LiveWorkspace : IDisposable
         TaskSubmission submission = new("msg_" + Guid.NewGuid().ToString("N"), draft.Text) { Files = Array.AsReadOnly(draft.Files.ToArray()) };
         project.PendingDrafts[id] = (submission.Id, draft.Version);
         await workflow.SendAsync(state, submission).ConfigureAwait(true);
+        if (state.Model is { } sentModel && state.Agent is { } sentAgent && (project.PreferredModel != sentModel || project.PreferredAgent != sentAgent))
+        {
+            project.PreferredModel = sentModel;
+            project.PreferredAgent = sentAgent;
+            NavigationChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         ConsumeAdmittedDrafts();
 
         Notify();
+    }
+
+    /// <summary>Create the pending session for the new-session draft, apply the project's remembered or chosen model and agent, then send the draft input.</summary>
+    public async Task SendDraftTaskAsync()
+    {
+        if (_project is not { SelectedId: null } project || Tasks is null || !CanCreate ||
+            string.IsNullOrWhiteSpace(project.GetDraft("").Text) && project.GetDraft("").Files.Count == 0)
+        {
+            return;
+        }
+
+        await CreateSessionAsync().ConfigureAwait(true);
+        if (_project != project || project.SelectedId is not { } id || Tasks?.Find(id) is not { Hydrated: true, Stale: false } state)
+        {
+            return;
+        }
+
+        if (project.PreferredModel is { } preferred &&
+            state.Catalog.Models.FirstOrDefault(m => m.Id == preferred.Id && m.ProviderId == preferred.ProviderId) is { } model)
+        {
+            state.Model = model;
+        }
+
+        if (project.PreferredAgent is { } agent && state.Catalog.Agents.Any(a => a.Id == agent))
+        {
+            state.Agent = agent;
+        }
+
+        await SendTaskAsync().ConfigureAwait(true);
     }
 
     private async Task RunAsync(string status, Func<IWorkspaceConnection, CancellationToken, Func<bool>, Task> action, Func<Task> retry)
@@ -930,5 +996,7 @@ public sealed partial class LiveWorkspace : IDisposable
         public HashSet<string> HistoryCursors { get; } = new(StringComparer.Ordinal);
         public bool Creating { get; set; }
         public bool Uncertain { get; set; }
+        public TaskModel? PreferredModel { get; set; }
+        public string? PreferredAgent { get; set; }
     }
 }
