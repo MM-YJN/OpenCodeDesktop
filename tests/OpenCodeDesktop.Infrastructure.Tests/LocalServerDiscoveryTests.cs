@@ -26,7 +26,7 @@ public sealed class LocalServerDiscoveryTests
 
     [Theory]
     [InlineData("opencode v1.2.3", "http://127.0.0.1:28894", "private-password")]
-    [InlineData("opencode v2.1.5", "http://127.0.0.1:28894", "private-password")]
+    [InlineData("opencode v3.0.0", "http://127.0.0.1:28894", "private-password")]
     [InlineData("opencode v2.1.4", "http://evil.invalid:28894", "private-password")]
     [InlineData("opencode v2.1.4", "http://127.0.0.1:28894/path", "private-password")]
     [InlineData("opencode v2.1.4", "not running", "private-password")]

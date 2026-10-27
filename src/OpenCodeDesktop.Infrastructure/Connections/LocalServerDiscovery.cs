@@ -31,8 +31,10 @@ public sealed class LocalServerDiscovery(IServerConnectionService service, ILoca
         {
             try
             {
-                string? version = await commands.ExecuteAsync(executable, ["--version"], timeout.Token).ConfigureAwait(false);
-                if (version?.Trim() != "opencode v" + ServerVersionPolicy.SupportedVersion)
+                const string versionPrefix = "opencode v";
+                string? reported = (await commands.ExecuteAsync(executable, ["--version"], timeout.Token).ConfigureAwait(false))?.Trim();
+                if (reported is null || !reported.StartsWith(versionPrefix, StringComparison.Ordinal)
+                    || !ServerVersionPolicy.IsSupported(reported[versionPrefix.Length..]))
                 {
                     continue;
                 }

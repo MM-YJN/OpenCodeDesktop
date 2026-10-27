@@ -61,13 +61,24 @@ public sealed class OpenCodeConnectionServiceTests
     [Fact]
     public async Task UnsupportedVersionAndOversizedBodyAreRejected()
     {
-        using HttpClient client = new(new Handler((_, _) => Task.FromResult(Json(Identity.Replace("2.1.4", "2.1.5", StringComparison.Ordinal)))));
+        using HttpClient client = new(new Handler((_, _) => Task.FromResult(Json(Identity.Replace("2.1.4", "3.0.0", StringComparison.Ordinal)))));
         ConnectionResult version = await new OpenCodeConnectionService(client).ProbeAsync(Address(), "secret", CancellationToken.None);
         Assert.Equal(ConnectionOutcome.Incompatible, version.Outcome);
-        Assert.Contains("2.1.5", version.Message, StringComparison.Ordinal);
-        Assert.Contains("2.1.4", version.Message, StringComparison.Ordinal);
+        Assert.Contains("3.0.0", version.Message, StringComparison.Ordinal);
+        Assert.Contains(ServerVersionPolicy.SupportedVersion, version.Message, StringComparison.Ordinal);
         using HttpClient oversized = new(new Handler((_, _) => Task.FromResult(Json(new string('x', 65537)))));
         Assert.Equal(ConnectionOutcome.Incompatible, (await new OpenCodeConnectionService(oversized).ProbeAsync(Address(), "secret", CancellationToken.None)).Outcome);
+    }
+
+    [Theory]
+    [InlineData("2.1.5")]
+    [InlineData("2.10.0")]
+    public async Task LaterReleasesInTheSupportedMajorLineAreAccepted(string release)
+    {
+        using HttpClient client = new(new Handler((_, _) => Task.FromResult(Json(Identity.Replace("2.1.4", release, StringComparison.Ordinal)))));
+        ConnectionResult result = await new OpenCodeConnectionService(client).ProbeAsync(Address(), "secret", CancellationToken.None);
+        Assert.True(result.IsReady);
+        Assert.Equal(release, result.Version);
     }
 
     [Theory]

@@ -33,9 +33,9 @@ The successful response observed was HTTP `200`, `Content-Type: application/json
 }
 ```
 
-PID `0`, the port placeholder, and the temporary path replace observed machine-specific values. The verifier checked the actual PID against the process it launched before sanitizing it. The schema requires `version` (string), `pid` (nonnegative integer), `urls` (array of strings), and `paths.tmp` (string). `capabilities` is optional/nullable. Preserve the original schema in the snapshot; the client may ignore unknown additional properties for forward parsing, without expanding the version allowlist.
+PID `0`, the port placeholder, and the temporary path replace observed machine-specific values. The verifier checked the actual PID against the process it launched before sanitizing it. The schema requires `version` (string), `pid` (nonnegative integer), `urls` (array of strings), and `paths.tmp` (string). `capabilities` is optional/nullable. Preserve the original schema in the snapshot; the client may ignore unknown additional properties for forward parsing.
 
-Readiness for this increment means **HTTP 200 + valid required response fields + exact supported version `2.1.4`** using the supplied credentials. It authorizes attempting subsequent calls under their separately verified contracts. It does not imply a selected project, configured model/provider, or successful future execution. Do not switch to a URL returned in `urls` or treat `paths.tmp` as a local client path.
+Readiness means **HTTP 200 + valid required response fields + a supported version** using the supplied credentials. It authorizes attempting subsequent calls under their separately verified contracts. It does not imply a selected project, configured model/provider, or successful future execution. Do not switch to a URL returned in `urls` or treat `paths.tmp` as a local client path.
 
 The pinned source implements readiness through HTTP status, not a JSON `ready` field: `/api/info` returns `503` while starting/stopping and `500` after initialization failure, with the identity body; starting/stopping include `Retry-After: 1`. These branches are **source-supported, not runtime-observed** in this investigation: the verification run's first probe was already `200`. The static OpenAPI operation lists only `200`, `400`, and `401`, so transport handling must also cover these lifecycle statuses.
 
@@ -59,7 +59,7 @@ Valid Basic credentials produce the readiness response. The server source also a
 
 ## Compatibility and client outcomes
 
-`/api/info.version` supplies a runtime version. The OpenAPI `info.version` is **`0.0.1`**, a contract metadata value, not the installed CLI version. There is no verified negotiated compatibility range or protocol revision. Initial policy is an exact `2.1.4` allowlist plus response-shape validation. Another version, including another v2 patch, requires an explicit baseline review; a response with version `unknown` is unsupported.
+`/api/info.version` supplies a runtime version. The OpenAPI `info.version` is **`0.0.1`**, a contract metadata value, not the installed CLI version. There is no verified negotiated compatibility range or protocol revision. The policy accepts any server on the OpenCode 2.x major line plus response-shape validation; `2.1.4` remains the hash-verified reference executable behind every retained contract and evidence record. Other major versions, and a response with version `unknown`, are unsupported.
 
 The runtime-served connection operation and all referenced schemas matched the frozen source contract at commit `4617210822bdbb31e5749751afbfb4584ccedac8`. The verifier also checks that slice against the committed snapshot. This links the retained contract directly to the running artifact without assuming that current website documentation matches it. Package metadata did not supply `gitHead`, so the source commit is corroboration, not a claim about the binary's exact build commit.
 

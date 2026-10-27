@@ -1,19 +1,29 @@
 using System;
 
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 
 using OpenCodeDesktop.Core.Connections;
 using OpenCodeDesktop.Core.Workspaces;
 using OpenCodeDesktop.Presentation;
 
+using Windows.Foundation;
+
 namespace OpenCodeDesktop.Views;
 
 public sealed partial class SettingsView : UserControl
 {
+    private const double ScrollSpySlack = 8;
+
     private readonly ConnectionView _connectionsView;
     private readonly LiveWorkspace _workspace;
+    private readonly FrameworkElement[] _sections;
+    private readonly Button[] _sidebarItems;
     private bool _refreshingNotifications;
+    private bool _navigating;
+    private int _selectedSection = -1;
+
     internal string NotificationStatus { set => NotificationStatusText.Text = value; }
     public event EventHandler? ReturnRequested;
 
@@ -22,15 +32,12 @@ public sealed partial class SettingsView : UserControl
         _workspace = workspace;
         InitializeComponent();
         _connectionsView = new ConnectionView(connections, localDiscovery);
-        ConnectionsHost.Content = _connectionsView;
-        Sections.SelectedIndex = 0;
-        ActualThemeChanged += (_, _) =>
-        {
-            if (Sections.SelectedIndex is > 0 and < 5)
-            {
-                BuildUnavailable(Sections.SelectedIndex);
-            }
-        };
+        ConnectionsSection.Children.Add(_connectionsView);
+        _sections = [ConnectionsSection, ModelsSection, ExtensionsSection, PermissionsSection, AppearanceSection, NotificationsSection];
+        _sidebarItems = [NavConnections, NavModels, NavExtensions, NavPermissions, NavAppearance, NavNotifications];
+        BuildUnavailableSections();
+        SelectSection(0);
+        ActualThemeChanged += (_, _) => BuildUnavailableSections();
     }
 
     public void ClearPassword() => _connectionsView.Deactivate();
@@ -38,64 +45,125 @@ public sealed partial class SettingsView : UserControl
 
     public void Activate()
     {
-        if (Sections.SelectedIndex == 0)
-        {
-            _connectionsView.Activate();
-        }
+        _connectionsView.Activate();
+        RefreshNotificationPreferences();
     }
 
     public void FocusInitial() => ReturnButton.Focus(FocusState.Programmatic);
 
     public void ShowConnections(ServerProfile? profile)
     {
-        Sections.SelectedIndex = 0;
+        SelectSection(0);
         _connectionsView.Edit(profile);
         DispatcherQueue.TryEnqueue(() => _connectionsView.FocusInitial());
     }
 
     public void ShowConnectionsSection()
     {
-        Sections.SelectedIndex = 0;
+        NavigateToSection(0, animated: false);
         DispatcherQueue.TryEnqueue(() => _connectionsView.FocusInitial());
     }
 
-    private void Sections_Changed(object sender, SelectionChangedEventArgs args)
+    private void SidebarItem_Click(object sender, RoutedEventArgs args)
     {
-        if (Pages is null)
+        if (sender is Button { Tag: string tag } && int.TryParse(tag, out int index))
+        {
+            NavigateToSection(index, animated: true);
+        }
+    }
+
+    private void NavigateToSection(int index, bool animated)
+    {
+        SelectSection(index);
+        _navigating = true;
+        DispatcherQueue.TryEnqueue(() =>
+            SectionsScroll.ChangeView(null, SectionTop(_sections[index]), null, disableAnimation: !animated));
+    }
+
+    private void SectionsScroll_ViewChanged(object? sender, ScrollViewerViewChangedEventArgs args)
+    {
+        if (_navigating)
+        {
+            if (!args.IsIntermediate)
+            {
+                _navigating = false;
+                SyncSelectionWithScroll();
+            }
+
+            return;
+        }
+
+        SyncSelectionWithScroll();
+    }
+
+    private void SectionsScroll_SizeChanged(object sender, SizeChangedEventArgs args) => SyncSelectionWithScroll();
+
+    private void SyncSelectionWithScroll()
+    {
+        double offset = SectionsScroll.VerticalOffset;
+        int active = 0;
+        for (int i = 1; i < _sections.Length; i++)
+        {
+            if (SectionTop(_sections[i]) <= offset + ScrollSpySlack)
+            {
+                active = i;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        if (SectionsScroll.ScrollableHeight > 0 && offset >= SectionsScroll.ScrollableHeight - ScrollSpySlack)
+        {
+            active = _sections.Length - 1;
+        }
+
+        SelectSection(active);
+    }
+
+    private double SectionTop(FrameworkElement section)
+    {
+        return section.TransformToVisual(SectionsContent).TransformPoint(new Point(0, 0)).Y;
+    }
+
+    private void SelectSection(int index)
+    {
+        if (index == _selectedSection)
         {
             return;
         }
 
-        int index = Sections.SelectedIndex;
-        if (index != 0)
+        _selectedSection = index;
+        for (int i = 0; i < _sidebarItems.Length; i++)
         {
-            ClearPassword();
-        }
-        else if (IsLoaded && Visibility == Visibility.Visible)
-        {
-            _connectionsView.Activate();
-        }
-
-        bool connections = index == 0;
-        ConnectionsHost.Visibility = connections ? Visibility.Visible : Visibility.Collapsed;
-        UnavailableHost.Visibility = index is 0 or 5 ? Visibility.Collapsed : Visibility.Visible;
-        NotificationsHost.Visibility = index == 5 ? Visibility.Visible : Visibility.Collapsed;
-        if (index == 5) { RefreshNotificationPreferences(); }
-        if (index is > 0 and < 5)
-        {
-            BuildUnavailable(index);
+            bool selected = i == index;
+            _sidebarItems[i].Style = ShellUi.Resource<Style>(selected ? "ShellSelectedNavigationRowStyle" : "ShellNavigationRowStyle");
+            AutomationProperties.SetItemStatus(_sidebarItems[i], selected ? "Selected" : "");
         }
     }
 
-    private void BuildUnavailable(int index)
+    private void BuildUnavailableSections()
+    {
+        BuildUnavailableSection(ModelsSection, 1);
+        BuildUnavailableSection(ExtensionsSection, 2);
+        BuildUnavailableSection(PermissionsSection, 3);
+        BuildUnavailableSection(AppearanceSection, 4);
+    }
+
+    private static void BuildUnavailableSection(Panel host, int index)
     {
         SettingsSectionPresentation section = ShellPresentation.Section(index);
-        UnavailableHost.Content = ShellUi.StatePanel(
-            "ShellIconInfo",
-            section.Title,
-            section.Description,
-            ShellTone.Info,
-            ShellUi.LabelButton("Back to Connections", "ShellIconServer", (_, _) => Sections.SelectedIndex = 0));
+        host.Children.Clear();
+
+        TextBlock heading = ShellUi.Text(section.Title, "ShellTitleTextStyle");
+        ShellUi.Heading(heading);
+        host.Children.Add(heading);
+
+        StackPanel body = ShellUi.Stack(8);
+        body.Children.Add(ShellUi.Icon("ShellIconInfo", null, ShellUi.Brush("ShellTextSecondaryBrush")));
+        body.Children.Add(ShellUi.Text(section.Description, "ShellSecondaryTextStyle", TextWrapping.Wrap));
+        host.Children.Add(ShellUi.Card(body, "ShellSubtleCardStyle"));
     }
 
     private void Return_Click(object sender, RoutedEventArgs args) => ReturnRequested?.Invoke(this, EventArgs.Empty);

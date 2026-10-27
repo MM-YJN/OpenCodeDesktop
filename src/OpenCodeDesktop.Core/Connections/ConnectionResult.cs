@@ -24,8 +24,19 @@ public sealed record ConnectionResult(ConnectionOutcome Outcome, string Message,
 
 public static class ServerVersionPolicy
 {
-    public const string SupportedVersion = "2.1.4";
-    public static bool IsSupported(string version) => version == SupportedVersion;
+    public const int SupportedMajorVersion = 2;
+
+    /// <summary>Display text for diagnostics. Not an exact version requirement; see <see cref="IsSupported"/>.</summary>
+    public const string SupportedVersion = "2.x";
+
+    /// <summary>Accepts any reported server version on the supported major line, including pre-release labels of one.</summary>
+    public static bool IsSupported(string version)
+    {
+        ArgumentNullException.ThrowIfNull(version);
+        int separator = version.IndexOf('.', StringComparison.Ordinal);
+        ReadOnlySpan<char> major = separator >= 0 ? version.AsSpan(0, separator) : version.AsSpan();
+        return int.TryParse(major, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int value) && value == SupportedMajorVersion;
+    }
 }
 
 public interface IServerConnectionService

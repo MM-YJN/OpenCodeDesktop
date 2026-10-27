@@ -2,8 +2,6 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 
-using OpenCodeDesktop.Core.Connections;
-
 namespace OpenCodeDesktop.Infrastructure.Connections;
 
 public sealed class LocalOpenCodeCommands(TimeSpan? deadline = null) : ILocalOpenCodeCommands
@@ -25,13 +23,30 @@ public sealed class LocalOpenCodeCommands(TimeSpan? deadline = null) : ILocalOpe
 
         string architecture = RuntimeInformation.ProcessArchitecture switch { Architecture.X64 => "x64", Architecture.Arm64 => "arm64", _ => "x86" };
         string package = "cli-windows-" + architecture;
-        string[] candidates =
-        [
-            Path.Combine(appData, "ai.opencode.desktop", "cli", ServerVersionPolicy.SupportedVersion + "-" + architecture, "opencode-cli.exe"),
-            Path.Combine(appData, "npm", "node_modules", "@opencode", package, "bin", "opencode.exe"),
-            Path.Combine(appData, "npm", "node_modules", "@opencode", "cli", "node_modules", "@opencode", package, "bin", "opencode.exe"),
-        ];
+        List<string> candidates = [.. BundledCliExecutables(appData, architecture)];
+        candidates.Add(Path.Combine(appData, "npm", "node_modules", "@opencode", package, "bin", "opencode.exe"));
+        candidates.Add(Path.Combine(appData, "npm", "node_modules", "@opencode", "cli", "node_modules", "@opencode", package, "bin", "opencode.exe"));
         return candidates.Where(File.Exists).ToArray();
+    }
+
+    private static IEnumerable<string> BundledCliExecutables(string appData, string architecture)
+    {
+        string root = Path.Combine(appData, "ai.opencode.desktop", "cli");
+        IEnumerable<string> directories;
+        try
+        {
+            directories = Directory.Exists(root)
+                ? Directory.EnumerateDirectories(root)
+                    .Where(directory => directory.EndsWith("-" + architecture, StringComparison.OrdinalIgnoreCase))
+                    .OrderDescending(StringComparer.OrdinalIgnoreCase)
+                : [];
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+
+        return directories.Select(directory => Path.Combine(directory, "opencode-cli.exe"));
     }
 
     public Task<string?> ExecuteAsync(string executable, IReadOnlyList<string> arguments, CancellationToken cancellationToken) => Task.Run(async () =>

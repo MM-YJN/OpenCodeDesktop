@@ -9,45 +9,70 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Grid Padding="24,16,24,12" ColumnSpacing="16">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <StackPanel Spacing="6">
-                <Button x:Name="ReturnButton" Style="{StaticResource ShellQuietButtonStyle}" HorizontalAlignment="Left" Click="Return_Click" AutomationProperties.Name="Return to workspace">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE72B;" Style="{StaticResource ShellIconTextStyle}" FontSize="14" />
-                        <TextBlock Text="Return to workspace" Style="{StaticResource ShellBodyTextStyle}" />
-                    </StackPanel>
-                </Button>
-                <TextBlock Text="Settings" Style="{StaticResource ShellTitleTextStyle}" AutomationProperties.HeadingLevel="Level1" />
-                <TextBlock Text="Connection profiles, workspace storage and application preferences." Style="{StaticResource ShellSecondaryTextStyle}" />
-            </StackPanel>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <FontIcon Glyph="&#xE713;" Style="{StaticResource ShellIconTextStyle}" />
-                <ComboBox x:Name="Sections" Width="230" AutomationProperties.Name="Settings section" SelectionChanged="Sections_Changed">
-                    <x:String>Connections</x:String>
-                    <x:String>Models &amp; Providers</x:String>
-                    <x:String>Extensions</x:String>
-                    <x:String>Permissions</x:String>
-                    <x:String>Appearance</x:String>
-                    <x:String>Notifications</x:String>
-                </ComboBox>
-            </StackPanel>
-        </Grid>
+        <StackPanel Padding="24,16,24,12" Spacing="6">
+            <Button x:Name="ReturnButton" Style="{StaticResource ShellQuietButtonStyle}" HorizontalAlignment="Left" Click="Return_Click" AutomationProperties.Name="Return to workspace">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE72B;" Style="{StaticResource ShellIconTextStyle}" FontSize="14" />
+                    <TextBlock Text="Return to workspace" Style="{StaticResource ShellBodyTextStyle}" />
+                </StackPanel>
+            </Button>
+            <TextBlock Text="Settings" Style="{StaticResource ShellTitleTextStyle}" AutomationProperties.HeadingLevel="Level1" />
+            <TextBlock Text="Connection profiles, workspace storage and application preferences." Style="{StaticResource ShellSecondaryTextStyle}" />
+        </StackPanel>
 
-        <Grid x:Name="Pages" Grid.Row="1" Padding="24,0,24,16">
-            <ContentControl x:Name="ConnectionsHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
-            <ContentControl x:Name="UnavailableHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Visibility="Collapsed" />
-            <ScrollViewer x:Name="NotificationsHost" Visibility="Collapsed" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                <StackPanel Spacing="16" MaxWidth="680" HorizontalAlignment="Left">
-                    <TextBlock Text="Notifications" Style="{StaticResource ShellTitleTextStyle}" AutomationProperties.HeadingLevel="Level2" />
-                    <TextBlock Text="Get notified about observed sessions on the connected server while you are elsewhere. Monitoring stops when the app closes." Style="{StaticResource ShellSecondaryTextStyle}" TextWrapping="Wrap" />
-                    <ToggleSwitch x:Name="CompletionNotifications" Header="Task completion" AutomationProperties.AutomationId="CompletionNotifications" AutomationProperties.Name="Task completion notifications" Toggled="Notifications_Toggled" />
-                    <ToggleSwitch x:Name="AttentionNotifications" Header="Pending permissions and questions" AutomationProperties.AutomationId="AttentionNotifications" AutomationProperties.Name="Attention notifications" Toggled="Notifications_Toggled" />
-                    <TextBlock Text="Notifications are suppressed while the owning session is visible in the foreground. Existing requests and completion history are not announced when first loaded." Style="{StaticResource ShellSecondaryTextStyle}" TextWrapping="Wrap" />
-                    <TextBlock x:Name="NotificationStatusText" Style="{StaticResource ShellSecondaryTextStyle}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Width="204" Padding="16,4,16,16"
+                    Background="{ThemeResource ShellSidebarSurfaceBrush}"
+                    BorderBrush="{ThemeResource ShellDividerBrush}" BorderThickness="0,0,1,0">
+                <StackPanel Spacing="2" AutomationProperties.Name="Settings sections">
+                    <Button x:Name="NavConnections" Tag="0" Style="{StaticResource ShellSelectedNavigationRowStyle}" Click="SidebarItem_Click" AutomationProperties.Name="Connections section" AutomationProperties.ItemStatus="Selected">
+                        <TextBlock Text="Connections" Style="{StaticResource ShellBodyTextStyle}" />
+                    </Button>
+                    <Button x:Name="NavModels" Tag="1" Style="{StaticResource ShellNavigationRowStyle}" Click="SidebarItem_Click" AutomationProperties.Name="Models and Providers section">
+                        <TextBlock Text="Models &amp; Providers" Style="{StaticResource ShellBodyTextStyle}" />
+                    </Button>
+                    <Button x:Name="NavExtensions" Tag="2" Style="{StaticResource ShellNavigationRowStyle}" Click="SidebarItem_Click" AutomationProperties.Name="Extensions section">
+                        <TextBlock Text="Extensions" Style="{StaticResource ShellBodyTextStyle}" />
+                    </Button>
+                    <Button x:Name="NavPermissions" Tag="3" Style="{StaticResource ShellNavigationRowStyle}" Click="SidebarItem_Click" AutomationProperties.Name="Permissions section">
+                        <TextBlock Text="Permissions" Style="{StaticResource ShellBodyTextStyle}" />
+                    </Button>
+                    <Button x:Name="NavAppearance" Tag="4" Style="{StaticResource ShellNavigationRowStyle}" Click="SidebarItem_Click" AutomationProperties.Name="Appearance section">
+                        <TextBlock Text="Appearance" Style="{StaticResource ShellBodyTextStyle}" />
+                    </Button>
+                    <Button x:Name="NavNotifications" Tag="5" Style="{StaticResource ShellNavigationRowStyle}" Click="SidebarItem_Click" AutomationProperties.Name="Notifications section">
+                        <TextBlock Text="Notifications" Style="{StaticResource ShellBodyTextStyle}" />
+                    </Button>
+                </StackPanel>
+            </Border>
+
+            <ScrollViewer x:Name="SectionsScroll" Grid.Column="1"
+                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                          ViewChanged="SectionsScroll_ViewChanged" SizeChanged="SectionsScroll_SizeChanged">
+                <StackPanel x:Name="SectionsContent" MaxWidth="900" HorizontalAlignment="Left" Spacing="28" Margin="24,0,24,0" Padding="0,8,0,48">
+                    <StackPanel x:Name="ConnectionsSection" />
+                    <Border Style="{StaticResource ShellDividerStyle}" />
+                    <StackPanel x:Name="ModelsSection" Spacing="12" />
+                    <Border Style="{StaticResource ShellDividerStyle}" />
+                    <StackPanel x:Name="ExtensionsSection" Spacing="12" />
+                    <Border Style="{StaticResource ShellDividerStyle}" />
+                    <StackPanel x:Name="PermissionsSection" Spacing="12" />
+                    <Border Style="{StaticResource ShellDividerStyle}" />
+                    <StackPanel x:Name="AppearanceSection" Spacing="12" />
+                    <Border Style="{StaticResource ShellDividerStyle}" />
+                    <StackPanel x:Name="NotificationsSection" Spacing="16">
+                        <TextBlock Text="Notifications" Style="{StaticResource ShellTitleTextStyle}" AutomationProperties.HeadingLevel="Level2" />
+                        <TextBlock Text="Get notified about observed sessions on the connected server while you are elsewhere. Monitoring stops when the app closes." Style="{StaticResource ShellSecondaryTextStyle}" TextWrapping="Wrap" />
+                        <ToggleSwitch x:Name="CompletionNotifications" Header="Task completion" AutomationProperties.AutomationId="CompletionNotifications" AutomationProperties.Name="Task completion notifications" Toggled="Notifications_Toggled" />
+                        <ToggleSwitch x:Name="AttentionNotifications" Header="Pending permissions and questions" AutomationProperties.AutomationId="AttentionNotifications" AutomationProperties.Name="Attention notifications" Toggled="Notifications_Toggled" />
+                        <TextBlock Text="Notifications are suppressed while the owning session is visible in the foreground. Existing requests and completion history are not announced when first loaded." Style="{StaticResource ShellSecondaryTextStyle}" TextWrapping="Wrap" />
+                        <TextBlock x:Name="NotificationStatusText" Style="{StaticResource ShellSecondaryTextStyle}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                    </StackPanel>
                 </StackPanel>
             </ScrollViewer>
         </Grid>

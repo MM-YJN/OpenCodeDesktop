@@ -66,11 +66,14 @@ public sealed class ServerConnectionsTests
 
     [Theory]
     [InlineData("2.1.4", true)]
-    [InlineData("2.1.5", false)]
-    [InlineData("2.1.4-preview", false)]
+    [InlineData("2.1.5", true)]
+    [InlineData("2.10.0", true)]
+    [InlineData("2.1.4-preview", true)]
+    [InlineData("3.0.0", false)]
+    [InlineData("1.2.3", false)]
     [InlineData("unknown", false)]
     [InlineData("0.0.1", false)]
-    public void VersionPolicyIsExact(string version, bool supported) => Assert.Equal(supported, ServerVersionPolicy.IsSupported(version));
+    public void VersionPolicyAcceptsTheSupportedMajorLine(string version, bool supported) => Assert.Equal(supported, ServerVersionPolicy.IsSupported(version));
 
     [Fact]
     public void ProfilesValidateAndKeepStableIdentityWithoutNetwork()
@@ -158,7 +161,7 @@ public sealed class ServerConnectionsTests
     [Fact]
     public async Task ReadyResultWithUnsupportedVersionCannotBecomeActive()
     {
-        FakeService service = new() { Next = new(ConnectionOutcome.Ready, "Unexpected", "2.1.5") };
+        FakeService service = new() { Next = new(ConnectionOutcome.Ready, "Unexpected", "3.0.0") };
         using ServerConnections connections = new(service);
         ServerProfile profile = connections.Save(null, "Local", "http://127.0.0.1:4096")!;
         await connections.ConnectAsync(profile.Id, "secret");
