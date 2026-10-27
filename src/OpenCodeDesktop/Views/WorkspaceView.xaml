@@ -77,6 +77,7 @@
                 </Grid>
                 <views:ProjectFilesView x:Name="FilesContent" Grid.Row="1" Visibility="Collapsed"/>
                 <StackPanel x:Name="NeutralState" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24" Spacing="12" Visibility="Collapsed">
+                    <ProgressRing x:Name="NeutralLoading" IsActive="False" Width="32" Height="32" HorizontalAlignment="Center" Visibility="Collapsed"/>
                     <TextBlock x:Name="NeutralWorkspace" Text="Choose a session or open Files from a project's menu." Style="{StaticResource ShellSecondaryTextStyle}"/>
                     <Button x:Name="TabRetry" Content="Retry opening session" Click="TabRetry_ClickAsync" Visibility="Collapsed"/>
                 </StackPanel>

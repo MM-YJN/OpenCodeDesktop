@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -356,29 +357,25 @@ public sealed partial class WorkspaceView
                 await live.OpenProjectAsync(model.Directory).ConfigureAwait(true);
                 return;
             case ProjectTreeItemKind.Session when model.SessionId is { } sessionId:
-                _treeRevealPending = true;
-                if (live.Location?.Directory == model.Directory)
                 {
-                    await live.SelectSessionAsync(sessionId).ConfigureAwait(true);
+                    _treeRevealPending = true;
+                    Task load = live.Location?.Directory == model.Directory
+                        ? live.SelectSessionAsync(sessionId)
+                        : live.OpenProjectSessionAsync(model.Directory, sessionId);
+                    OpenSessionTab(live, model.Directory, sessionId, model.Label);
+                    await load.ConfigureAwait(true);
+                    return;
                 }
-                else
-                {
-                    await live.OpenProjectSessionAsync(model.Directory, sessionId).ConfigureAwait(true);
-                }
-
-                return;
             case ProjectTreeItemKind.Draft:
-                _treeRevealPending = true;
-                if (live.Location?.Directory == model.Directory)
                 {
-                    await live.SelectSessionAsync(null).ConfigureAwait(true);
+                    _treeRevealPending = true;
+                    Task load = live.Location?.Directory == model.Directory
+                        ? live.SelectSessionAsync(null)
+                        : live.OpenProjectDraftAsync(model.Directory);
+                    OpenSessionTab(live, model.Directory, null, "New-session draft");
+                    await load.ConfigureAwait(true);
+                    return;
                 }
-                else
-                {
-                    await live.OpenProjectDraftAsync(model.Directory).ConfigureAwait(true);
-                }
-
-                return;
             case ProjectTreeItemKind.LoadMore:
                 _expandedProjects.Add(model.Directory);
                 await live.LoadProjectSessionsAsync(model.Directory, true).ConfigureAwait(true);
@@ -394,14 +391,11 @@ public sealed partial class WorkspaceView
         }
 
         _treeRevealPending = true;
-        if (live.Location?.Directory == directory)
-        {
-            await live.SelectSessionAsync(null).ConfigureAwait(true);
-        }
-        else
-        {
-            await live.OpenProjectDraftAsync(directory).ConfigureAwait(true);
-        }
+        Task load = live.Location?.Directory == directory
+            ? live.SelectSessionAsync(null)
+            : live.OpenProjectDraftAsync(directory);
+        OpenSessionTab(live, directory, null, "New-session draft");
+        await load.ConfigureAwait(true);
     }
 
     private MenuFlyout ProjectMenu(LiveWorkspace live, string directory)

@@ -115,9 +115,11 @@ public sealed partial class WorkspaceView
         bool connected = live.IsConnected;
         AddProjectButton.IsEnabled = connected && !live.IsLoading;
         ProjectsCount.Text = live.Projects.Count == 0 ? "" : "· " + live.Projects.Count;
-        WorkspaceLoading.Visibility = live.IsLoading ? Visibility.Visible : Visibility.Collapsed;
+        // Session navigation presents its load inside the session tab; the sidebar indicator covers other workspace loads.
+        bool loading = live.IsLoading && !TabPresentsSessionLoad(live);
+        WorkspaceLoading.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
         WorkspaceStatus.Text = live.Status;
-        WorkspaceStatus.Visibility = live.IsLoading ? Visibility.Visible : Visibility.Collapsed;
+        WorkspaceStatus.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
         bool error = live.Error is not null;
         WorkspaceError.Text = live.Error ?? "";
         WorkspaceErrorBanner.Visibility = error ? Visibility.Visible : Visibility.Collapsed;

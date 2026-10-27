@@ -25,6 +25,7 @@ public sealed partial class WorkspaceView
     private long _tabGeneration;
     private bool _sessionDetailsOpen;
     private readonly Dictionary<Guid, string> _tabOrigins = [];
+    private WorkspaceTabKey? _sessionTabOpening;
     internal bool IsSessionVisible(SessionTaskState state) => !_tabNavigation && _tabs.Active is { IsFiles: false } active &&
         active.SessionId == state.Id && active.Directory == state.Directory && _live?.SelectedSessionId == state.Id;
 
@@ -209,6 +210,50 @@ public sealed partial class WorkspaceView
         }
     }
 
+    /// <summary>Open a session or draft tab immediately so its navigation load presents inside the tab instead of above the project list.</summary>
+    private void OpenSessionTab(LiveWorkspace live, string directory, string? sessionId, string title)
+    {
+        if (live.Server is not { } server)
+        {
+            return;
+        }
+
+        WorkspaceTabKey key = new(server.Profile.Id, directory, sessionId, false);
+        _tabs.Open(new(key, title + " · " + ProjectName(directory)));
+        _sessionTabOpening = _tabs.Active == key ? key : null;
+        RenderTabStrip();
+        ApplyWorkspaceMode();
+    }
+
+    /// <summary>True while the active session tab presents the workspace load inside the tab, making the sidebar loading indicator redundant.</summary>
+    private bool TabPresentsSessionLoad(LiveWorkspace live) => live.IsLoading && _tabs.Active is { IsFiles: false } active &&
+        (_tabNavigation || _sessionTabOpening == active ||
+         !_tabNavigation && !live.HistoryLoaded && live.Location?.Directory == active.Directory &&
+         (active.SessionId == live.SelectedSessionId || _sendingDraft && active.SessionId is null));
+
+    private void SetNeutralLoading(bool active)
+    {
+        NeutralLoading.IsActive = active;
+        NeutralLoading.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>Show the in-tab "Opening session…" state while the active tab's navigation load runs, or retry guidance after a failed open.</summary>
+    private void PresentNeutralState(bool session, bool files)
+    {
+        if (_sessionTabOpening is { } opening && (_tabNavigation || _tabs.Active != opening || _live?.IsLoading != true))
+        {
+            _sessionTabOpening = null;
+        }
+
+        bool openingSession = !session && !files && _live is { } live && TabPresentsSessionLoad(live);
+        bool failedSession = !session && !files && _tabs.Active is { IsFiles: false } && !_tabNavigation && _live?.IsLoading == false;
+        SetNeutralLoading(openingSession);
+        TabRetry.Visibility = failedSession ? Visibility.Visible : Visibility.Collapsed;
+        if (openingSession) { NeutralWorkspace.Text = "Opening session…"; }
+        else if (failedSession) { NeutralWorkspace.Text = _live?.Error ?? "This session could not be opened. Retry or choose another workspace tab."; }
+        else if (_tabs.Active is null) { NeutralWorkspace.Text = "Choose a session or open Files from a project's menu."; }
+    }
+
     private void ApplyWorkspaceMode()
     {
         bool session = !_tabNavigation && _tabs.Active is { IsFiles: false } active &&
@@ -219,10 +264,7 @@ public sealed partial class WorkspaceView
         DetailsLayout.Visibility = session ? Visibility.Visible : Visibility.Collapsed;
         FilesContent.Visibility = files ? Visibility.Visible : Visibility.Collapsed;
         NeutralState.Visibility = !session && !files ? Visibility.Visible : Visibility.Collapsed;
-        bool failedSession = !session && !files && _tabs.Active is { IsFiles: false } && !_tabNavigation && _live?.IsLoading == false;
-        TabRetry.Visibility = failedSession ? Visibility.Visible : Visibility.Collapsed;
-        if (failedSession) { NeutralWorkspace.Text = _live?.Error ?? "This session could not be opened. Retry or choose another workspace tab."; }
-        else if (_tabs.Active is null) { NeutralWorkspace.Text = "Choose a session or open Files from a project's menu."; }
+        PresentNeutralState(session, files);
         if (!session)
         {
             if (DetailsLayout.IsPaneOpen)
@@ -328,6 +370,7 @@ public sealed partial class WorkspaceView
         DetailsLayout.Visibility = Visibility.Collapsed;
         FilesContent.Visibility = Visibility.Collapsed;
         NeutralWorkspace.Text = "Opening session…";
+        SetNeutralLoading(true);
         NeutralState.Visibility = Visibility.Visible;
         try
         {
@@ -347,6 +390,7 @@ public sealed partial class WorkspaceView
                 _tabNavigation = false;
                 _sessionNavigationPending = false;
                 NeutralWorkspace.Text = "Choose a session or open Files from a project's menu.";
+                SetNeutralLoading(false);
                 RenderLive();
                 if (DraftBox.IsEnabled && DetailsLayout.Visibility == Visibility.Visible)
                 {
