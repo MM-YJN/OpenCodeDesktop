@@ -41,35 +41,12 @@
             <StackPanel x:Name="ServerList" Spacing="8" />
         </StackPanel>
 
-        <Border x:Name="EditorSection" BorderBrush="{ThemeResource ShellDividerBrush}" BorderThickness="0,1,0,0" Padding="0,20,0,0">
-            <StackPanel Spacing="12">
-                <TextBlock x:Name="EditorHeading" Text="Add server" Style="{StaticResource ShellHeadingTextStyle}" AutomationProperties.HeadingLevel="Level3" />
-                <Grid ColumnSpacing="16" RowSpacing="12">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                    <TextBox x:Name="ServerName" Header="Name" PlaceholderText="Local development" MaxLength="80" AutomationProperties.Name="Server name" />
-                    <TextBox x:Name="ServerOrigin" Grid.Column="1" Header="Server address" MaxLength="256" AutomationProperties.Name="Server address" />
-                    <PasswordBox x:Name="ServerPassword" Grid.Row="1" Grid.ColumnSpan="2" Header="Server password" MaxLength="4096" PasswordRevealMode="Peek" AutomationProperties.Name="Server password" />
-                </Grid>
-                <TextBlock x:Name="DefaultAddressHint" Style="{StaticResource ShellTertiaryTextStyle}" />
-                <CheckBox x:Name="RememberCredentials" IsChecked="True">
-                    <TextBlock Text="Remember credentials on this device" TextWrapping="Wrap" />
-                </CheckBox>
-                <TextBlock Text="Remembered passwords are protected for your Windows user. Leave the password blank to use the saved credential." Style="{StaticResource ShellTertiaryTextStyle}" />
+        <Border BorderBrush="{ThemeResource ShellDividerBrush}" BorderThickness="0,1,0,0" Padding="0,16,0,0">
+            <StackPanel Spacing="8">
                 <InfoBar x:Name="SwitchInformation" IsOpen="True" IsClosable="False" Severity="Informational"
                          Message="Your current server stays active until the new connection is ready." />
                 <InfoBar x:Name="ResultBar" IsOpen="False" IsClosable="False" AutomationProperties.LiveSetting="Polite" />
                 <ProgressBar x:Name="ConnectingProgress" IsIndeterminate="True" Visibility="Collapsed" AutomationProperties.Name="Connecting to selected server" />
-                <Border Style="{StaticResource ShellDividerStyle}" />
-                <Grid ColumnSpacing="12">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <TextBlock x:Name="FooterHint" Text="Profiles and workspace selections are saved on this device." Style="{StaticResource ShellTertiaryTextStyle}" VerticalAlignment="Center" />
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                        <Button x:Name="SaveButton" Content="Save" Style="{StaticResource ShellSecondaryButtonStyle}" Click="Save_Click" />
-                        <Button x:Name="ConnectButton" Content="Connect" Style="{StaticResource ShellPrimaryButtonStyle}" Click="Connect_ClickAsync" />
-                        <Button x:Name="CancelButton" Content="Cancel" Style="{StaticResource ShellQuietButtonStyle}" Click="Cancel_Click" />
-                    </StackPanel>
-                </Grid>
             </StackPanel>
         </Border>
     </StackPanel>

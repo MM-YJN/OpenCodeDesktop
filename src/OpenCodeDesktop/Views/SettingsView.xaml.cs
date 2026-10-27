@@ -54,7 +54,7 @@ public sealed partial class SettingsView : UserControl
     public void ShowConnections(ServerProfile? profile)
     {
         SelectSection(0);
-        _connectionsView.Edit(profile);
+        _connectionsView.ConnectOrPrompt(profile);
         DispatcherQueue.TryEnqueue(() => _connectionsView.FocusInitial());
     }
 

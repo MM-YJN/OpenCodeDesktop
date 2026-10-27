@@ -180,7 +180,65 @@ public sealed class ServerConnectionsTests
         Assert.DoesNotContain("secret", connections.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task TestProbesWithoutTouchingActiveConnectionOrProfiles()
+    {
+        FakeService service = new();
+        using ServerConnections connections = new(service);
+        ServerProfile first = connections.Save(null, "Local", "http://127.0.0.1:4096")!;
+        await connections.ConnectAsync(first.Id, "secret");
+        Assert.Equal(first, connections.Active!.Profile);
+        int calls = service.Calls;
+        ConnectionResult tested = await connections.TestAsync(null, "http://127.0.0.1:4097", "another");
+        Assert.True(tested.IsReady);
+        Assert.Equal(calls + 1, service.Calls);
+        Assert.Equal(first, connections.Active.Profile);
+        ConnectionResult failed = await connections.TestAsync(null, "http://localhost:4096", "secret");
+        Assert.Equal(ConnectionOutcome.ValidationFailed, failed.Outcome);
+        Assert.Equal(calls + 1, service.Calls);
+    }
+
+    [Fact]
+    public async Task TestFallsBackToTheSavedCredentialAndRejectsUnsupportedVersions()
+    {
+        MemoryStore store = new();
+        FakeService service = new();
+        using ServerConnections connections = new(service, store);
+        ServerProfile profile = connections.Save(null, "Local", "http://127.0.0.1:4096")!;
+        await connections.ConnectAsync(profile.Id, "secret");
+        profile = Assert.Single(connections.Profiles);
+        Assert.NotNull(profile.CredentialReference);
+        int calls = service.Calls;
+        Assert.True((await connections.TestAsync(profile.Id, profile.Address.Display, "")).IsReady);
+        Assert.Equal(calls + 1, service.Calls);
+        service.Next = new(ConnectionOutcome.Ready, "Unexpected", "3.0.0");
+        Assert.Equal(ConnectionOutcome.Incompatible, (await connections.TestAsync(profile.Id, null, "")).Outcome);
+        connections.Disconnect();
+        connections.Remove(profile.Id);
+        Assert.Equal(ConnectionOutcome.ValidationFailed, (await connections.TestAsync(profile.Id, profile.Address.Display, "")).Outcome);
+        service.Next = Ready;
+    }
+
     private static ConnectionResult Ready => new(ConnectionOutcome.Ready, "Ready", "2.1.4");
+
+    private sealed class MemoryStore : OpenCodeDesktop.Core.Workspaces.ICredentialStore
+    {
+        private readonly Dictionary<string, string> _secrets = [];
+        private int _next;
+        public Task<string> SaveAsync(string password, CancellationToken cancellationToken)
+        {
+            string reference = "ref-" + (++_next).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            _secrets[reference] = password;
+            return Task.FromResult(reference);
+        }
+
+        public Task<string> ReadAsync(string reference, CancellationToken cancellationToken) => Task.FromResult(_secrets[reference]);
+        public Task DeleteAsync(string reference, CancellationToken cancellationToken)
+        {
+            _secrets.Remove(reference);
+            return Task.CompletedTask;
+        }
+    }
 
     private sealed class FakeService : IServerConnectionService
     {

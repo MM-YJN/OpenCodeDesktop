@@ -123,6 +123,65 @@ public sealed class ServerConnections(IServerConnectionService service, ICredent
         return removed;
     }
 
+    /// <summary>Probes an address without saving the profile, promoting the connection, or storing credentials. Uses the profile's saved credential when the password is blank.</summary>
+    public async Task<ConnectionResult> TestAsync(Guid? profileId, string? origin, string password, CancellationToken cancellationToken = default)
+    {
+        if (_disposed || IsConnecting)
+        {
+            return new(ConnectionOutcome.Unavailable, "Finish the current connection attempt before testing.");
+        }
+
+        if (!ServerAddress.TryParse(string.IsNullOrWhiteSpace(origin) ? ServerAddress.DefaultOrigin : origin, out ServerAddress? address))
+        {
+            return new(ConnectionOutcome.ValidationFailed, ServerAddress.FormatMessage);
+        }
+
+        if (string.IsNullOrEmpty(password) && profileId is { } id && credentials is not null)
+        {
+            string? reference = _profiles.Find(p => p.Id == id)?.CredentialReference;
+            if (reference is not null)
+            {
+                try
+                {
+                    password = await credentials.ReadAsync(reference, cancellationToken).ConfigureAwait(true);
+                }
+                catch (Exception)
+                {
+                    // External implementations must not leak credentials or raw exception text into UI state.
+                    return new(ConnectionOutcome.TransportFailure, "The saved credential could not be read. Enter the current server password and test again.");
+                }
+            }
+        }
+
+        if (string.IsNullOrEmpty(password))
+        {
+            return new(ConnectionOutcome.ValidationFailed, "Enter the server password to test the connection.");
+        }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return ConnectionResult.Cancelled;
+        }
+
+        ConnectionResult result;
+        try
+        {
+            result = await service.ProbeAsync(address, password, cancellationToken).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return ConnectionResult.Cancelled;
+        }
+        catch (Exception)
+        {
+            return new(ConnectionOutcome.TransportFailure, "Connection or credential retrieval failed. Enter the current password and reconnect.");
+        }
+
+        return result.IsReady && !ServerVersionPolicy.IsSupported(result.Version ?? "")
+            ? new(ConnectionOutcome.Incompatible, "The server identity is incompatible. Use OpenCode " + ServerVersionPolicy.SupportedVersion + ".")
+            : result;
+    }
+
     public Task ConnectAsync(Guid id, string password) => ConnectAsync(id, password, CancellationToken.None);
 
     public Task ConnectAsync(Guid id, string password, CancellationToken cancellationToken)
