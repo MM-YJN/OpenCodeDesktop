@@ -177,7 +177,7 @@ public sealed partial class LiveTaskWorkflow
                 {
                     return;
                 }
-                state.Refresh = HydrateAsync(state);
+                state.Refresh = HydrateAsync(state, background: false);
                 await state.Refresh.ConfigureAwait(true);
             }
             if (_streamAvailable && Volatile.Read(ref _pendingEvents) == 0 && revision == _directoryRevision && _sessions.Values.All(s => s.Hydrated))

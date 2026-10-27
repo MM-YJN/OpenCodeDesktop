@@ -35,7 +35,7 @@ public sealed partial class OpenCodeTaskConnectionTests
     [InlineData(4096)]
     public async Task SseParsesSplitCoalescedFramesCommentsCrLfUnknownAndLocationlessEvents(int chunk)
     {
-        const string data = ": heartbeat\r\n\r\ndata: {\"id\":\"one\",\"type\":\"session.text.delta\",\"data\":{\"sessionID\":\"s\",\"assistantMessageID\":\"m\",\"ordinal\":2,\"delta\":\"你好\"}}\r\n\r\ndata: {\"type\":\"future.event\",\"data\":{},\"durable\":{\"aggregateID\":\"s\",\"seq\":7}}\n\ndata: {\"type\":\"session.instructions.updated\",\"data\":{\"delta\":{\"unknown\":\"object\"}}}\n\n";
+        const string data = ": heartbeat\r\n\r\ndata: {\"id\":\"one\",\"type\":\"session.text.delta\",\"data\":{\"sessionID\":\"s\",\"assistantMessageID\":\"m\",\"ordinal\":2,\"delta\":\"你好\"}}\r\n\r\ndata: {\"type\":\"future.event\",\"data\":{},\"durable\":{\"aggregateID\":\"s\",\"seq\":7}}\n\ndata: {\"type\":\"session.instructions.updated\",\"data\":{\"delta\":{\"unknown\":\"object\"}}}\n\ndata: {\"type\":\"form.created\",\"data\":{\"form\":{\"id\":\"frm\",\"sessionID\":\"form-session\"}}}\n\ndata: {\"type\":\"shell.created\",\"data\":{\"info\":{\"id\":\"sh\",\"metadata\":{\"sessionID\":\"shell-session\"}}}}\n\ndata: {\"type\":\"project.updated\",\"data\":{\"id\":\"project\"}}\n\n";
         using var stream = new ChunkStream(Encoding.UTF8.GetBytes(data), chunk);
         using HttpClient client = new(new Handler((_, _) => Task.FromResult(Sse(stream))));
         using OpenCodeWorkspaceConnection api = Create(client);
@@ -45,11 +45,15 @@ public sealed partial class OpenCodeTaskConnectionTests
             events.Add(e);
             return Task.CompletedTask;
         }, TestContext.Current.CancellationToken));
-        Assert.Equal(3, events.Count);
+        Assert.Equal(6, events.Count);
         Assert.Equal("你好", events[0].Delta);
         Assert.Equal(2, events[0].Ordinal);
         Assert.Equal("s", events[1].SessionId);
         Assert.Null(events[2].Delta);
+        Assert.Null(events[2].SessionId);
+        Assert.Equal("form-session", events[3].SessionId);
+        Assert.Equal("shell-session", events[4].SessionId);
+        Assert.Null(events[5].SessionId);
     }
 
     [Theory]

@@ -45,7 +45,7 @@ public sealed partial class LiveWorkspace
         _connections.Context is ITaskConnection && Tasks is { Recovery: WorkspaceRecovery.Current, AttentionError: null } && SafeToArchive(Tasks.Find(id));
 
     private static bool SafeToArchive(SessionTaskState? state) => state is null ||
-        state is { Active: false, Busy: false, Loading: false, Stopping: false, Stale: false, DeliveryUncertain: false, Submission: null,
+        state is { Active: false, Busy: false, Loading: false, Refreshing: false, Stopping: false, Stale: false, DeliveryUncertain: false, Submission: null,
             Inbox.Count: 0, Permissions.Count: 0, Forms.Count: 0 };
 
     public Task RenameSessionAsync(string directory, string id, string title)

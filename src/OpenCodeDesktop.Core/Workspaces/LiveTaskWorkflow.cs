@@ -11,6 +11,7 @@ public sealed class SessionTaskState(string id, string directory, string project
     public TaskModel? Model { get; set; }
     public string? Agent { get; set; }
     public bool Loading { get; internal set; }
+    public bool Refreshing { get; internal set; }
     public bool Busy { get; internal set; }
     public bool Stopping { get; internal set; }
     public bool Stale { get; internal set; } = true;
@@ -30,6 +31,7 @@ public sealed class SessionTaskState(string id, string directory, string project
     internal Dictionary<(string Message, string Tool), string> Tools { get; } = [];
     internal long Revision { get; set; }
     internal Task? Refresh { get; set; }
+    internal bool RefreshScheduled { get; set; }
     internal string? HistoryCursor { get; set; }
     internal double? Idle { get; set; }
     internal bool AttentionBaselineKnown { get; set; }
@@ -68,7 +70,7 @@ public sealed class SessionTaskState(string id, string directory, string project
 
         return copy;
     }
-    public bool CanSend => Hydrated && !Stale && !Loading && !Busy && !Active && Inbox.Count == 0 && Submission is null &&
+    public bool CanSend => Hydrated && !Stale && !Loading && !Refreshing && !Busy && !Active && Inbox.Count == 0 && Submission is null &&
         Permissions.Count == 0 && Forms.Count == 0 && Model is not null && Agent is not null &&
         Catalog.Models.Any(m => m.Id == Model.Id && m.ProviderId == Model.ProviderId) && Catalog.Agents.Any(a => a.Id == Agent);
     public string Status => Stopping ? "Stopping… confirming the result" : Busy ? "Sending decision or request…" :
@@ -240,7 +242,7 @@ public sealed partial class LiveTaskWorkflow : IDisposable
                         continue;
                     }
 
-                    await RefreshAsync(Track(session), reconnect: false).ConfigureAwait(true);
+                    await RefreshAsync(Track(session), reconnect: false, background: true).ConfigureAwait(true);
                 }
                 _attentionBaselines.Add(directory.Key);
             }
@@ -277,15 +279,15 @@ public sealed partial class LiveTaskWorkflow : IDisposable
         await RefreshAsync(state).ConfigureAwait(true);
     }
 
-    public async Task RefreshAsync(SessionTaskState state, bool reconnect = true)
+    public async Task RefreshAsync(SessionTaskState state, bool reconnect = true, bool background = false)
     {
         ArgumentNullException.ThrowIfNull(state);
-        if (_disposed || state.Loading || !reconnect && !_streamAvailable)
+        if (_disposed || state.Loading || state.Refreshing || !reconnect && !_streamAvailable)
         {
             return;
         }
 
-        state.Refresh = HydrateAsync(state);
+        state.Refresh = HydrateAsync(state, background);
         try
         {
             await state.Refresh.ConfigureAwait(true);
@@ -301,9 +303,20 @@ public sealed partial class LiveTaskWorkflow : IDisposable
         }
     }
 
-    private async Task HydrateAsync(SessionTaskState state)
+    private async Task HydrateAsync(SessionTaskState state, bool background)
     {
-        state.Loading = true;
+        // Once a session has been confirmed, an event-driven read must not replace the
+        // last known execution state with a transient "checking" state. Foreground reads
+        // (initial selection, explicit refresh, recovery) still surface their progress.
+        if (background && state.Hydrated)
+        {
+            state.Refreshing = true;
+        }
+        else
+        {
+            state.Loading = true;
+        }
+
         // An ordinary read on a healthy stream keeps interruption available. Recovery has
         // already invalidated all observations and must keep them stale until the full read set succeeds.
         state.Stale |= Recovery != WorkspaceRecovery.Current;
@@ -352,6 +365,7 @@ public sealed partial class LiveTaskWorkflow : IDisposable
         finally
         {
             state.Loading = false;
+            state.Refreshing = false;
             Notify();
         }
     }
@@ -708,12 +722,35 @@ public sealed partial class LiveTaskWorkflow : IDisposable
                 {
                     SessionMetadataChanged?.Invoke(this, e);
                 }
-                IEnumerable<SessionTaskState> affected = e.SessionId is { } id && _sessions.TryGetValue(id, out SessionTaskState? owned) ? [owned] : _sessions.Values;
+                bool refresh = RequiresRefresh(e.Type);
+                SessionTaskState[] affected;
+                if (e.SessionId is { } id && _sessions.TryGetValue(id, out SessionTaskState? owned))
+                {
+                    affected = [owned];
+                }
+                else if (e.Type.StartsWith("permission.", StringComparison.Ordinal) || e.Type.StartsWith("form.", StringComparison.Ordinal))
+                {
+                    // Attention events without an owning session can only affect sessions that
+                    // currently show a pending request; discovery handles new sessions separately.
+                    affected = _sessions.Values.Where(state => state.Permissions.Count + state.Forms.Count > 0).ToArray();
+                }
+                else
+                {
+                    affected = [];
+                }
+
                 foreach (SessionTaskState state in affected)
                 {
-                    state.Revision++;
+                    // Only changes that can be reconciled by a snapshot need to invalidate an
+                    // in-flight read. Streaming deltas are applied directly and must not keep a
+                    // healthy hydration retrying indefinitely.
+                    if (refresh)
+                    {
+                        state.Revision++;
+                    }
+
                     ApplyEvent(state, e);
-                    if (!state.Loading && !state.Busy && Recovery == WorkspaceRecovery.Current)
+                    if (refresh && !state.Loading && !state.Busy && !state.Refreshing && Recovery == WorkspaceRecovery.Current)
                     {
                         _ = RefreshAfterEventAsync(state);
                     }
@@ -747,6 +784,20 @@ public sealed partial class LiveTaskWorkflow : IDisposable
             catch (Exception) { /* Reported through the channel. */ }
         }
     }
+    private static bool RequiresRefresh(string type) => type switch
+    {
+        // Shell/project activity is unrelated to a session's execution state.
+        "project.updated" => false,
+        _ when type.StartsWith("shell.", StringComparison.Ordinal) => false,
+        // Streaming text/reasoning progress does not change authoritative execution state.
+        _ when type.StartsWith("session.reasoning.", StringComparison.Ordinal) => false,
+        _ when type.StartsWith("session.text.", StringComparison.Ordinal) => false,
+        "session.tool.input.started" or "session.tool.input.ended" or "session.tool.called" or "session.tool.progress" => false,
+        "session.usage.updated" => false,
+        "session.step.started" or "session.step.streamed" => false,
+        _ => true,
+    };
+
     private static void ApplyEvent(SessionTaskState state, TaskEvent e)
     {
         if (e.SessionId == state.Id && e.Type == "session.execution.started")
@@ -781,8 +832,14 @@ public sealed partial class LiveTaskWorkflow : IDisposable
 
     private async Task RefreshAfterEventAsync(SessionTaskState state)
     {
-        // Coalesce bursts without blocking the UI or creating one REST hydration per delta.
-        state.Loading = true;
+        if (state.RefreshScheduled)
+        {
+            return;
+        }
+
+        // Coalesce bursts without changing the user-visible execution state or creating
+        // one REST hydration per delta.
+        state.RefreshScheduled = true;
         try
         {
             await Task.Delay(100, _lifetime.Token).ConfigureAwait(true);
@@ -793,11 +850,11 @@ public sealed partial class LiveTaskWorkflow : IDisposable
         }
         finally
         {
-            state.Loading = false;
+            state.RefreshScheduled = false;
         }
-        if (!_disposed)
+        if (!_disposed && !state.Busy)
         {
-            await RefreshAsync(state, reconnect: false).ConfigureAwait(true);
+            await RefreshAsync(state, reconnect: false, background: true).ConfigureAwait(true);
         }
     }
     private void Notify()

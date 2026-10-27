@@ -23,7 +23,7 @@ public sealed partial class LiveTaskWorkflowTests
         int reads = api.SnapshotReads;
         await EmitAsync(new("start", "session.text.started", "s", "message", 1, null), () => true);
         await EmitAsync(new("first", "session.text.delta", "s", "message", 1, "first"), () => state.Conversation.Any(m => m.Text.Contains("first", StringComparison.Ordinal)));
-        await EmitAsync(new("hydrate", "session.updated", "s", null, 0, null), () => api.SnapshotReads > reads && !state.Loading);
+        await EmitAsync(new("hydrate", "session.updated", "s", null, 0, null), () => api.SnapshotReads > reads && !state.Refreshing);
         Assert.Contains("first", Assert.Single(state.Conversation).Text, StringComparison.Ordinal);
         await EmitAsync(new("second", "session.text.delta", "s", "message", 1, " second"), () => state.Conversation.Any(m => m.Text.Contains("first second", StringComparison.Ordinal)));
         Assert.Equal("tool context\n\nfirst second", Assert.Single(state.Conversation).Text);
@@ -309,6 +309,65 @@ public sealed partial class LiveTaskWorkflowTests
         Assert.Equal(1, api.Submissions);
         Assert.Equal(new TaskModel("model", "provider", "Model"), api.ModelSelections.Single().Model);
         Assert.Equal("build", Assert.Single(api.AgentSelections).Agent);
+    }
+
+    [Fact]
+    public async Task UnrelatedEventsAndGlobalActivityDoNotRefreshTrackedSessions()
+    {
+        using Api api = new();
+        using LiveTaskWorkflow workflow = new(api, api);
+        await workflow.OpenAsync(api.Session);
+        SessionTaskState state = workflow.Find("s")!;
+        WorkspaceSession other = new("other", "/dir", "project", "Other");
+        api.OtherSnapshots[other.Id] = api.Snapshot with { Session = other };
+        SessionTaskState otherState = workflow.Track(other);
+        await workflow.RefreshAsync(otherState);
+        int reads = api.SnapshotReads;
+
+        int barrier = 0;
+        async Task EmitAsync(TaskEvent e)
+        {
+            string message = "barrier" + barrier++;
+            await api.Events.Writer.WriteAsync(new("start-" + message, "session.text.started", "s", message, 0, null), TestContext.Current.CancellationToken);
+            await api.Events.Writer.WriteAsync(e, TestContext.Current.CancellationToken);
+            await api.Events.Writer.WriteAsync(new("delta-" + message, "session.text.delta", "s", message, 0, "x"), TestContext.Current.CancellationToken);
+            await ObserveAsync(workflow, () => state.Conversation.Any(item => item.Id == message && item.Text == "x"));
+        }
+
+        await EmitAsync(new("foreign", "session.execution.succeeded", "not-opened", null, 0, null));
+        await EmitAsync(new("global", "project.updated", null, null, 0, null));
+        await EmitAsync(new("shell", "shell.created", "s", null, 0, null));
+        await Task.Delay(500, TestContext.Current.CancellationToken);
+        Assert.Equal(reads, api.SnapshotReads);
+        Assert.False(state.Refreshing);
+        Assert.False(otherState.Refreshing);
+
+        int before = api.SnapshotReads;
+        await api.Events.Writer.WriteAsync(new("refresh", "session.updated", "s", null, 0, null), TestContext.Current.CancellationToken);
+        await ObserveAsync(workflow, () => api.SnapshotReads > before && !state.Refreshing);
+        Assert.True(api.SnapshotReads > before);
+    }
+
+    [Fact]
+    public async Task BackgroundRefreshKeepsLastConfirmedStatusVisible()
+    {
+        using Api api = new();
+        using LiveTaskWorkflow workflow = new(api, api);
+        await workflow.OpenAsync(api.Session);
+        SessionTaskState state = workflow.Find("s")!;
+        string before = state.Status;
+        int reads = api.SnapshotReads;
+        TaskCompletionSource<TaskSnapshot> held = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        api.HeldSnapshot = held;
+        await api.Events.Writer.WriteAsync(new("refresh", "session.updated", "s", null, 0, null), TestContext.Current.CancellationToken);
+        await ObserveAsync(workflow, () => state.Refreshing);
+        Assert.False(state.Loading);
+        Assert.Equal(before, state.Status);
+        held.SetResult(api.Snapshot);
+        await ObserveAsync(workflow, () => !state.Refreshing);
+        Assert.True(api.SnapshotReads > reads);
+        Assert.False(state.Loading);
+        Assert.Equal(before, state.Status);
     }
 
     private sealed class Service(Api api) : IServerConnectionService, IWorkspaceConnectionFactory

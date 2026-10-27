@@ -215,13 +215,7 @@ public sealed partial class OpenCodeWorkspaceConnection : ITaskConnection
                 }
 
                 JsonElement d = root.TryGetProperty("data", out JsonElement payload) ? payload : default;
-                string? session = EventString(d, "sessionID");
-                if (session is null && root.TryGetProperty("durable", out JsonElement durable))
-                {
-                    session = EventString(durable, "aggregateID");
-                }
-
-                await receive(new(EventString(root, "id") ?? "", type, session, EventString(d, "assistantMessageID"),
+                await receive(new(EventString(root, "id") ?? "", type, EventSession(d, root), EventString(d, "assistantMessageID"),
                     d.ValueKind == JsonValueKind.Object && d.TryGetProperty("ordinal", out JsonElement ordinal) && ordinal.ValueKind == JsonValueKind.Number && ordinal.TryGetInt32(out int index) ? index : 0,
                     EventString(d, "delta"), EventString(d, "id"), EventString(d, "name"))).ConfigureAwait(false);
             }
@@ -269,6 +263,33 @@ public sealed partial class OpenCodeWorkspaceConnection : ITaskConnection
                 }
             }
         }
+    }
+
+    private static string? EventSession(JsonElement data, JsonElement root)
+    {
+        string? session = EventString(data, "sessionID");
+        if (session is null && data.ValueKind == JsonValueKind.Object)
+        {
+            if (data.TryGetProperty("form", out JsonElement form))
+            {
+                session = EventString(form, "sessionID");
+            }
+            if (session is null && data.TryGetProperty("info", out JsonElement info) && info.ValueKind == JsonValueKind.Object &&
+                info.TryGetProperty("metadata", out JsonElement metadata))
+            {
+                session = EventString(metadata, "sessionID");
+            }
+            if (session is null && data.TryGetProperty("session", out JsonElement nested))
+            {
+                session = EventString(data, "session") ?? EventString(nested, "id") ?? EventString(nested, "sessionID");
+            }
+        }
+        if (session is null && root.TryGetProperty("durable", out JsonElement durable))
+        {
+            session = EventString(durable, "aggregateID");
+        }
+
+        return session;
     }
 
     private static string? EventString(JsonElement value, string key) => value.ValueKind == JsonValueKind.Object &&

@@ -11,7 +11,7 @@ internal sealed record LiveTaskPresentation(string Status, string Error, string 
         state is { Hydrated: true } && (state.Catalog.Models.Count == 0 || state.Catalog.Agents.Count == 0)
             ? "No usable model or primary agent is available. Enable a model and its provider access on the server, then refresh." : "",
         state is { Loading: true } or { Busy: true } || workflow?.Recovery == WorkspaceRecovery.Recovering,
-        state is { Loading: false, Busy: false } && workflow?.Recovery is null or WorkspaceRecovery.Current or WorkspaceRecovery.RetryRequired,
+        state is { Loading: false, Refreshing: false, Busy: false } && workflow?.Recovery is null or WorkspaceRecovery.Current or WorkspaceRecovery.RetryRequired,
         state?.CanSend == true && (!string.IsNullOrWhiteSpace(draft) || attachments > 0),
         state is { Active: true, Busy: false, Stale: false },
         state is { Busy: false, Active: false, Loading: false, Stale: false, Submission: null },
