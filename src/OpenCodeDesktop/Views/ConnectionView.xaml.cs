@@ -20,7 +20,6 @@ public sealed partial class ConnectionView : UserControl
     private readonly ServerConnections _connections;
     private readonly LocalEnvironment _local;
     private bool _showFeedback;
-    private long _activation;
     private ServerEditorDialog? _dialog;
     private CancellationTokenSource? _dialogSession;
 
@@ -38,14 +37,12 @@ public sealed partial class ConnectionView : UserControl
     public void Activate() => _ = _local.DetectAsync();
     public void Deactivate()
     {
-        _activation++;
         CloseDialog();
         _local.Deactivate();
     }
 
     public void Shutdown()
     {
-        _activation++;
         CloseDialog();
         _local.Changed -= LocalChanged;
         _local.Dispose();
@@ -57,15 +54,7 @@ public sealed partial class ConnectionView : UserControl
 
     private async void DetectLocal_ClickAsync(object sender, RoutedEventArgs args) => await _local.DetectAsync().ConfigureAwait(true);
 
-    private async void AddLocal_ClickAsync(object sender, RoutedEventArgs args)
-    {
-        long activation = _activation;
-        await _local.AddAsync().ConfigureAwait(true);
-        if (activation == _activation && IsLoaded && _local.IsAlreadyConnected && _connections.Active is { } active)
-        {
-            ShowDialog(active.Profile, ServerEditorIntent.Edit);
-        }
-    }
+    private async void AddLocal_ClickAsync(object sender, RoutedEventArgs args) => await _local.AddAsync().ConfigureAwait(true);
 
     /// <summary>Connects to the profile with its saved credential when possible; otherwise opens the connect dialog to ask for the password.</summary>
     public void ConnectOrPrompt(ServerProfile? profile)
