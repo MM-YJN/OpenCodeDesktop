@@ -60,7 +60,7 @@ All dimensions are DIPs. System text scaling remains enabled. The custom title b
 | `ShellCornerRadiusSmall`, `ShellCornerRadiusMedium`, `ShellCardCornerRadius`, `ShellCornerRadiusLarge`, `ShellCornerRadiusBadge` | 4, 6, 8, 12 and badge |
 | `ShellTitleBarHeight`, `ShellTitleBarPadding` | 48; 16 DIP left inset for the brand row and Projects pane toggle |
 | `ShellStatusIndicatorSize`, `ShellStatusIndicatorCornerRadius` | 8; 2. Use a rounded rectangle, never a circle/ellipse |
-| `ShellContentMaximumWidth`, `ShellComposerMaximumWidth` | 760 and 860 for readable line lengths |
+| `ShellContentMaximumWidth` | 760; shared by the conversation and composer columns for readable line lengths |
 | `ShellWindowInitialWidth`, `ShellWindowInitialHeight` | 1440 × 900 DIP, capped to the current display work area |
 | `ShellWindowMinimumWidth`, `ShellWindowMinimumHeight` | 640 × 480 DIP |
 | `ShellProjectsPanelWidth`, `ShellProjectsInlineThreshold` | 288; inline at 1000 workspace DIPs |

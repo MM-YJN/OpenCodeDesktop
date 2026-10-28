@@ -175,7 +175,7 @@
                         </StackPanel>
                     </Border>
                     <ScrollViewer x:Name="ConversationScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" IsTabStop="True" AutomationProperties.Name="Conversation history">
-                        <StackPanel x:Name="Conversation" Padding="20,24" Spacing="20" MaxWidth="760" HorizontalAlignment="Center">
+                        <StackPanel x:Name="Conversation" Padding="20,24" Spacing="20" MaxWidth="{StaticResource ShellContentMaximumWidth}" HorizontalAlignment="Center">
                             <ContentControl x:Name="ConversationStateHost" HorizontalContentAlignment="Stretch" />
                             <StackPanel x:Name="ConversationHistoryActions" HorizontalAlignment="Center" />
                             <StackPanel x:Name="ConversationEntries" Spacing="20" />
@@ -194,45 +194,46 @@
                             </ScrollViewer>
                         </StackPanel>
                     </Border>
-                    <ScrollViewer x:Name="ComposerScroll" Grid.Row="3" MaxHeight="{StaticResource ShellComposerMaximumHeight}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="{StaticResource ShellComposerMargin}">
-                        <Grid>
-                        <Border x:Name="ComposerCard" Style="{StaticResource ShellComposerSurfaceStyle}" MinWidth="{StaticResource ShellComposerMinimumWidth}" MaxWidth="{StaticResource ShellComposerMaximumWidth}" HorizontalAlignment="Center">
-                            <StackPanel x:Name="Composer" Spacing="8">
-                                <StackPanel x:Name="ComposerChips" Spacing="6" Visibility="Collapsed" />
-                                <ScrollViewer x:Name="AttachmentScroll" MaxHeight="44" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Auto" Visibility="Collapsed" AutomationProperties.Name="Prompt attachments">
-                                    <StackPanel x:Name="AttachmentList" Orientation="Horizontal" Spacing="4" />
-                                </ScrollViewer>
-                                <TextBlock x:Name="AttachmentFeedback" Style="{StaticResource ShellCaptionTextStyle}" TextWrapping="Wrap" Visibility="Collapsed" AutomationProperties.LiveSetting="Polite" />
-                                <TextBox x:Name="DraftBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="68" MaxHeight="180" BorderThickness="0" Background="Transparent" Padding="4,2"
-                                         PlaceholderText="Describe a task…" AutomationProperties.Name="Task request. Control Enter to send. Draft retained." />
-                                <Grid x:Name="ComposerToolbar" ColumnSpacing="8">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                        <ComboBox x:Name="ModelSelector" MinWidth="150" PlaceholderText="Model" AutomationProperties.Name="Model" />
-                                        <ComboBox x:Name="AgentSelector" MinWidth="120" PlaceholderText="Agent" AutomationProperties.Name="Agent" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                                        <Button x:Name="AttachLocal" Click="AttachLocal_ClickAsync" AutomationProperties.AutomationId="AttachLocal" AutomationProperties.Name="Attach local text file, up to four files, 256 KiB each" ToolTipService.ToolTip="Attach local text file · Up to four UTF-8 text files, 256 KiB each. Local content is captured when attached; server references are read when submitted." Style="{StaticResource ShellQuietButtonStyle}">
-                                            <FontIcon Glyph="&#xE723;" FontSize="14" />
-                                        </Button>
-                                        <Button x:Name="StopButton" Style="{StaticResource ShellSecondaryButtonStyle}" Click="StopTask_ClickAsync" Visibility="Collapsed" AutomationProperties.Name="Interrupt task">
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <FontIcon Glyph="&#xE71A;" Style="{StaticResource ShellIconTextStyle}" FontSize="14" />
-                                                <TextBlock Text="Interrupt" Style="{StaticResource ShellBodyTextStyle}" />
-                                            </StackPanel>
-                                        </Button>
-                                        <Button x:Name="SendButton" Style="{StaticResource ShellPrimaryButtonStyle}" Click="SendTask_ClickAsync" IsEnabled="False" AutomationProperties.Name="Send task">
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <FontIcon Glyph="&#xE724;" Style="{StaticResource ShellIconTextStyle}" FontSize="14" />
-                                                <TextBlock Text="Send" Style="{StaticResource ShellBodyTextStyle}" />
-                                            </StackPanel>
-                                        </Button>
-                                    </StackPanel>
-                                </Grid>
-                                <TextBlock x:Name="ComposerHint" Style="{StaticResource ShellCaptionTextStyle}" Visibility="Collapsed" />
-                                <TextBlock x:Name="CatalogNotice" Style="{StaticResource ShellTertiaryTextStyle}" Visibility="Collapsed" />
-                            </StackPanel>
-                        </Border>
+                    <ScrollViewer x:Name="ComposerScroll" Grid.Row="3" MaxHeight="{StaticResource ShellComposerMaximumHeight}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch" Padding="{StaticResource ShellComposerMargin}">
+                        <!-- Match the centered conversation column; a MaxWidth-only Stretch child is not centered reliably inside a ScrollViewer. -->
+                        <Grid Width="{x:Bind ComposerScroll.ViewportWidth, Mode=OneWay}" MaxWidth="{StaticResource ShellContentMaximumWidth}" HorizontalAlignment="Center">
+                            <Border x:Name="ComposerCard" Style="{StaticResource ShellComposerSurfaceStyle}" Margin="20,0" HorizontalAlignment="Stretch">
+                                <StackPanel x:Name="Composer" Spacing="8">
+                                    <StackPanel x:Name="ComposerChips" Spacing="6" Visibility="Collapsed" />
+                                    <ScrollViewer x:Name="AttachmentScroll" MaxHeight="44" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Auto" Visibility="Collapsed" AutomationProperties.Name="Prompt attachments">
+                                        <StackPanel x:Name="AttachmentList" Orientation="Horizontal" Spacing="4" />
+                                    </ScrollViewer>
+                                    <TextBlock x:Name="AttachmentFeedback" Style="{StaticResource ShellCaptionTextStyle}" TextWrapping="Wrap" Visibility="Collapsed" AutomationProperties.LiveSetting="Polite" />
+                                    <TextBox x:Name="DraftBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="68" MaxHeight="180" BorderThickness="0" Background="Transparent" Padding="4,2"
+                                             PlaceholderText="Describe a task…" AutomationProperties.Name="Task request. Control Enter to send. Draft retained." />
+                                    <Grid x:Name="ComposerToolbar" ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                            <ComboBox x:Name="ModelSelector" MinWidth="150" PlaceholderText="Model" AutomationProperties.Name="Model" />
+                                            <ComboBox x:Name="AgentSelector" MinWidth="120" PlaceholderText="Agent" AutomationProperties.Name="Agent" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                            <Button x:Name="AttachLocal" Click="AttachLocal_ClickAsync" AutomationProperties.AutomationId="AttachLocal" AutomationProperties.Name="Attach local text file, up to four files, 256 KiB each" ToolTipService.ToolTip="Attach local text file · Up to four UTF-8 text files, 256 KiB each. Local content is captured when attached; server references are read when submitted." Style="{StaticResource ShellQuietButtonStyle}">
+                                                <FontIcon Glyph="&#xE723;" FontSize="14" />
+                                            </Button>
+                                            <Button x:Name="StopButton" Style="{StaticResource ShellSecondaryButtonStyle}" Click="StopTask_ClickAsync" Visibility="Collapsed" AutomationProperties.Name="Interrupt task">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <FontIcon Glyph="&#xE71A;" Style="{StaticResource ShellIconTextStyle}" FontSize="14" />
+                                                    <TextBlock Text="Interrupt" Style="{StaticResource ShellBodyTextStyle}" />
+                                                </StackPanel>
+                                            </Button>
+                                            <Button x:Name="SendButton" Style="{StaticResource ShellPrimaryButtonStyle}" Click="SendTask_ClickAsync" IsEnabled="False" AutomationProperties.Name="Send task">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <FontIcon Glyph="&#xE724;" Style="{StaticResource ShellIconTextStyle}" FontSize="14" />
+                                                    <TextBlock Text="Send" Style="{StaticResource ShellBodyTextStyle}" />
+                                                </StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+                                    <TextBlock x:Name="ComposerHint" Style="{StaticResource ShellCaptionTextStyle}" Visibility="Collapsed" />
+                                    <TextBlock x:Name="CatalogNotice" Style="{StaticResource ShellTertiaryTextStyle}" Visibility="Collapsed" />
+                                </StackPanel>
+                            </Border>
                         </Grid>
                     </ScrollViewer>
                 </Grid>
