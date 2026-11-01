@@ -62,7 +62,7 @@ public sealed class LiveTaskIntegrationTests
             TaskModel model = Assert.Single(catalog.Models, m => m.ProviderId == "wi007");
             Assert.Contains(catalog.Agents, a => a.Id == "build");
             WorkspaceSession session = await api.CreateAsync(location.Directory, token);
-            await api.SelectModelAsync(session.Id, model, token);
+            await api.SelectModelAsync(session.Id, model, null, token);
             await api.SelectAgentAsync(session.Id, "build", token);
             TaskCompletionSource connected = new(TaskCreationOptions.RunContinuationsAsynchronously);
             System.Collections.Concurrent.ConcurrentQueue<TaskEvent> events = new();

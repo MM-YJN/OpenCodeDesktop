@@ -36,7 +36,7 @@ public sealed class WorkspacePersistenceTests
             Guid id = h.Connections.Save(null, "First", "http://127.0.0.1:4096")!.Id;
             await h.Connections.ConnectAsync(id, "secret");
             await h.Workspace.OpenProjectAsync("/one");
-            h.Workspace.RememberModelPreference(new("model-a", "provider-a", "Model A"));
+            h.Workspace.RememberModelPreference(new("model-a", "provider-a", "Model A"), "high");
             h.Workspace.RememberAgentPreference("plan");
             await h.Workspace.OpenProjectAsync("/two");
             h.Workspace.RememberModelPreference(new("model-b", "provider-b", "Model B"));
@@ -47,9 +47,11 @@ public sealed class WorkspacePersistenceTests
         await restarted.Persistence.StartAsync();
         Assert.Equal("/two", restarted.Workspace.Location!.Directory);
         Assert.Equal(new TaskModel("model-b", "provider-b", "model-b"), restarted.Workspace.PreferredModel);
+        Assert.Null(restarted.Workspace.PreferredVariant);
         Assert.Equal("build", restarted.Workspace.PreferredAgent);
         await restarted.Workspace.OpenProjectAsync("/one");
         Assert.Equal(new TaskModel("model-a", "provider-a", "model-a"), restarted.Workspace.PreferredModel);
+        Assert.Equal("high", restarted.Workspace.PreferredVariant);
         Assert.Equal("plan", restarted.Workspace.PreferredAgent);
     }
 

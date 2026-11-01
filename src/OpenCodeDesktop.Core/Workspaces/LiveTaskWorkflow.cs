@@ -9,6 +9,7 @@ public sealed class SessionTaskState(string id, string directory, string project
     public string ProjectId { get; } = projectId;
     public TaskCatalog Catalog { get; internal set; } = new([], []);
     public TaskModel? Model { get; set; }
+    public string? Variant { get; set; }
     public string? Agent { get; set; }
     public bool Loading { get; internal set; }
     public bool Refreshing { get; internal set; }
@@ -46,6 +47,7 @@ public sealed class SessionTaskState(string id, string directory, string project
         {
             Catalog = Catalog,
             Model = Model,
+            Variant = Variant,
             Agent = Agent,
             Stale = true,
             Active = Active,
@@ -425,6 +427,7 @@ public sealed partial class LiveTaskWorkflow : IDisposable
         }
         state.Inbox = snapshot.Inbox;
         state.Model ??= state.Catalog.Models.FirstOrDefault(m => m.Id == snapshot.Model?.Id && m.ProviderId == snapshot.Model.ProviderId);
+        state.Variant ??= snapshot.Variant;
         state.Agent ??= state.Catalog.Agents.FirstOrDefault(a => a.Id == snapshot.Agent)?.Id;
         // A server with exactly one agent mode offers no real choice; select it as soon as the catalog confirms it.
         state.Agent ??= state.Catalog.Agents is [TaskAgent only] ? only.Id : null;
@@ -500,17 +503,19 @@ public sealed partial class LiveTaskWorkflow : IDisposable
                 _ = PromptAttachment.Server(state.Directory, path, await files.ReadFileAsync(state.Directory, path, _lifetime.Token).ConfigureAwait(true));
             }
             TaskCatalog catalog = await _api.CatalogAsync(state.Directory, _lifetime.Token).ConfigureAwait(true);
-            if (!catalog.Models.Any(m => m.Id == model.Id && m.ProviderId == model.ProviderId) || !catalog.Agents.Any(a => a.Id == agent))
+            TaskModel? available = catalog.Models.FirstOrDefault(m => m.Id == model.Id && m.ProviderId == model.ProviderId);
+            if (available is null || !catalog.Agents.Any(a => a.Id == agent) ||
+                state.Variant is { } variant && !available.Variants.Contains(variant))
             {
                 throw new WorkspaceException(WorkspaceFailure.Protocol, "Selection unavailable.");
             }
 
             state.Catalog = catalog;
-            await _api.SelectModelAsync(state.Id, model, _lifetime.Token).ConfigureAwait(true);
+            await _api.SelectModelAsync(state.Id, model, state.Variant, _lifetime.Token).ConfigureAwait(true);
             await _api.SelectAgentAsync(state.Id, agent, _lifetime.Token).ConfigureAwait(true);
             TaskSnapshot selected = await _api.TaskSnapshotAsync(state.Id, _lifetime.Token).ConfigureAwait(true);
             if (selected.Session.Id != state.Id || selected.Session.Directory != state.Directory || selected.Active || selected.Inbox.Count > 0 ||
-                selected.Model?.Id != model.Id || selected.Model.ProviderId != model.ProviderId || selected.Agent != agent || selected.Permissions.Count + selected.Forms.Count > 0)
+                selected.Model?.Id != model.Id || selected.Model.ProviderId != model.ProviderId || selected.Variant != state.Variant || selected.Agent != agent || selected.Permissions.Count + selected.Forms.Count > 0)
             {
                 throw new WorkspaceException(WorkspaceFailure.Protocol, "Selection or execution changed. Refresh before sending.");
             }

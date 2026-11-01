@@ -23,21 +23,29 @@ public sealed partial class OpenCodeWorkspaceConnection : ITaskConnection
     {
         TaskModel[] models = await RequestAsync(HttpMethod.Get, "/api/model?" + LocationQuery(directory), null, 8388608,
             root => root.GetProperty("data").EnumerateArray().Where(m => m.GetProperty("enabled").GetBoolean() && Optional(m, "status") == "active")
-                .Select(m => new TaskModel(Required(m, "id"), Required(m, "providerID"), Required(m, "name"))).ToArray(), cancellationToken).ConfigureAwait(false);
+                .Select(m => new TaskModel(Required(m, "id"), Required(m, "providerID"), Required(m, "name"))
+                {
+                    Variants = m.TryGetProperty("variants", out JsonElement variants) && variants.ValueKind == JsonValueKind.Array
+                        ? variants.EnumerateArray().Select(v => Required(v, "id")).ToArray() : [],
+                }).ToArray(), cancellationToken).ConfigureAwait(false);
         TaskAgent[] agents = await RequestAsync(HttpMethod.Get, "/api/agent?" + LocationQuery(directory), null, 1048576,
             root => root.GetProperty("data").EnumerateArray().Where(a => !a.GetProperty("hidden").GetBoolean() && Optional(a, "mode") is "primary" or "all")
                 .Select(a => new TaskAgent(Required(a, "id"), Required(a, "name"))).ToArray(), cancellationToken).ConfigureAwait(false);
-        return new(models, agents);
+        TaskProvider[] providers = await RequestAsync(HttpMethod.Get, "/api/provider?" + LocationQuery(directory), null, 1048576,
+            root => root.GetProperty("data").EnumerateArray()
+                .Select(p => new TaskProvider(Required(p, "id"), Optional(p, "name") ?? Required(p, "id"))).ToArray(), cancellationToken).ConfigureAwait(false);
+        return new(models, agents) { Providers = providers };
     }
 
     public async Task<TaskSnapshot> TaskSnapshotAsync(string id, CancellationToken cancellationToken)
     {
-        (WorkspaceSession Session, string? Outcome, double? Idle, TaskModel? Model, string? Agent) metadata = await RequestAsync(HttpMethod.Get, Path(id), null, 1048576, root =>
+        (WorkspaceSession Session, string? Outcome, double? Idle, TaskModel? Model, string? Agent, string? Variant) metadata = await RequestAsync(HttpMethod.Get, Path(id), null, 1048576, root =>
         {
             JsonElement s = root.GetProperty("data");
             TaskModel? model = s.TryGetProperty("model", out JsonElement m) ? new(Required(m, "id"), Required(m, "providerID"), Required(m, "id")) : null;
+            string? variant = s.TryGetProperty("model", out JsonElement reference) ? Optional(reference, "variant") : null;
             double? idle = s.TryGetProperty("time", out JsonElement time) && time.TryGetProperty("idle", out JsonElement i) ? i.GetDouble() : null;
-            return (Session: Session(s), Outcome: Optional(s, "outcome"), Idle: idle, Model: model, Agent: Optional(s, "agent"));
+            return (Session: Session(s), Outcome: Optional(s, "outcome"), Idle: idle, Model: model, Agent: Optional(s, "agent"), Variant: variant);
         }, cancellationToken).ConfigureAwait(false);
         bool active = await RequestAsync(HttpMethod.Get, "/api/session/active", null, 1048576,
             root => root.GetProperty("data").TryGetProperty(id, out _), cancellationToken).ConfigureAwait(false);
@@ -47,13 +55,17 @@ public sealed partial class OpenCodeWorkspaceConnection : ITaskConnection
             root => root.GetProperty("data").EnumerateArray().Select(p => new TaskPermission(Required(p, "id"), Required(p, "sessionID"), Required(p, "action"), Strings(p, "resources"), Strings(p, "save"))).ToArray(), cancellationToken).ConfigureAwait(false);
         TaskForm[] forms = await RequestAsync(HttpMethod.Get, Path(id) + "/form", null, 1048576,
             root => root.GetProperty("data").EnumerateArray().Select(Form).ToArray(), cancellationToken).ConfigureAwait(false);
-        return new(metadata.Session, active, metadata.Outcome, metadata.Idle, metadata.Model, metadata.Agent, inbox, permissions, forms);
+        return new(metadata.Session, active, metadata.Outcome, metadata.Idle, metadata.Model, metadata.Agent, inbox, permissions, forms, metadata.Variant);
     }
 
-    public Task SelectModelAsync(string id, TaskModel model, CancellationToken cancellationToken)
+    public Task SelectModelAsync(string id, TaskModel model, string? variant, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(model);
-        return Mutation(HttpMethod.Post, Path(id) + "/model", new { model = new { id = model.Id, providerID = model.ProviderId } }, cancellationToken);
+        // Model.Ref.variant is omitted for the provider default rather than sent as null.
+        object body = variant is { } chosen
+            ? new { model = new { id = model.Id, providerID = model.ProviderId, variant = chosen } }
+            : new { model = new { id = model.Id, providerID = model.ProviderId } };
+        return Mutation(HttpMethod.Post, Path(id) + "/model", body, cancellationToken);
     }
     public Task SelectAgentAsync(string id, string agent, CancellationToken cancellationToken) => Mutation(HttpMethod.Post, Path(id) + "/agent", new { agent }, cancellationToken);
     public Task SubmitAsync(string id, TaskSubmission submission, CancellationToken cancellationToken)

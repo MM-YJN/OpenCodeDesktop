@@ -1,7 +1,7 @@
 namespace OpenCodeDesktop.Core.Workspaces;
 
 /// <summary>The model and agent last chosen for a project; every field is optional until a compatible catalog confirms it.</summary>
-public sealed record SavedTaskSelection(string? ModelProviderId, string? ModelId, string? AgentId);
+public sealed record SavedTaskSelection(string? ModelProviderId, string? ModelId, string? AgentId, string? ModelVariant = null);
 public sealed record SavedProject(string Directory, string ProjectId, string? SessionId)
 {
     public SavedTaskSelection? TaskSelection { get; init; }

@@ -81,7 +81,7 @@ public sealed class LiveTaskPresentationTests
         public Exception? ReadFailure { get; set; }
         public Task<TaskCatalog> CatalogAsync(string directory, CancellationToken cancellationToken) => Catalog.Task;
         public Task<TaskSnapshot> TaskSnapshotAsync(string id, CancellationToken cancellationToken) => ReadFailure is { } error ? Task.FromException<TaskSnapshot>(error) : Task.FromResult(Snapshot);
-        public Task SelectModelAsync(string id, TaskModel model, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task SelectModelAsync(string id, TaskModel model, string? variant, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task SelectAgentAsync(string id, string agent, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task SubmitAsync(string id, TaskSubmission submission, CancellationToken cancellationToken) => Submitted.Task;
         public Task<WorkspacePage<HistoryMessage>> HistoryAsync(string id, string? cursor, CancellationToken cancellationToken) => Task.FromResult(new WorkspacePage<HistoryMessage>([], null));

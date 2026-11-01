@@ -209,8 +209,34 @@
                                     <Grid x:Name="ComposerToolbar" ColumnSpacing="8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                            <ComboBox x:Name="ModelSelector" MinWidth="150" PlaceholderText="Model" AutomationProperties.Name="Model" />
                                             <ComboBox x:Name="AgentSelector" MinWidth="120" PlaceholderText="Agent" AutomationProperties.Name="Agent" />
+                                            <DropDownButton x:Name="ModelSelector" MinWidth="150" AutomationProperties.Name="Model" AllowFocusOnInteraction="True">
+                                                <DropDownButton.Flyout>
+                                                    <Flyout x:Name="ModelFlyout" Opened="ModelFlyout_Opened" Closed="ModelFlyout_Closed">
+                                                        <StackPanel Spacing="4" MinWidth="260">
+                                                            <TextBox x:Name="ModelSearch" PlaceholderText="Search models…" TextChanged="ModelSearch_TextChanged" KeyDown="ModelSearch_KeyDown" AutomationProperties.Name="Search models" />
+                                                            <TextBlock x:Name="ModelSearchEmpty" Text="No models match the search." Style="{StaticResource ShellTertiaryTextStyle}" Margin="4,8" Visibility="Collapsed" />
+                                                            <ListView x:Name="ModelList" MaxHeight="420" SelectionMode="Single" SelectionChanged="ModelList_SelectionChanged" AutomationProperties.Name="Available models">
+                                                                <ListView.ItemTemplate>
+                                                                    <DataTemplate>
+                                                                        <TextBlock Text="{Binding Name}" Style="{StaticResource ShellBodyTextStyle}" />
+                                                                    </DataTemplate>
+                                                                </ListView.ItemTemplate>
+                                                                <ListView.GroupStyle>
+                                                                    <GroupStyle>
+                                                                        <GroupStyle.HeaderTemplate>
+                                                                            <DataTemplate>
+                                                                                <TextBlock Text="{Binding Provider}" Style="{StaticResource ShellCaptionTextStyle}" Margin="0,6,0,2" />
+                                                                            </DataTemplate>
+                                                                        </GroupStyle.HeaderTemplate>
+                                                                    </GroupStyle>
+                                                                </ListView.GroupStyle>
+                                                            </ListView>
+                                                        </StackPanel>
+                                                    </Flyout>
+                                                </DropDownButton.Flyout>
+                                            </DropDownButton>
+                                            <ComboBox x:Name="VariantSelector" MinWidth="140" PlaceholderText="Reasoning Effort" Visibility="Collapsed" AutomationProperties.Name="Reasoning effort" />
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                                             <Button x:Name="AttachLocal" Click="AttachLocal_ClickAsync" AutomationProperties.AutomationId="AttachLocal" AutomationProperties.Name="Attach local text file, up to four files, 256 KiB each" ToolTipService.ToolTip="Attach local text file · Up to four UTF-8 text files, 256 KiB each. Local content is captured when attached; server references are read when submitted." Style="{StaticResource ShellQuietButtonStyle}">

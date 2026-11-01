@@ -288,6 +288,51 @@ public sealed partial class LiveTaskWorkflowTests
     }
 
     [Fact]
+    public async Task SendingAppliesTheChosenVariantAndRejectsStaleOnes()
+    {
+        using Api api = new();
+        api.Catalog = new([new("model", "provider", "Model") { Variants = ["low", "high"] }], [new("build", "Build")]);
+        using LiveTaskWorkflow workflow = new(api, api);
+        await workflow.OpenAsync(api.Session);
+        SessionTaskState state = workflow.Find("s")!;
+
+        state.Variant = "missing";
+        await workflow.SendAsync(state, "draft");
+        Assert.Equal(0, api.Submissions);
+        Assert.Empty(api.ModelSelections);
+        Assert.NotNull(state.Error);
+        Assert.True(state.CanSend);
+
+        state.Variant = "high";
+        await workflow.SendAsync(state, "draft");
+        Assert.Equal(1, api.Submissions);
+        (string id, TaskModel model, string? variant) = api.ModelSelections.Last();
+        Assert.Equal("high", variant);
+        Assert.Equal("high", state.Variant);
+    }
+
+    [Fact]
+    public async Task DraftSendAppliesTheRememberedModelVariant()
+    {
+        using Api api = new();
+        api.Catalog = new([new("model-a", "provider-a", "Model A"), new("model-b", "provider-b", "Model B") { Variants = ["low", "high"] }], [new("build", "Build")]);
+        api.Snapshot = api.Snapshot with { Model = new("model-a", "provider-a", "Model A"), Agent = "build" };
+        using ServerConnections connections = new(new Service(api));
+        ServerProfile profile = connections.Save(null, "Test", "http://127.0.0.1:4096")!;
+        await connections.ConnectAsync(profile.Id, "secret");
+        using LiveWorkspace workspace = new(connections);
+        await workspace.OpenProjectAsync("/dir");
+        workspace.Draft = "draft task";
+        workspace.RememberModelPreference(new("model-b", "provider-b", "Model B"), "high");
+        await workspace.SendDraftTaskAsync();
+
+        Assert.Equal(1, api.Submissions);
+        Assert.Equal("high", api.ModelSelections.Single().Variant);
+        Assert.Equal("high", workspace.Tasks!.Find("created")!.Variant);
+        Assert.Equal("high", workspace.PreferredVariant);
+    }
+
+    [Fact]
     public async Task DraftSendWithoutContentOrSelectionOutsideTheCatalogDoesNotCreate()
     {
         using Api api = new();
@@ -577,7 +622,7 @@ public sealed partial class LiveTaskWorkflowTests
         public int Watches { get; private set; }
         public int CancelCount { get; private set; }
         public bool RejectAnswer { get; set; }
-        public List<(string Id, TaskModel Model)> ModelSelections { get; } = [];
+        public List<(string Id, TaskModel Model, string? Variant)> ModelSelections { get; } = [];
         public List<(string Id, string Agent)> AgentSelections { get; } = [];
         public Exception? ReadFailure { get; set; }
         public Exception? StreamFailure { get; set; }
@@ -604,16 +649,16 @@ public sealed partial class LiveTaskWorkflowTests
             }
             return Task.FromResult(OtherSnapshots.GetValueOrDefault(id) ?? Snapshot);
         }
-        public Task SelectModelAsync(string id, TaskModel model, CancellationToken cancellationToken)
+        public Task SelectModelAsync(string id, TaskModel model, string? variant, CancellationToken cancellationToken)
         {
-            ModelSelections.Add((id, model));
+            ModelSelections.Add((id, model, variant));
             if (OtherSnapshots.TryGetValue(id, out TaskSnapshot? snapshot))
             {
-                OtherSnapshots[id] = snapshot with { Model = model };
+                OtherSnapshots[id] = snapshot with { Model = model, Variant = variant };
             }
             else
             {
-                Snapshot = Snapshot with { Model = model };
+                Snapshot = Snapshot with { Model = model, Variant = variant };
             }
             return Task.CompletedTask;
         }

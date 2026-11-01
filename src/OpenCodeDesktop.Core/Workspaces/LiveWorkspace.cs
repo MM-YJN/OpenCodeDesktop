@@ -71,15 +71,17 @@ public sealed partial class LiveWorkspace : IDisposable
     /// <summary>The catalog cached for the open project when no session exists yet, so a draft can offer a direct model and agent choice.</summary>
     public TaskCatalog? DraftCatalog => _project is { } project ? Tasks?.DirectoryCatalog(project.Location.Directory) : null;
     public TaskModel? PreferredModel => _project?.PreferredModel;
+    public string? PreferredVariant => _project?.PreferredVariant;
     public string? PreferredAgent => _project?.PreferredAgent;
 
-    /// <summary>Remember the model the user last chose in this project; persisted with the saved workspace.</summary>
-    public void RememberModelPreference(TaskModel model)
+    /// <summary>Remember the model and variant the user last chose in this project; persisted with the saved workspace.</summary>
+    public void RememberModelPreference(TaskModel model, string? variant = null)
     {
         ArgumentNullException.ThrowIfNull(model);
-        if (_project is { } project && project.PreferredModel != model)
+        if (_project is { } project && (project.PreferredModel != model || project.PreferredVariant != variant))
         {
             project.PreferredModel = model;
+            project.PreferredVariant = variant;
             NavigationChanged?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -748,9 +750,11 @@ public sealed partial class LiveWorkspace : IDisposable
         TaskSubmission submission = new("msg_" + Guid.NewGuid().ToString("N"), draft.Text) { Files = Array.AsReadOnly(draft.Files.ToArray()) };
         project.PendingDrafts[id] = (submission.Id, draft.Version);
         await workflow.SendAsync(state, submission).ConfigureAwait(true);
-        if (state.Model is { } sentModel && state.Agent is { } sentAgent && (project.PreferredModel != sentModel || project.PreferredAgent != sentAgent))
+        if (state.Model is { } sentModel && state.Agent is { } sentAgent &&
+            (project.PreferredModel != sentModel || project.PreferredVariant != state.Variant || project.PreferredAgent != sentAgent))
         {
             project.PreferredModel = sentModel;
+            project.PreferredVariant = state.Variant;
             project.PreferredAgent = sentAgent;
             NavigationChanged?.Invoke(this, EventArgs.Empty);
         }
@@ -779,6 +783,7 @@ public sealed partial class LiveWorkspace : IDisposable
             state.Catalog.Models.FirstOrDefault(m => m.Id == preferred.Id && m.ProviderId == preferred.ProviderId) is { } model)
         {
             state.Model = model;
+            state.Variant = project.PreferredVariant is { } variant && model.Variants.Contains(variant) ? variant : null;
         }
 
         if (project.PreferredAgent is { } agent && state.Catalog.Agents.Any(a => a.Id == agent))
@@ -997,6 +1002,7 @@ public sealed partial class LiveWorkspace : IDisposable
         public bool Creating { get; set; }
         public bool Uncertain { get; set; }
         public TaskModel? PreferredModel { get; set; }
+        public string? PreferredVariant { get; set; }
         public string? PreferredAgent { get; set; }
     }
 }

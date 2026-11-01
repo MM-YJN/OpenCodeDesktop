@@ -59,25 +59,26 @@ public sealed partial class WorkspaceView : UserControl
                 }
             }
         };
-        ModelSelector.SelectionChanged += (_, _) =>
+        VariantSelector.SelectionChanged += (_, _) =>
         {
-            if (ModelSelector.SelectedItem is TaskModel model)
+            if (VariantSelector.SelectedItem is not string item)
             {
-                if (CurrentTask is { Busy: false, Active: false } state)
-                {
-                    state.Model = model;
-                }
-
-                // Echoes of programmatic selection (possibly deferred after an ItemsSource rebind)
-                // match the last rendered value; only an actual user choice differs.
-                if (!Equals(model, _expectedModel))
-                {
-                    _live?.RememberModelPreference(model);
-                }
-
-                _expectedModel = model;
+                return;
             }
 
+            string? variant = item == VariantDefault ? null : item;
+            if (CurrentTask is { Busy: false, Active: false } state)
+            {
+                state.Variant = variant;
+            }
+
+            // Echoes of programmatic selection match the last rendered value; only an actual user choice differs.
+            if (variant != _expectedVariant && _expectedModel is { } chosen)
+            {
+                _live?.RememberModelPreference(chosen, variant);
+            }
+
+            _expectedVariant = variant;
             UpdateSend();
         };
         AgentSelector.SelectionChanged += (_, _) =>

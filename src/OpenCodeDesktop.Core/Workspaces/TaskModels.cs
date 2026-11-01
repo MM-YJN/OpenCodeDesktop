@@ -1,8 +1,17 @@
 namespace OpenCodeDesktop.Core.Workspaces;
 
-public sealed record TaskModel(string Id, string ProviderId, string Name);
+public sealed record TaskModel(string Id, string ProviderId, string Name)
+{
+    /// <summary>Server-advertised variant identifiers (reasoning effort or token-budget presets); not part of model identity or equality.</summary>
+    public IReadOnlyList<string> Variants { get; init; } = [];
+}
 public sealed record TaskAgent(string Id, string Name);
-public sealed record TaskCatalog(IReadOnlyList<TaskModel> Models, IReadOnlyList<TaskAgent> Agents);
+public sealed record TaskProvider(string Id, string Name);
+public sealed record TaskCatalog(IReadOnlyList<TaskModel> Models, IReadOnlyList<TaskAgent> Agents)
+{
+    /// <summary>Provider display names for grouping the catalog; entries may be absent, callers fall back to the provider id.</summary>
+    public IReadOnlyList<TaskProvider> Providers { get; init; } = [];
+}
 public sealed record TaskSubmission(string Id, string Text)
 {
     public IReadOnlyList<PromptAttachment> Files { get; init; } = [];
@@ -33,7 +42,7 @@ public sealed record TaskField(string Key, string Type)
 }
 public sealed record TaskForm(string Id, string SessionId, string Title, IReadOnlyList<TaskField> Fields, string State = "pending");
 public sealed record TaskSnapshot(WorkspaceSession Session, bool Active, string? Outcome, double? Idle,
-    TaskModel? Model, string? Agent, IReadOnlyList<string> Inbox, IReadOnlyList<TaskPermission> Permissions, IReadOnlyList<TaskForm> Forms);
+    TaskModel? Model, string? Agent, IReadOnlyList<string> Inbox, IReadOnlyList<TaskPermission> Permissions, IReadOnlyList<TaskForm> Forms, string? Variant = null);
 public sealed record TaskEvent(string Id, string Type, string? SessionId, string? MessageId, int Ordinal, string? Delta, string? ToolId = null, string? ToolName = null);
 
 /// <summary>Task protocol; implementations perform transport and parsing away from the UI thread.</summary>
@@ -42,7 +51,7 @@ public interface ITaskConnection
     Task<TaskCatalog> CatalogAsync(string directory, CancellationToken cancellationToken);
     Task<IReadOnlyList<string>> AttentionSessionsAsync(string directory, CancellationToken cancellationToken);
     Task<TaskSnapshot> TaskSnapshotAsync(string id, CancellationToken cancellationToken);
-    Task SelectModelAsync(string id, TaskModel model, CancellationToken cancellationToken);
+    Task SelectModelAsync(string id, TaskModel model, string? variant, CancellationToken cancellationToken);
     Task SelectAgentAsync(string id, string agent, CancellationToken cancellationToken);
     Task SubmitAsync(string id, TaskSubmission submission, CancellationToken cancellationToken);
     Task InterruptAsync(string id, CancellationToken cancellationToken);

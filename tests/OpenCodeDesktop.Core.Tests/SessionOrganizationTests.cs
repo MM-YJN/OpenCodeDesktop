@@ -272,7 +272,7 @@ public sealed class SessionOrganizationTests
         public Task<IReadOnlyList<string>> AttentionSessionsAsync(string directory, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<string>>([]);
         public Task<TaskSnapshot> TaskSnapshotAsync(string id, CancellationToken cancellationToken) => Task.FromResult(new TaskSnapshot(Data[id], Pending == "active", null, null, null, null,
             Pending == "inbox" ? ["input"] : [], Pending == "permission" ? [new("p", id, "read", [], [])] : [], Pending == "form" ? [new("f", id, "Question", [])] : []));
-        public Task SelectModelAsync(string id, TaskModel model, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task SelectModelAsync(string id, TaskModel model, string? variant, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task SelectAgentAsync(string id, string agent, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task SubmitAsync(string id, TaskSubmission submission, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task InterruptAsync(string id, CancellationToken cancellationToken) => Task.CompletedTask;

@@ -26,6 +26,7 @@ public sealed partial class LiveWorkspace
                     PreferredModel = project.TaskSelection is { ModelId: { Length: > 0 } model, ModelProviderId: { Length: > 0 } provider }
                         ? new(model, provider, model)
                         : null,
+                    PreferredVariant = project.TaskSelection is { ModelVariant: { Length: > 0 } variant } ? variant : null,
                     PreferredAgent = project.TaskSelection is { AgentId: { Length: > 0 } agent } ? agent : null,
                 });
             }
@@ -46,8 +47,8 @@ public sealed partial class LiveWorkspace
                 profile.CredentialReference, backend?.Directory, backend?.Projects.Values.Where(p => p.Listed)
                     .Select(p => new SavedProject(p.Location.Directory, p.Location.ProjectId, p.ConfirmedId)
                     {
-                        TaskSelection = p.PreferredModel is not null || p.PreferredAgent is not null
-                            ? new(p.PreferredModel?.ProviderId, p.PreferredModel?.Id, p.PreferredAgent)
+                        TaskSelection = p.PreferredModel is not null || p.PreferredVariant is not null || p.PreferredAgent is not null
+                            ? new(p.PreferredModel?.ProviderId, p.PreferredModel?.Id, p.PreferredAgent, p.PreferredVariant)
                             : null,
                     }).ToArray() ?? []);
         }).ToArray()) { Notifications = NotificationPreferences, NotificationTargets = _notificationTargets.ToArray() };

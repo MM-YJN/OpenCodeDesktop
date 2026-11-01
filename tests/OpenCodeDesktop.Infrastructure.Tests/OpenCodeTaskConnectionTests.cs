@@ -97,9 +97,32 @@ public sealed partial class OpenCodeTaskConnectionTests
     }
 
     [Fact]
+    public async Task SnapshotReadsTheSelectedModelVariant()
+    {
+        using HttpClient client = new(new Handler((request, _) =>
+        {
+            string path = request.RequestUri!.PathAndQuery;
+            return Task.FromResult(Json(path switch
+            {
+                "/api/session/s" => """{"data":{"id":"s","location":{"directory":"/dir"},"projectID":"proj","title":"Task","model":{"id":"m","providerID":"p","variant":"high"},"agent":"build","time":{}}}""",
+                "/api/session/active" => """{"data":{}}""",
+                _ => """{"data":[]}""",
+            }));
+        }));
+        using OpenCodeWorkspaceConnection api = Create(client);
+        TaskSnapshot snapshot = await api.TaskSnapshotAsync("s", TestContext.Current.CancellationToken);
+        Assert.Equal("s", snapshot.Session.Id);
+        Assert.Equal("m", snapshot.Model!.Id);
+        Assert.Equal("p", snapshot.Model.ProviderId);
+        Assert.Equal("high", snapshot.Variant);
+        Assert.Equal("build", snapshot.Agent);
+    }
+
+    [Fact]
     public async Task MutationsUseExactContractAndNeverRetry()
     {
         List<string> paths = [];
+        List<string?> variants = [];
         using HttpClient client = new(new Handler(async (request, token) =>
         {
             Assert.NotNull(request.Headers.Authorization);
@@ -112,6 +135,15 @@ public sealed partial class OpenCodeTaskConnectionTests
                 Assert.Equal("steer", body.RootElement.GetProperty("delivery").GetString());
                 return Json("{\"data\":{\"id\":\"msg_stable\",\"sessionID\":\"s\"}}");
             }
+            if (path.EndsWith("/model", StringComparison.Ordinal))
+            {
+                using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(token));
+                JsonElement model = body.RootElement.GetProperty("model");
+                Assert.Equal("m", model.GetProperty("id").GetString());
+                Assert.Equal("p", model.GetProperty("providerID").GetString());
+                variants.Add(model.TryGetProperty("variant", out JsonElement variant) ? variant.GetString() : null);
+                return new HttpResponseMessage(HttpStatusCode.NoContent);
+            }
             if (path.EndsWith("/interrupt?resume=false", StringComparison.Ordinal))
             {
                 return Json("{\"interrupted\":false}");
@@ -121,14 +153,16 @@ public sealed partial class OpenCodeTaskConnectionTests
         }));
         using OpenCodeWorkspaceConnection api = Create(client);
         CancellationToken token = TestContext.Current.CancellationToken;
-        await api.SelectModelAsync("s", new("m", "p", "M"), token);
+        await api.SelectModelAsync("s", new("m", "p", "M"), null, token);
+        await api.SelectModelAsync("s", new("m", "p", "M"), "high", token);
         await api.SelectAgentAsync("s", "build", token);
         await api.SubmitAsync("s", new("msg_stable", "text"), token);
         await api.InterruptAsync("s", token);
         await api.ReplyPermissionAsync("s", "perm/one", "once", token);
         await api.ReplyFormAsync("s", "frm_one", new Dictionary<string, object> { ["q"] = false }, token);
         await api.CancelFormAsync("s", "frm_one", token);
-        Assert.Equal(7, paths.Count);
+        Assert.Equal(8, paths.Count);
+        Assert.Equal(new string?[] { null, "high" }, variants);
         Assert.Contains("/api/session/s/interrupt?resume=false", paths);
         Assert.Contains("/api/session/s/permission/perm%2Fone/reply", paths);
     }
@@ -141,9 +175,13 @@ public sealed partial class OpenCodeTaskConnectionTests
         using HttpClient client = new(new Handler((request, _) =>
         {
             threads.Add(Environment.CurrentManagedThreadId);
-            return Task.FromResult(Json(request.RequestUri!.AbsolutePath == "/api/model"
-                ? """{"data":[{"id":"m","providerID":"p","name":"Model","enabled":true,"status":"active","settings":{"apiKey":"secret"}},{"id":"off","enabled":false,"status":"active"}]}"""
-                : """{"data":[{"id":"build","name":"Build","mode":"primary","hidden":false},{"id":"sub","mode":"subagent","hidden":false},{"id":"hidden","mode":"primary","hidden":true}]}"""));
+            string path = request.RequestUri!.AbsolutePath;
+            return Task.FromResult(Json(path switch
+            {
+                "/api/model" => """{"data":[{"id":"m","providerID":"p","name":"Model","enabled":true,"status":"active","settings":{"apiKey":"secret"},"variants":[{"id":"low"},{"id":"high"}]},{"id":"off","providerID":"p","enabled":false,"status":"active"}]}""",
+                "/api/provider" => """{"data":[{"id":"p","name":"Provider P"},{"id":"q"}]}""",
+                _ => """{"data":[{"id":"build","name":"Build","mode":"primary","hidden":false},{"id":"sub","mode":"subagent","hidden":false},{"id":"hidden","mode":"primary","hidden":true}]}""",
+            }));
         }));
         using OpenCodeWorkspaceConnection api = Create(client);
         // A dedicated caller represents the UI thread. A pool thread can legitimately be reused
@@ -166,8 +204,11 @@ public sealed partial class OpenCodeTaskConnectionTests
         callerThread.Start();
         Task<TaskCatalog> pending = await invoked.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
         TaskCatalog catalog = await pending;
-        Assert.Equal("m", Assert.Single(catalog.Models).Id);
+        TaskModel model = Assert.Single(catalog.Models);
+        Assert.Equal("m", model.Id);
+        Assert.Equal(new[] { "low", "high" }, model.Variants);
         Assert.Equal("build", Assert.Single(catalog.Agents).Id);
+        Assert.Equal(new[] { new TaskProvider("p", "Provider P"), new TaskProvider("q", "q") }, catalog.Providers);
         Assert.DoesNotContain("secret", JsonSerializer.Serialize(catalog), StringComparison.Ordinal);
         // Task.Run isolates even a synchronous transport handler and parsing from the initiating UI context.
         Assert.DoesNotContain(caller, threads);

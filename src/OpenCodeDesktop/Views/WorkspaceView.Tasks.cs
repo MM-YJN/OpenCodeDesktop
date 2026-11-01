@@ -7,21 +7,36 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Data;
+using Microsoft.UI.Xaml.Input;
 
 using OpenCodeDesktop.Core.Workspaces;
 using OpenCodeDesktop.Presentation;
+
+using Windows.System;
 
 namespace OpenCodeDesktop.Views;
 
 public sealed partial class WorkspaceView
 {
     private const string PermissionActionStyle = "ShellPrimaryButtonStyle";
+    private const string VariantDefault = "Default";
     private string _catalogKey = "";
     private string _attentionKey = "";
-    // The last model/agent rendered into the selectors. SelectionChanged echoes of
+    // The last model/agent/variant rendered into the selectors. SelectionChanged echoes of
     // programmatic assignments compare equal; only a real user choice differs.
     private TaskModel? _expectedModel;
     private string? _expectedAgent;
+    private string? _expectedVariant;
+    // Grouped model flyout state: the last catalog contents, the filtered groups behind the
+    // CollectionViewSource, and whether the flyout is currently open.
+    private IReadOnlyList<TaskModel> _catalogModels = [];
+    private IReadOnlyList<TaskProvider> _catalogProviders = [];
+    private IReadOnlyList<TaskModelGroup> _modelGroups = [];
+    private readonly CollectionViewSource _modelView = new() { IsSourceGrouped = true, ItemsPath = new PropertyPath(nameof(TaskModelGroup.Models)) };
+    private bool _modelFlyoutOpen;
+    private bool _catalogSelectable;
+    private string _variantKey = "";
     // Set for the duration of a draft send (session creation + submission) so transient
     // navigation states do not flash the conversation area.
     private bool _sendingDraft;
@@ -97,18 +112,16 @@ public sealed partial class WorkspaceView
         IReadOnlyList<TaskModel> models = catalog?.Models ?? [];
         IReadOnlyList<TaskAgent> agents = catalog?.Agents ?? [];
         bool selectable = state is not null ? canSelect : draft && catalog is not null;
+        _catalogSelectable = selectable;
         ModelSelector.IsEnabled = selectable;
         AgentSelector.IsEnabled = selectable;
         string catalogKey = (live?.SelectedSessionId ?? "draft:" + live?.Location?.Directory) + "|" +
-            string.Join('|', models.Select(model => model.ProviderId + "/" + model.Id)) + ":" +
-            string.Join('|', agents.Select(agent => agent.Id));
+            string.Join('|', models.Select(model => model.ProviderId + "/" + model.Id + "#" + string.Join(',', model.Variants))) + ":" +
+            string.Join('|', agents.Select(agent => agent.Id)) + ":" +
+            string.Join('|', (catalog?.Providers ?? []).Select(provider => provider.Id + "=" + provider.Name));
         if (_catalogKey != catalogKey)
         {
-            _catalogKey = catalogKey;
-            ModelSelector.ItemsSource = models;
-            ModelSelector.DisplayMemberPath = nameof(TaskModel.Name);
-            AgentSelector.ItemsSource = agents;
-            AgentSelector.DisplayMemberPath = nameof(TaskAgent.Name);
+            RebindCatalog(catalogKey, catalog, models, agents);
         }
 
         TaskModel? modelSelection = state?.Model ??
@@ -120,8 +133,132 @@ public sealed partial class WorkspaceView
                 : null;
         _expectedModel = modelSelection;
         _expectedAgent = agentSelection?.Id;
-        ModelSelector.SelectedItem = modelSelection;
+        // Restore the list highlight without treating it as a user choice; content stands in for the removed placeholder.
+        ModelList.SelectedItem = modelSelection;
+        ModelSelector.Content = modelSelection?.Name ?? "Model";
         AgentSelector.SelectedItem = agentSelection;
+        UpdateVariantSelector(state, modelSelection);
+    }
+
+    private void UpdateVariantSelector(SessionTaskState? state, TaskModel? modelSelection)
+    {
+        LiveWorkspace? live = _live;
+        bool draft = state is null && live is { IsConnected: true, Location: not null, SelectedSessionId: null };
+        IReadOnlyList<string> variants = modelSelection?.Variants ?? [];
+        string[] variantItems = variants.Count > 0 ? [VariantDefault, .. variants] : [];
+        string? variantSelection = state?.Variant ?? (draft ? live!.PreferredVariant : null);
+        if (variantSelection is not null && !variants.Contains(variantSelection, StringComparer.Ordinal))
+        {
+            variantSelection = null;
+        }
+
+        _expectedVariant = variantSelection;
+        // Like the model list, the choices rebind only when their contents change; streaming
+        // renders must not invalidate the ComboBox layout on every refresh.
+        string variantKey = (live?.SelectedSessionId ?? "draft:" + live?.Location?.Directory) + "|" + (modelSelection?.ProviderId ?? "") + "/" +
+            (modelSelection?.Id ?? "") + "|" + string.Join(',', variantItems) + "|" + _catalogSelectable;
+        if (_variantKey != variantKey)
+        {
+            _variantKey = variantKey;
+            VariantSelector.Visibility = variantItems.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            VariantSelector.IsEnabled = _catalogSelectable && variantItems.Length > 0;
+            VariantSelector.ItemsSource = variantItems;
+        }
+
+        VariantSelector.SelectedItem = variantItems.Length > 0 ? variantSelection ?? VariantDefault : null;
+    }
+
+    private void RebindCatalog(string catalogKey, TaskCatalog? catalog, IReadOnlyList<TaskModel> models, IReadOnlyList<TaskAgent> agents)
+    {
+        _catalogKey = catalogKey;
+        _catalogModels = models;
+        _catalogProviders = catalog?.Providers ?? [];
+        ModelSearch.Text = "";
+        RebuildModelView();
+        AgentSelector.ItemsSource = agents;
+        AgentSelector.DisplayMemberPath = nameof(TaskAgent.Name);
+    }
+
+    private void RebuildModelView()
+    {
+        _modelGroups = TaskModelGrouping.Build(_catalogModels, _catalogProviders, ModelSearch.Text);
+        _modelView.Source = _modelGroups;
+        // CollectionViewSource replaces its View when Source changes; the stale instance must not be cached.
+        ModelList.ItemsSource = _modelView.View;
+        // Keep the highlight on the current model while it survives the filter; the SelectionChanged
+        // echo matches _expectedModel and is ignored as a user choice.
+        ModelList.SelectedItem = _expectedModel is { } expected && _modelGroups.Any(group => group.Models.Contains(expected)) ? expected : null;
+        ModelSearchEmpty.Visibility = _modelGroups.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void ModelList_SelectionChanged(object sender, SelectionChangedEventArgs args)
+    {
+        if (ModelList.SelectedItem is not TaskModel model)
+        {
+            return;
+        }
+
+        if (CurrentTask is { Busy: false, Active: false } state)
+        {
+            state.Model = model;
+            if (state.Variant is not null && !model.Variants.Contains(state.Variant, StringComparer.Ordinal))
+            {
+                state.Variant = null;
+            }
+        }
+
+        // Echoes of programmatic selection (possibly deferred after a rebind) match the last
+        // rendered value; only an actual user choice differs.
+        if (Equals(model, _expectedModel))
+        {
+            return;
+        }
+
+        _expectedModel = model;
+        _live?.RememberModelPreference(model, CurrentTask?.Variant);
+        ModelSelector.Content = model.Name;
+        UpdateVariantSelector(CurrentTask, model);
+        if (_modelFlyoutOpen)
+        {
+            ModelFlyout.Hide();
+        }
+
+        UpdateSend();
+    }
+
+    private void ModelFlyout_Opened(object? sender, object args)
+    {
+        _modelFlyoutOpen = true;
+        ModelSearch.Focus(FocusState.Programmatic);
+    }
+
+    private void ModelFlyout_Closed(object? sender, object args)
+    {
+        _modelFlyoutOpen = false;
+        if (ModelSearch.Text.Length > 0)
+        {
+            ModelSearch.Text = "";
+        }
+    }
+
+    private void ModelSearch_TextChanged(object sender, TextChangedEventArgs args) => RebuildModelView();
+
+    private void ModelSearch_KeyDown(object sender, KeyRoutedEventArgs args)
+    {
+        if (args.Key != VirtualKey.Enter || TaskModelGrouping.First(_modelGroups) is not { } model)
+        {
+            return;
+        }
+
+        args.Handled = true;
+        if (Equals(model, _expectedModel))
+        {
+            ModelFlyout.Hide();
+        }
+        else
+        {
+            ModelList.SelectedItem = model;
+        }
     }
 
     private void UpdateSend()
