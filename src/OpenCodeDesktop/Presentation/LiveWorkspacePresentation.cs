@@ -23,6 +23,10 @@ internal sealed record LiveWorkspacePresentation(string Title, string Path, stri
     internal static string SessionTitle(WorkspaceSession? session) =>
         session is null ? "New-session draft" : string.IsNullOrWhiteSpace(session.Title) ? "Untitled session" : session.Title;
 
+    /// <summary>Where the running workspace load presents its progress: project-list loads on the sidebar, conversation loads above the conversation area.</summary>
+    internal static WorkspaceLoadPresentation Load(LiveWorkspace workspace) =>
+        workspace.IsLoading ? new(workspace.LoadingKind, workspace.Status) : WorkspaceLoadPresentation.None;
+
     internal static LiveWorkspacePresentation From(LiveWorkspace workspace)
     {
         string notice = workspace.IsLoading && !workspace.HistoryLoaded ? "Loading… Your draft is retained."
@@ -36,6 +40,11 @@ internal sealed record LiveWorkspacePresentation(string Title, string Path, stri
         return new(workspace.Selected is null ? (workspace.Location is null ? "Server workspace" : "New-session draft") : SessionTitle(workspace.Selected), path, notice,
             (workspace.Server?.Profile.Id.ToString() ?? "") + "\n" + workspace.Location?.Directory + "\n" + workspace.SelectedSessionId);
     }
+}
+
+internal sealed record WorkspaceLoadPresentation(WorkspaceLoadKind Placement, string Label)
+{
+    internal static readonly WorkspaceLoadPresentation None = new(WorkspaceLoadKind.None, "");
 }
 
 internal sealed record ProjectListPresentation(string Name, string Path, bool IsSelected, string? Error)

@@ -34,6 +34,8 @@ public sealed partial class LiveWorkspace : IDisposable
     public bool IsConnected => _connections.Context is not null;
     public ActiveServer? Server => _connections.Active;
     public bool IsLoading { get; private set; }
+    /// <summary>Surface that owns the running load's progress indicator; meaningful only while <see cref="IsLoading"/>.</summary>
+    public WorkspaceLoadKind LoadingKind { get; private set; }
     public string Status { get; private set; } = "Connect in Settings to open a server directory.";
     public string? Error { get; private set; }
     public bool CanRetry => _retry is not null && !IsLoading;
@@ -176,7 +178,7 @@ public sealed partial class LiveWorkspace : IDisposable
             Notify();
             if (remembered is not null)
             {
-                await OpenProjectCoreAsync(remembered, null, false).ConfigureAwait(true);
+                await OpenProjectCoreAsync(remembered, null, false, WorkspaceLoadKind.ProjectList).ConfigureAwait(true);
             }
             else if (Tasks is { } attention && _backend.Projects.Values.FirstOrDefault() is { } retained)
             {
@@ -194,23 +196,23 @@ public sealed partial class LiveWorkspace : IDisposable
     public Task OpenProjectAsync(string directory)
     {
         UserNavigation?.Invoke(this, EventArgs.Empty);
-        return OpenProjectCoreAsync(directory, null, false);
+        return OpenProjectCoreAsync(directory, null, false, WorkspaceLoadKind.ProjectList);
     }
 
     public Task OpenProjectSessionAsync(string directory, string sessionId)
     {
         UserNavigation?.Invoke(this, EventArgs.Empty);
-        return OpenProjectCoreAsync(directory, sessionId, false);
+        return OpenProjectCoreAsync(directory, sessionId, false, WorkspaceLoadKind.Conversation);
     }
 
     public Task OpenProjectDraftAsync(string directory)
     {
         UserNavigation?.Invoke(this, EventArgs.Empty);
-        return OpenProjectCoreAsync(directory, null, true);
+        return OpenProjectCoreAsync(directory, null, true, WorkspaceLoadKind.Conversation);
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "CA1502:Avoid excessive complexity", Justification = "Directory, target-session and history validation remain one staged navigation transaction so a failed or superseded switch cannot partially replace the workspace.")]
-    private Task OpenProjectCoreAsync(string directory, string? targetSessionId, bool selectDraft)
+    private Task OpenProjectCoreAsync(string directory, string? targetSessionId, bool selectDraft, WorkspaceLoadKind kind)
     {
         if (string.IsNullOrWhiteSpace(directory) || !IsConnected)
         {
@@ -221,7 +223,7 @@ public sealed partial class LiveWorkspace : IDisposable
         Func<Task> retry = selectDraft
             ? () => OpenProjectDraftAsync(directory)
             : targetSessionId is { } target ? () => OpenProjectSessionAsync(directory, target) : () => OpenProjectAsync(directory);
-        return RunAsync("Opening server directory…", async (context, token, current) =>
+        return RunAsync("Opening server directory…", kind, async (context, token, current) =>
         {
             Backend backend = _backend!;
             ProjectLocation location;
@@ -417,7 +419,7 @@ public sealed partial class LiveWorkspace : IDisposable
                 : Task.CompletedTask;
         }
         Project project = _project;
-        return RunAsync("Loading conversation history…", (context, token, current) => ReadHistoryAsync(context, project, id, current, token), () => SelectSessionAsync(id));
+        return RunAsync("Loading conversation history…", WorkspaceLoadKind.Conversation, (context, token, current) => ReadHistoryAsync(context, project, id, current, token), () => SelectSessionAsync(id));
     }
 
     private async Task ReadHistoryAsync(IWorkspaceConnection context, Project project, string id, Func<bool> current, CancellationToken token)
@@ -643,7 +645,7 @@ public sealed partial class LiveWorkspace : IDisposable
         }
 
         string cursor = project.HistoryCursor!;
-        return RunAsync("Loading older messages…", async (context, token, current) =>
+        return RunAsync("Loading older messages…", WorkspaceLoadKind.Conversation, async (context, token, current) =>
         {
             WorkspaceSession metadata = await context.SessionAsync(id, token).ConfigureAwait(true);
             ValidateSessions(project.Location, [metadata]);
@@ -675,7 +677,7 @@ public sealed partial class LiveWorkspace : IDisposable
         UserNavigation?.Invoke(this, EventArgs.Empty);
         CancelProjectLoad(project);
         project.Creating = true;
-        return RunAsync("Creating session…", async (context, token, current) =>
+        return RunAsync("Creating session…", WorkspaceLoadKind.Conversation, async (context, token, current) =>
         {
             WorkspaceSession created;
             try
@@ -794,7 +796,7 @@ public sealed partial class LiveWorkspace : IDisposable
         await SendTaskAsync().ConfigureAwait(true);
     }
 
-    private async Task RunAsync(string status, Func<IWorkspaceConnection, CancellationToken, Func<bool>, Task> action, Func<Task> retry)
+    private async Task RunAsync(string status, WorkspaceLoadKind kind, Func<IWorkspaceConnection, CancellationToken, Func<bool>, Task> action, Func<Task> retry)
     {
         if (_disposed || _connections.Context is not { } context)
         {
@@ -808,6 +810,7 @@ public sealed partial class LiveWorkspace : IDisposable
         _load = load;
         bool Current() => !_disposed && generation == _generation && connection == _connections.Generation;
         IsLoading = true;
+        LoadingKind = kind;
         Error = null;
         _retry = null;
         Status = status;
@@ -857,6 +860,7 @@ public sealed partial class LiveWorkspace : IDisposable
             {
                 _load = null;
                 IsLoading = false;
+                LoadingKind = WorkspaceLoadKind.None;
                 Notify();
             }
         }
@@ -916,6 +920,7 @@ public sealed partial class LiveWorkspace : IDisposable
         _load?.Cancel();
         _load = null;
         IsLoading = false;
+        LoadingKind = WorkspaceLoadKind.None;
     }
     private void TaskChanged(object? sender, EventArgs args)
     {

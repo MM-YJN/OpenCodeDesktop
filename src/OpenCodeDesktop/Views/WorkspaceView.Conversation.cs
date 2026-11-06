@@ -30,6 +30,7 @@ public sealed partial class WorkspaceView
     private double _trackedScrollableHeight = -1;
     private FrameworkElement? _workingIndicator;
     private string _workingLabel = "";
+    private bool _loadingStatePanelShown;
 
     private Border ConversationState(string glyphKey, string title, string message, ShellTone tone, params UIElement[] actions) =>
         ShellUi.StatePanel(glyphKey, title, message, tone, _compactConversation, actions);
@@ -80,6 +81,7 @@ public sealed partial class WorkspaceView
 
     private void UpdateConversationState(LiveWorkspace live, LiveWorkspacePresentation presentation, bool hasEntries)
     {
+        _loadingStatePanelShown = false;
         string message = presentation.ConversationNotice;
         if (_sendingDraft && !hasEntries)
         {
@@ -106,6 +108,7 @@ public sealed partial class WorkspaceView
 
         if (live.IsLoading && !live.HistoryLoaded)
         {
+            _loadingStatePanelShown = true;
             ConversationStateHost.Content = ConversationState("ShellIconClock", "Loading conversation",
                 message.Length > 0 ? message : "Reading history and execution state from the server.", ShellTone.Info);
             return;

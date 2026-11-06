@@ -549,6 +549,77 @@ public sealed class LiveWorkspaceTests
         Assert.Equal(0, h.Api.CreateCalls);
     }
 
+    [Fact]
+    public async Task OpeningAProjectReportsProjectListLoadKindUntilIdle()
+    {
+        using Harness h = await Harness.StartAsync();
+        TaskCompletionSource<bool> pending = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        h.Api.Validate = (_, _) => pending.Task;
+        Task opening = h.Workspace.OpenProjectAsync("/one");
+        Assert.True(h.Workspace.IsLoading);
+        Assert.Equal(WorkspaceLoadKind.ProjectList, h.Workspace.LoadingKind);
+        pending.SetResult(true);
+        await opening;
+        Assert.False(h.Workspace.IsLoading);
+        Assert.Equal(WorkspaceLoadKind.None, h.Workspace.LoadingKind);
+    }
+
+    [Fact]
+    public async Task CrossProjectSessionOpenReportsConversationLoadKind()
+    {
+        using Harness h = await Harness.StartAsync();
+        await h.Workspace.OpenProjectAsync("/one");
+        TaskCompletionSource<WorkspaceSession> pending = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        h.Api.Metadata = (_, _) => pending.Task;
+        Task opening = h.Workspace.OpenProjectSessionAsync("/two", "b");
+        Assert.True(h.Workspace.IsLoading);
+        Assert.Equal(WorkspaceLoadKind.Conversation, h.Workspace.LoadingKind);
+        pending.SetResult(new("b", "/two", "global", "B"));
+        await opening;
+        Assert.Equal("/two", h.Workspace.Location!.Directory);
+        Assert.Equal(WorkspaceLoadKind.None, h.Workspace.LoadingKind);
+    }
+
+    [Fact]
+    public async Task ConversationOperationsReportConversationLoadKindUntilIdle()
+    {
+        using Harness h = await Harness.StartAsync();
+        await h.Workspace.OpenProjectAsync("/one");
+        TaskCompletionSource<WorkspaceSession> pendingMetadata = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        h.Api.Metadata = (_, _) => pendingMetadata.Task;
+        Task selection = h.Workspace.SelectSessionAsync("a");
+        Assert.True(h.Workspace.IsLoading);
+        Assert.Equal(WorkspaceLoadKind.Conversation, h.Workspace.LoadingKind);
+        pendingMetadata.SetResult(new("a", "/one", "global", "A"));
+        await selection;
+        Assert.False(h.Workspace.IsLoading);
+        Assert.Equal(WorkspaceLoadKind.None, h.Workspace.LoadingKind);
+        h.Api.Metadata = null;
+
+        TaskCompletionSource<WorkspacePage<HistoryMessage>> pendingHistory = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        h.Api.History = (_, cursor, _) => cursor is null
+            ? Task.FromResult(new WorkspacePage<HistoryMessage>([new("2", "user", "two")], "next"))
+            : pendingHistory.Task;
+        await h.Workspace.SelectSessionAsync(null);
+        await h.Workspace.SelectSessionAsync("a");
+        Assert.True(h.Workspace.CanLoadHistory);
+        Task older = h.Workspace.LoadOlderHistoryAsync();
+        Assert.True(h.Workspace.IsLoading);
+        Assert.Equal(WorkspaceLoadKind.Conversation, h.Workspace.LoadingKind);
+        pendingHistory.SetResult(new WorkspacePage<HistoryMessage>([new("1", "user", "one")], null));
+        await older;
+        Assert.Equal(WorkspaceLoadKind.None, h.Workspace.LoadingKind);
+
+        TaskCompletionSource<WorkspaceSession> pendingCreate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        h.Api.Create = (_, _) => pendingCreate.Task;
+        Task creating = h.Workspace.CreateSessionAsync();
+        Assert.True(h.Workspace.IsLoading);
+        Assert.Equal(WorkspaceLoadKind.Conversation, h.Workspace.LoadingKind);
+        pendingCreate.SetResult(new("created", "/one", "global", "Created"));
+        await creating;
+        Assert.Equal(WorkspaceLoadKind.None, h.Workspace.LoadingKind);
+    }
+
     private static async Task WaitIdleAsync(LiveWorkspace workspace)
     {
         for (int i = 0; i < 100 && workspace.IsLoading; i++)

@@ -225,7 +225,7 @@ public sealed partial class WorkspaceView
         ApplyWorkspaceMode();
     }
 
-    /// <summary>True while the active session tab presents the workspace load inside the tab, making the sidebar loading indicator redundant.</summary>
+    /// <summary>True while the active session tab's navigation load presents the "Opening session…" state inside the tab.</summary>
     private bool TabPresentsSessionLoad(LiveWorkspace live) => live.IsLoading && _tabs.Active is { IsFiles: false } active &&
         (_tabNavigation || _sessionTabOpening == active ||
          !_tabNavigation && !live.HistoryLoaded && live.Location?.Directory == active.Directory &&

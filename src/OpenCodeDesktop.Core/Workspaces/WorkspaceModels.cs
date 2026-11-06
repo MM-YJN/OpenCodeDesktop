@@ -21,6 +21,9 @@ public sealed record WorkspaceSession(string Id, string Directory, string Projec
 public enum HistoryFailureOutcome { Failed, Interrupted }
 public enum HistoryPartKind { Text, Reasoning, Tool, Error }
 
+/// <summary>Which surface owns the running workspace load's progress: the project list or the conversation area.</summary>
+public enum WorkspaceLoadKind { None, ProjectList, Conversation }
+
 /// <summary>One typed block of assistant content: visible text, thinking, a tool call, or an inline error.</summary>
 public sealed record HistoryContentPart(int Ordinal, string Text, HistoryPartKind Kind)
 {

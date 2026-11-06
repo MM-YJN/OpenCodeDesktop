@@ -99,7 +99,21 @@ public sealed partial class WorkspaceView
             DetailsContent.UpdateReview(reviewHistory);
             DetailsContent.Update(DetailsPresentationFactory.From(live, CurrentTask));
         }
+        UpdateConversationLoading(live);
         TerminalToggle.IsEnabled = false;
+    }
+
+    /// <summary>Conversation-scoped loads present a bar above the conversation area, not on the project list; suppressed while the "Loading conversation" state panel already fills the conversation.</summary>
+    private void UpdateConversationLoading(LiveWorkspace live)
+    {
+        WorkspaceLoadPresentation load = LiveWorkspacePresentation.Load(live);
+        bool visible = load.Placement == WorkspaceLoadKind.Conversation &&
+            DetailsLayout.Visibility == Visibility.Visible && !_loadingStatePanelShown;
+        ConversationLoading.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        if (visible)
+        {
+            AutomationProperties.SetName(ConversationLoading, load.Label.Length > 0 ? load.Label : "Loading conversation");
+        }
     }
 
     private async void ReviewPreviewRequestedAsync(object? sender, string path)
@@ -115,8 +129,8 @@ public sealed partial class WorkspaceView
         bool connected = live.IsConnected;
         AddProjectButton.IsEnabled = connected && !live.IsLoading;
         ProjectsCount.Text = live.Projects.Count == 0 ? "" : "· " + live.Projects.Count;
-        // Session navigation presents its load inside the session tab; the sidebar indicator covers other workspace loads.
-        bool loading = live.IsLoading && !TabPresentsSessionLoad(live);
+        // The sidebar indicator covers project-list loads only; conversation loads present above the conversation area.
+        bool loading = LiveWorkspacePresentation.Load(live).Placement == WorkspaceLoadKind.ProjectList;
         WorkspaceLoading.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
         WorkspaceStatus.Text = live.Status;
         WorkspaceStatus.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;

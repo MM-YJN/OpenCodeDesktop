@@ -183,6 +183,8 @@
                                 <ContentControl x:Name="WorkingIndicatorHost" HorizontalContentAlignment="Stretch" Visibility="Collapsed" />
                             </StackPanel>
                         </ScrollViewer>
+                        <!-- Conversation-scoped loads present here instead of the sidebar; overlays the conversation's top edge without shifting content. -->
+                        <ProgressBar x:Name="ConversationLoading" IsIndeterminate="True" Visibility="Collapsed" VerticalAlignment="Top" AutomationProperties.Name="Loading conversation" />
                         <Button x:Name="JumpToLatest" Style="{StaticResource ShellSecondaryButtonStyle}" HorizontalAlignment="Right" VerticalAlignment="Bottom"
                                 Margin="0,0,24,16" Padding="12,8" Visibility="Collapsed" Click="JumpToLatest_Click" AutomationProperties.Name="Jump to latest messages" ToolTipService.ToolTip="Jump to latest messages">
                             <StackPanel Orientation="Horizontal" Spacing="6">

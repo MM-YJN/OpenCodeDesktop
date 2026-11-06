@@ -68,6 +68,32 @@ public sealed class LiveWorkspacePresentationTests
         Assert.True(workspace.HasConnected);
     }
 
+    [Fact]
+    public async Task LoadReportsPlacementAndStatusLabelOnlyWhileLoading()
+    {
+        Service service = new();
+        using ServerConnections connections = new(service);
+        using LiveWorkspace workspace = new(connections);
+        Assert.Same(WorkspaceLoadPresentation.None, LiveWorkspacePresentation.Load(workspace));
+        ServerProfile profile = connections.Save(null, "Test server", "http://127.0.0.1:4096")!;
+        await connections.ConnectAsync(profile.Id, "secret");
+        service.Api.PendingValidation = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task opening = workspace.OpenProjectAsync("/real");
+        WorkspaceLoadPresentation projectLoad = LiveWorkspacePresentation.Load(workspace);
+        Assert.Equal(WorkspaceLoadKind.ProjectList, projectLoad.Placement);
+        Assert.Equal("Opening server directory…", projectLoad.Label);
+        service.Api.PendingValidation.SetResult(true);
+        await opening;
+        Assert.Same(WorkspaceLoadPresentation.None, LiveWorkspacePresentation.Load(workspace));
+        Task selection = workspace.SelectSessionAsync("a");
+        WorkspaceLoadPresentation sessionLoad = LiveWorkspacePresentation.Load(workspace);
+        Assert.Equal(WorkspaceLoadKind.Conversation, sessionLoad.Placement);
+        Assert.Equal("Loading conversation history…", sessionLoad.Label);
+        service.Api.Pending.SetResult(new([], null));
+        await selection;
+        Assert.Same(WorkspaceLoadPresentation.None, LiveWorkspacePresentation.Load(workspace));
+    }
+
     private sealed class Service : IServerConnectionService, IWorkspaceConnectionFactory
     {
         public Api Api { get; } = new();
@@ -77,9 +103,10 @@ public sealed class LiveWorkspacePresentationTests
     private sealed class Api : IWorkspaceConnection
     {
         public bool Unavailable { get; set; }
+        public TaskCompletionSource<bool>? PendingValidation { get; set; }
         public TaskCompletionSource<WorkspacePage<HistoryMessage>> Pending { get; set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public Task<ProjectLocation> ResolveAsync(string directory, CancellationToken cancellationToken) => Task.FromResult(new ProjectLocation(directory, "global"));
-        public Task ValidateDirectoryAsync(string directory, CancellationToken cancellationToken) => Unavailable
+        public Task ValidateDirectoryAsync(string directory, CancellationToken cancellationToken) => PendingValidation is { } pending ? pending.Task : Unavailable
             ? throw new WorkspaceException(WorkspaceFailure.Http, "Unavailable") : Task.CompletedTask;
         public Task<WorkspacePage<WorkspaceSession>> SessionsAsync(string directory, string? cursor, CancellationToken cancellationToken) => Task.FromResult(new WorkspacePage<WorkspaceSession>([new("a", directory, "global", "Real session")], null));
         public Task<WorkspaceSession> CreateAsync(string directory, CancellationToken cancellationToken) => throw new NotSupportedException();
