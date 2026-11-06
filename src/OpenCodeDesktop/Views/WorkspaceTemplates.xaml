@@ -72,6 +72,27 @@
             </StackPanel>
         </Border>
     </DataTemplate>
+    <DataTemplate x:Key="ActivityEntryTemplate">
+        <Border Style="{StaticResource ShellCardStyle}" Padding="0">
+            <StackPanel>
+                <Button x:Name="Header" Style="{StaticResource ShellQuietButtonStyle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="12,8">
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <FontIcon x:Name="Icon" Glyph="{StaticResource ShellIconTool}" FontFamily="{StaticResource ShellIconFontFamily}" FontSize="{StaticResource ShellIconSmall}" VerticalAlignment="Center" IsHitTestVisible="False" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="Title" Style="{StaticResource ShellBodyStrongTextStyle}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                            <TextBlock x:Name="Subtitle" Style="{StaticResource ShellTertiaryTextStyle}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Visibility="Collapsed" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <ProgressRing x:Name="Running" Width="14" Height="14" IsActive="True" Visibility="Collapsed" IsHitTestVisible="False" />
+                            <FontIcon x:Name="Chevron" Glyph="&#xE70D;" FontSize="10" Foreground="{ThemeResource ShellTextTertiaryBrush}" IsHitTestVisible="False" />
+                        </StackPanel>
+                    </Grid>
+                </Button>
+                <StackPanel x:Name="Items" Spacing="6" Padding="12,0,12,10" Visibility="Collapsed" />
+            </StackPanel>
+        </Border>
+    </DataTemplate>
     <DataTemplate x:Key="ThinkingEntryTemplate">
         <StackPanel>
             <Button x:Name="Header" Style="{StaticResource ShellQuietButtonStyle}" Padding="8,4" HorizontalContentAlignment="Left">

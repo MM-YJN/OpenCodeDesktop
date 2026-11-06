@@ -22,6 +22,7 @@ public sealed partial class WorkspaceView
     private bool _historyMoreVisible;
     private bool _compactConversation;
     private readonly Dictionary<string, (double Offset, bool AtBottom)> _conversationPositions = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _activityExpanded = new(StringComparer.Ordinal);
     private string? _conversationOwner;
     private bool _restoreConversationPosition;
     private bool _pinnedToBottom = true;
@@ -302,8 +303,11 @@ public sealed partial class WorkspaceView
     }
 
     private static string Hash(ConversationEntry entry) =>
-        entry.Role + "|" + entry.Title + "|" + entry.Caption + "|" + entry.ReviewFrom + "|" + string.Join('|', entry.ChangedFiles) + "|" + string.Join('|', entry.FileReferences.Select(reference => reference.Uri + reference.Name)) + "|" + string.Join('\u001f', entry.Segments.Select(segment =>
-            segment.Kind + ":" + segment.ToolName + ":" + segment.ToolInput + ":" + segment.ToolStatus + ":" + segment.ToolFailed + ":" + segment.Text));
+        entry.Role + "|" + entry.Title + "|" + entry.Caption + "|" + entry.ReviewFrom + "|" + string.Join('|', entry.ChangedFiles) + "|" + string.Join('|', entry.FileReferences.Select(reference => reference.Uri + reference.Name)) + "|" + string.Join('\u001f', entry.Segments.Select(HashSegment));
+
+    private static string HashSegment(ConversationSegment segment) =>
+        segment.Kind + ":" + segment.ToolName + ":" + segment.ToolInput + ":" + segment.ToolStatus + ":" + segment.ToolFailed + ":" + segment.Text
+        + (segment.Items.Count > 0 ? ":" + string.Join('\u001e', segment.Items.Select(HashSegment)) : "");
 
     private FrameworkElement BuildEntry(ConversationEntry entry)
     {
@@ -311,8 +315,7 @@ public sealed partial class WorkspaceView
         {
             ConversationRole.User => BuildUserEntry(entry),
             ConversationRole.Assistant => BuildAssistantEntry(entry),
-            ConversationRole.Tool => BuildToolCard(entry.Segments.FirstOrDefault(segment => segment.Kind == ConversationSegmentKind.Tool)
-                ?? new ConversationSegment("", ConversationSegmentKind.Tool)),
+            ConversationRole.Tool => BuildToolEntry(entry),
             ConversationRole.Divider => BuildDividerEntry(entry),
             _ => BuildErrorEntry(entry),
         };
@@ -466,6 +469,63 @@ public sealed partial class WorkspaceView
         return block;
     }
 
+    private FrameworkElement BuildToolEntry(ConversationEntry entry)
+    {
+        ConversationSegment segment = entry.Segments.FirstOrDefault(segment => segment.Kind is ConversationSegmentKind.Tool or ConversationSegmentKind.Activity)
+            ?? new ConversationSegment("", ConversationSegmentKind.Tool);
+        return segment.Kind == ConversationSegmentKind.Activity ? BuildActivityBlock(segment, entry.Key + "#0") : BuildToolCard(segment);
+    }
+
+    private FrameworkElement BuildActivityBlock(ConversationSegment segment, string stateKey)
+    {
+        Border card = WorkspaceTemplate<Border>("ActivityEntryTemplate");
+        bool failed = ConversationPresentation.ActivityFailed(segment);
+        bool running = ConversationPresentation.ActivityRunning(segment);
+        string title = ConversationPresentation.ActivityTitle(segment);
+
+        ShellUi.Part<TextBlock>(card, "Title").Text = title;
+        ShellUi.Part<FontIcon>(card, "Icon").Foreground = ShellUi.Brush(failed ? "ShellDangerBrush" : "ShellAccentBrush");
+        if (ConversationPresentation.ActivityRunningTool(segment) is { Length: > 0 } tool)
+        {
+            TextBlock subtitle = ShellUi.Part<TextBlock>(card, "Subtitle");
+            subtitle.Text = tool;
+            subtitle.Visibility = Visibility.Visible;
+        }
+
+        if (running)
+        {
+            ShellUi.Part<ProgressRing>(card, "Running").Visibility = Visibility.Visible;
+        }
+
+        card.BorderBrush = ShellUi.Brush(failed ? "ShellDangerBrush" : "ShellBorderBrush");
+
+        StackPanel items = ShellUi.Part<StackPanel>(card, "Items");
+        foreach (ConversationSegment item in segment.Items)
+        {
+            items.Children.Add(item.Kind == ConversationSegmentKind.Reasoning ? BuildThinkingBlock(item.Text) : BuildToolCard(item));
+        }
+
+        FontIcon chevron = ShellUi.Part<FontIcon>(card, "Chevron");
+        void Apply(bool show)
+        {
+            items.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            chevron.Glyph = show ? "\uE70E" : "\uE70D";
+        }
+
+        Apply(_activityExpanded.Contains(stateKey));
+        ShellUi.Part<Button>(card, "Header").Click += (_, _) =>
+        {
+            bool show = items.Visibility == Visibility.Collapsed;
+            Apply(show);
+            if (show) { _activityExpanded.Add(stateKey); } else { _activityExpanded.Remove(stateKey); }
+        };
+
+        int steps = segment.Items.Count;
+        AutomationProperties.SetName(card, "Activity: " + title + ".");
+        AutomationProperties.SetName(ShellUi.Part<Button>(card, "Header"), "Activity: " + title + ". Activate to show or hide " + steps + (steps == 1 ? " recorded step." : " recorded steps."));
+        return card;
+    }
+
     private FrameworkElement BuildErrorEntry(ConversationEntry entry)
     {
         Border card = WorkspaceTemplate<Border>("ErrorEntryTemplate");
@@ -477,8 +537,9 @@ public sealed partial class WorkspaceView
 
     private void AddSegments(StackPanel content, ConversationEntry entry, Brush foreground)
     {
-        foreach (ConversationSegment segment in entry.Segments)
+        for (int index = 0; index < entry.Segments.Count; index++)
         {
+            ConversationSegment segment = entry.Segments[index];
             switch (segment.Kind)
             {
                 case ConversationSegmentKind.Code:
@@ -489,6 +550,9 @@ public sealed partial class WorkspaceView
                     break;
                 case ConversationSegmentKind.Reasoning:
                     content.Children.Add(BuildThinkingBlock(segment.Text));
+                    break;
+                case ConversationSegmentKind.Activity:
+                    content.Children.Add(BuildActivityBlock(segment, entry.Key + "#" + index));
                     break;
                 default:
                     TextBlock text = ShellUi.Text(segment.Text, "ShellSelectableBodyTextStyle");

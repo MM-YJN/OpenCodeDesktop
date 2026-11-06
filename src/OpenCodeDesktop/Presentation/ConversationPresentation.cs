@@ -9,7 +9,7 @@ namespace OpenCodeDesktop.Presentation;
 
 internal enum ConversationRole { User, Assistant, Tool, Divider, Error }
 
-internal enum ConversationSegmentKind { Text, Code, Reasoning, Tool }
+internal enum ConversationSegmentKind { Text, Code, Reasoning, Tool, Activity }
 
 internal sealed record ConversationSegment(string Text, ConversationSegmentKind Kind)
 {
@@ -17,6 +17,8 @@ internal sealed record ConversationSegment(string Text, ConversationSegmentKind 
     internal string? ToolInput { get; init; }
     internal string? ToolStatus { get; init; }
     internal bool ToolFailed { get; init; }
+    /// <summary>Nested steps of an Activity block (Reasoning and Tool segments).</summary>
+    internal IReadOnlyList<ConversationSegment> Items { get; init; } = [];
 }
 
 internal sealed record ConversationEntry(
@@ -30,7 +32,10 @@ internal sealed record ConversationEntry(
     internal IReadOnlyList<HistoryFileReference> FileReferences { get; init; } = [];
     internal IReadOnlyList<string> ChangedFiles { get; init; } = [];
     internal string? ReviewFrom { get; init; }
-    internal string PlainText => string.Join("\n\n", Segments.Select(segment => segment.Text).Where(text => text.Length > 0));
+    internal string PlainText => string.Join("\n\n", Segments.SelectMany(Flatten).Select(segment => segment.Text).Where(text => text.Length > 0));
+
+    private static IEnumerable<ConversationSegment> Flatten(ConversationSegment segment) =>
+        segment.Kind == ConversationSegmentKind.Activity ? segment.Items : [segment];
     internal string AutomationName => (Role switch
     {
         ConversationRole.User => "You said: " + PlainText,
@@ -46,17 +51,123 @@ internal static class ConversationPresentation
     internal static IReadOnlyList<ConversationEntry> From(IEnumerable<HistoryMessage> history)
     {
         List<ConversationEntry> entries = [];
+        Dictionary<string, int> assistantIndex = new(StringComparer.Ordinal);
+        Dictionary<string, int> activityIndex = new(StringComparer.Ordinal);
         string? user = null;
         foreach (HistoryMessage message in history)
         {
             if (message.Kind.StartsWith("user", StringComparison.Ordinal)) { user = message.Id; }
+            if (message.Kind.Equals("tool activity", StringComparison.OrdinalIgnoreCase))
+            {
+                FoldToolActivity(entries, assistantIndex, activityIndex, message, user);
+                continue;
+            }
+
             ConversationEntry? entry = From(message);
             if (entry is not null)
             {
+                if (entry.Role == ConversationRole.Assistant)
+                {
+                    assistantIndex[message.Id] = entries.Count;
+                }
+
                 entries.Add(entry with { ReviewFrom = user });
             }
         }
+        return CoalesceActivityRuns(entries);
+    }
+
+    // OpenCode records each step as its own assistant message, so a run of tool/thinking steps
+    // arrives as consecutive entries. When one entry ends with an activity block and the next
+    // begins with one — no visible content between — merge them into a single block. The next
+    // entry keeps any remaining content (its text renders right after the merged block); an
+    // entry left with no segments is removed.
+    private static IReadOnlyList<ConversationEntry> CoalesceActivityRuns(List<ConversationEntry> entries)
+    {
+        int index = 0;
+        while (index < entries.Count - 1)
+        {
+            ConversationEntry current = entries[index];
+            ConversationEntry next = entries[index + 1];
+            ConversationSegment? tail = Foldable(current) && current.Segments.Count > 0 && IsActivityPart(current.Segments[^1]) ? current.Segments[^1] : null;
+            ConversationSegment? head = Foldable(next) && next.Segments.Count > 0 && IsActivityPart(next.Segments[0]) ? next.Segments[0] : null;
+            if (tail is null || head is null)
+            {
+                index++;
+                continue;
+            }
+
+            List<ConversationSegment> items = tail.Kind == ConversationSegmentKind.Activity ? [.. tail.Items] : [tail];
+            items.AddRange(head.Kind == ConversationSegmentKind.Activity ? head.Items : [head]);
+            IReadOnlyList<ConversationSegment> remaining = [.. next.Segments.Skip(1)];
+            entries[index] = current with
+            {
+                Segments = [.. current.Segments.Take(current.Segments.Count - 1), ActivitySegment(items)],
+                FileReferences = remaining.Count == 0 ? [.. current.FileReferences, .. next.FileReferences] : current.FileReferences,
+                ChangedFiles = remaining.Count == 0 ? [.. current.ChangedFiles, .. next.ChangedFiles] : current.ChangedFiles,
+                IsWarning = current.IsWarning || next.IsWarning,
+            };
+            if (remaining.Count == 0)
+            {
+                entries.RemoveAt(index + 1);
+            }
+            else
+            {
+                entries[index + 1] = next with { Segments = remaining };
+                index++;
+            }
+        }
         return entries;
+
+        static bool Foldable(ConversationEntry entry) =>
+            entry.Role == ConversationRole.Assistant || entry.Role == ConversationRole.Tool && IsStandaloneActivity(entry);
+
+        static bool IsActivityPart(ConversationSegment segment) =>
+            segment.Kind is ConversationSegmentKind.Activity or ConversationSegmentKind.Reasoning;
+
+        static bool IsStandaloneActivity(ConversationEntry entry) =>
+            entry.Key.EndsWith(":activity", StringComparison.Ordinal);
+    }
+
+    // Live tool events belong with their message: they extend the assistant entry's trailing
+    // activity block when it exists, or one grouped standalone block per message otherwise.
+    private static void FoldToolActivity(List<ConversationEntry> entries, Dictionary<string, int> assistantIndex,
+        Dictionary<string, int> activityIndex, HistoryMessage message, string? user)
+    {
+        string parent = message.Id;
+        int separator = parent.LastIndexOf(':');
+        if (separator > 0)
+        {
+            parent = parent[..separator];
+        }
+
+        ConversationSegment tool = LiveToolSegment(message.Text);
+        if (assistantIndex.TryGetValue(parent, out int assistant))
+        {
+            ConversationEntry entry = entries[assistant];
+            List<ConversationSegment> segments = [.. entry.Segments];
+            if (segments.Count > 0 && segments[^1].Kind == ConversationSegmentKind.Activity)
+            {
+                segments[^1] = segments[^1] with { Items = [.. segments[^1].Items, tool] };
+            }
+            else
+            {
+                segments.Add(ActivitySegment([tool]));
+            }
+
+            entries[assistant] = entry with { Segments = segments };
+            return;
+        }
+
+        if (activityIndex.TryGetValue(parent, out int group))
+        {
+            ConversationEntry entry = entries[group];
+            entries[group] = entry with { Segments = [entry.Segments[0] with { Items = [.. entry.Segments[0].Items, tool] }] };
+            return;
+        }
+
+        activityIndex[parent] = entries.Count;
+        entries.Add(new(parent + ":activity", ConversationRole.Tool, [ActivitySegment([tool])]) { ReviewFrom = user });
     }
 
     // Only task-relevant items surface in the conversation: user and assistant content (text, thinking,
@@ -117,29 +228,58 @@ internal static class ConversationPresentation
         }
 
         List<ConversationSegment> segments = [];
+        List<ConversationSegment>? run = null;
+        void FlushRun()
+        {
+            if (run is null)
+            {
+                return;
+            }
+
+            // Consecutive thinking/tool parts collapse into one Activity block; a lone
+            // thinking part keeps the simpler standalone collapsible block.
+            segments.Add(run.Count == 1 && run[0].Kind == ConversationSegmentKind.Reasoning
+                ? run[0]
+                : ActivitySegment(run));
+            run = null;
+        }
+
         foreach (HistoryContentPart part in message.Parts)
         {
             switch (part.Kind)
             {
                 case HistoryPartKind.Text:
-                    AddTextSegments(segments, part.Text);
+                    // Empty text parts render nothing; they must not split a group.
+                    if (Clean(part.Text).Trim().Length > 0)
+                    {
+                        FlushRun();
+                        AddTextSegments(segments, part.Text);
+                    }
                     break;
                 case HistoryPartKind.Reasoning:
                     if (Clean(part.Text).Trim().Length > 0)
                     {
-                        segments.Add(new(Clean(part.Text).Trim(), ConversationSegmentKind.Reasoning));
+                        (run ??= []).Add(new(Clean(part.Text).Trim(), ConversationSegmentKind.Reasoning));
                     }
                     break;
                 case HistoryPartKind.Tool:
-                    segments.Add(ToSegment(part));
+                    (run ??= []).Add(ToSegment(part));
                     break;
                 default:
-                    segments.Add(new(Clean(part.Text).Trim(), ConversationSegmentKind.Text));
+                    if (Clean(part.Text).Trim().Length > 0)
+                    {
+                        FlushRun();
+                        segments.Add(new(Clean(part.Text).Trim(), ConversationSegmentKind.Text));
+                    }
                     break;
             }
         }
+        FlushRun();
         return segments;
     }
+
+    private static ConversationSegment ActivitySegment(IReadOnlyList<ConversationSegment> items) =>
+        new("", ConversationSegmentKind.Activity) { Items = items };
 
     private static ConversationSegment ToSegment(HistoryContentPart part) => new(Clean(part.Text).Trim(), ConversationSegmentKind.Tool)
     {
@@ -158,6 +298,38 @@ internal static class ConversationPresentation
         "running" or "streaming" or "called" or "progress" or "input.started" or "input.ended" => "running",
         _ => status,
     };
+
+    internal static bool ActivityFailed(ConversationSegment activity) =>
+        activity.Items.Any(item => item.ToolFailed || item.ToolStatus == "error");
+
+    internal static bool ActivityRunning(ConversationSegment activity) =>
+        activity.Items.Any(item => ToolStatusText(item.ToolStatus) == "running");
+
+    /// <summary>Name of the most recent running tool in a group, when any.</summary>
+    internal static string? ActivityRunningTool(ConversationSegment activity) =>
+        activity.Items.LastOrDefault(item => ToolStatusText(item.ToolStatus) == "running")?.ToolName;
+
+    /// <summary>Collapsed header summary for an activity block: tool count plus failure/running status.</summary>
+    internal static string ActivityTitle(ConversationSegment activity)
+    {
+        int tools = activity.Items.Count(item => item.Kind == ConversationSegmentKind.Tool);
+        string title = tools switch
+        {
+            0 => "Thinking",
+            1 => "1 tool call",
+            _ => tools + " tool calls",
+        };
+        if (ActivityFailed(activity))
+        {
+            title += " · failed";
+        }
+        else if (ActivityRunning(activity))
+        {
+            title += " · running";
+        }
+
+        return title;
+    }
 
     private static ConversationSegment LiveToolSegment(string text)
     {

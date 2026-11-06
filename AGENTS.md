@@ -55,7 +55,14 @@ Tests for Infrastructure implementations and their integration boundaries.
 - Keep tests requiring a real OpenCode service explicitly opt-in and document their prerequisites.
 - Clean up any files or processes created by tests.
 
-Both test projects use xUnit with Microsoft Testing Platform. Add meaningful tests as behavior is implemented.
+The test projects use xUnit with Microsoft Testing Platform. Add meaningful tests as behavior is implemented.
+
+### `tests/OpenCodeDesktop.Presentation.Tests`
+
+Fast tests for the App project's UI-independent presentation logic.
+
+- Verify history-to-conversation mapping, grouping, and display summaries (e.g., `ConversationPresentation`).
+- Require no WinUI runtime, network access, or Windows UI dependencies.
 
 ## Dependency Direction
 
@@ -112,6 +119,7 @@ From the repository root:
 dotnet build OpenCodeDesktop.slnx -p:Platform=x64
 dotnet test --project tests/OpenCodeDesktop.Core.Tests/OpenCodeDesktop.Core.Tests.csproj
 dotnet test --project tests/OpenCodeDesktop.Infrastructure.Tests/OpenCodeDesktop.Infrastructure.Tests.csproj
+dotnet test --project tests/OpenCodeDesktop.Presentation.Tests/OpenCodeDesktop.Presentation.Tests.csproj
 ```
 
 Building the app requires Windows and the Windows SDK/tooling used by its project. A test run discovering zero tests is not evidence that application behavior has been validated.
