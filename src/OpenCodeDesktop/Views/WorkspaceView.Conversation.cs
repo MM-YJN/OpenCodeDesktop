@@ -15,6 +15,7 @@ namespace OpenCodeDesktop.Views;
 
 public sealed partial class WorkspaceView
 {
+    private const double ConversationBottomTolerance = 48;
     private readonly List<string> _entryKeys = [];
     private readonly List<string> _entryHashes = [];
     private readonly List<FrameworkElement> _entryControls = [];
@@ -23,6 +24,12 @@ public sealed partial class WorkspaceView
     private readonly Dictionary<string, (double Offset, bool AtBottom)> _conversationPositions = new(StringComparer.Ordinal);
     private string? _conversationOwner;
     private bool _restoreConversationPosition;
+    private bool _pinnedToBottom = true;
+    private bool _unseenWhileUnpinned;
+    private double _trackedScrollOffset = -1;
+    private double _trackedScrollableHeight = -1;
+    private FrameworkElement? _workingIndicator;
+    private string _workingLabel = "";
 
     private Border ConversationState(string glyphKey, string title, string message, ShellTone tone, params UIElement[] actions) =>
         ShellUi.StatePanel(glyphKey, title, message, tone, _compactConversation, actions);
@@ -34,11 +41,14 @@ public sealed partial class WorkspaceView
             if (_conversationOwner is not null && !_restoreConversationPosition)
             {
                 _conversationPositions[_conversationOwner] = (ConversationScroll.VerticalOffset,
-                    ConversationScroll.ScrollableHeight - ConversationScroll.VerticalOffset < 48);
+                    ConversationScroll.ScrollableHeight - ConversationScroll.VerticalOffset < ConversationBottomTolerance);
             }
 
             _conversationOwner = presentation.DraftOwner;
             _restoreConversationPosition = true;
+            _unseenWhileUnpinned = false;
+            _trackedScrollOffset = -1;
+            _trackedScrollableHeight = -1;
         }
 
         IReadOnlyList<HistoryMessage> history = CurrentTask is { Hydrated: true } state
@@ -54,14 +64,18 @@ public sealed partial class WorkspaceView
             _restoreConversationPosition = false;
             string owner = presentation.DraftOwner;
             (double offset, bool atBottom) = _conversationPositions.GetValueOrDefault(owner, (0, true));
+            _pinnedToBottom = atBottom;
             DispatcherQueue.TryEnqueue(() =>
             {
                 if (_conversationOwner == owner)
                 {
                     ConversationScroll.ChangeView(null, atBottom ? double.MaxValue : offset, null, true);
                 }
+                UpdateJumpToLatest();
             });
         }
+
+        UpdateWorkingIndicator();
     }
 
     private void UpdateConversationState(LiveWorkspace live, LiveWorkspacePresentation presentation, bool hasEntries)
@@ -156,8 +170,8 @@ public sealed partial class WorkspaceView
         var hashes = entries.Select(Hash).ToList();
         double offset = ConversationScroll.VerticalOffset;
         double height = ConversationScroll.ScrollableHeight;
-        bool atBottom = height - offset < 48;
         bool prepend = false;
+        bool changed = !_entryKeys.SequenceEqual(keys);
         if (_entryKeys.SequenceEqual(keys))
         {
             for (int index = 0; index < entries.Count; index++)
@@ -168,6 +182,7 @@ public sealed partial class WorkspaceView
                     ConversationEntries.Children[index] = replacement;
                     _entryControls[index] = replacement;
                     _entryHashes[index] = hashes[index];
+                    changed = true;
                 }
             }
         }
@@ -197,21 +212,95 @@ public sealed partial class WorkspaceView
         _entryKeys.AddRange(keys);
         _entryHashes.Clear();
         _entryHashes.AddRange(hashes);
+        if (!restorePending && !_pinnedToBottom && changed)
+        {
+            _unseenWhileUnpinned = true;
+        }
+
         if (!restorePending && prepend)
         {
             double anchor = height;
             double previous = offset;
             DispatcherQueue.TryEnqueue(() => ConversationScroll.ChangeView(null, previous + (ConversationScroll.ScrollableHeight - anchor), null, true));
         }
-        else if (!restorePending && atBottom)
+        else if (!restorePending && _pinnedToBottom)
         {
             DispatcherQueue.TryEnqueue(() => ConversationScroll.ChangeView(null, double.MaxValue, null, true));
         }
+
+        UpdateJumpToLatest();
+    }
+
+    private void ConversationScroll_ViewChanged(object? sender, ScrollViewerViewChangedEventArgs args)
+    {
+        double offset = ConversationScroll.VerticalOffset;
+        double scrollable = ConversationScroll.ScrollableHeight;
+        if (scrollable - offset < ConversationBottomTolerance)
+        {
+            // Any arrival at the bottom (user, restore, or content growth anchored by the ScrollViewer) re-pins.
+            _pinnedToBottom = true;
+        }
+        else if (Math.Abs(offset - _trackedScrollOffset) > 0.5 || Math.Abs(scrollable - _trackedScrollableHeight) < 0.5)
+        {
+            // A deliberate offset change, or a no-op re-layout. Pure content growth at a fixed
+            // offset (the else branch) keeps the pin state untouched.
+            _pinnedToBottom = false;
+        }
+
+        _trackedScrollOffset = offset;
+        _trackedScrollableHeight = scrollable;
+        UpdateJumpToLatest();
+    }
+
+    private void PinConversationToBottom()
+    {
+        _pinnedToBottom = true;
+        _unseenWhileUnpinned = false;
+        DispatcherQueue.TryEnqueue(() => ConversationScroll.ChangeView(null, double.MaxValue, null, true));
+        UpdateJumpToLatest();
+    }
+
+    private void JumpToLatest_Click(object sender, RoutedEventArgs args) => PinConversationToBottom();
+
+    private void UpdateJumpToLatest()
+    {
+        bool show = !_pinnedToBottom && _entryKeys.Count > 0;
+        JumpToLatest.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        JumpToLatestLabel.Text = _unseenWhileUnpinned ? "New messages" : "Jump to latest";
+        AutomationProperties.SetName(JumpToLatest, _unseenWhileUnpinned ? "Jump to latest messages; new content below" : "Jump to latest messages");
+    }
+
+    private void UpdateWorkingIndicator()
+    {
+        string label = CurrentTask switch
+        {
+            { Stopping: true } => "Stopping… confirming the result",
+            { Active: true, Stale: false } => "Working…",
+            { Busy: true, Stale: false } => "Working…",
+            _ => "",
+        };
+        if (label == _workingLabel)
+        {
+            return;
+        }
+
+        _workingLabel = label;
+        if (label.Length == 0)
+        {
+            WorkingIndicatorHost.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        _workingIndicator ??= WorkspaceTemplate<StackPanel>("WorkingIndicatorTemplate");
+        WorkingIndicatorHost.Content = _workingIndicator;
+        ShellUi.Part<TextBlock>(_workingIndicator, "Label").Text = label;
+        AutomationProperties.SetName(_workingIndicator, label);
+        WorkingIndicatorHost.Visibility = Visibility.Visible;
     }
 
     private static string Hash(ConversationEntry entry) =>
-        entry.Role + "|" + entry.Title + "|" + entry.ReviewFrom + "|" + string.Join('|', entry.ChangedFiles) + "|" + string.Join('|', entry.FileReferences.Select(reference => reference.Uri + reference.Name)) + "|" + string.Join('\u001f', entry.Segments.Select(segment =>
-            (segment.IsCode ? "code" : segment.IsTool ? "tool" : segment.IsActivity ? "activity" : "text") + ":" + segment.ToolName + ":" + segment.Text));
+        entry.Role + "|" + entry.Title + "|" + entry.Caption + "|" + entry.ReviewFrom + "|" + string.Join('|', entry.ChangedFiles) + "|" + string.Join('|', entry.FileReferences.Select(reference => reference.Uri + reference.Name)) + "|" + string.Join('\u001f', entry.Segments.Select(segment =>
+            segment.Kind + ":" + segment.ToolName + ":" + segment.ToolInput + ":" + segment.ToolStatus + ":" + segment.ToolFailed + ":" + segment.Text));
 
     private FrameworkElement BuildEntry(ConversationEntry entry)
     {
@@ -219,9 +308,10 @@ public sealed partial class WorkspaceView
         {
             ConversationRole.User => BuildUserEntry(entry),
             ConversationRole.Assistant => BuildAssistantEntry(entry),
-            ConversationRole.Tool => BuildToolEntry(entry.Title, entry.PlainText, null, entry.IsWarning),
-            ConversationRole.Error => BuildErrorEntry(entry),
-            _ => BuildActivityEntry(entry),
+            ConversationRole.Tool => BuildToolCard(entry.Segments.FirstOrDefault(segment => segment.Kind == ConversationSegmentKind.Tool)
+                ?? new ConversationSegment("", ConversationSegmentKind.Tool)),
+            ConversationRole.Divider => BuildDividerEntry(entry),
+            _ => BuildErrorEntry(entry),
         };
         if (_live?.Location is not { } location || entry.FileReferences.Count == 0 && entry.ChangedFiles.Count == 0) { return body; }
         StackPanel wrapper = ShellUi.Stack(6);
@@ -272,46 +362,111 @@ public sealed partial class WorkspaceView
 
     private FrameworkElement BuildUserEntry(ConversationEntry entry)
     {
-        Border bubble = WorkspaceTemplate<Border>("UserEntryTemplate");
-        ShellUi.Part<TextBlock>(bubble, "Title").Text = entry.Title;
-        AddSegments(ShellUi.Part<StackPanel>(bubble, "Segments"), entry, ShellUi.Brush("ShellTextPrimaryBrush"));
-        AutomationProperties.SetName(bubble, entry.AutomationName);
-        return bubble;
+        StackPanel layout = WorkspaceTemplate<StackPanel>("UserEntryTemplate");
+        AddSegments(ShellUi.Part<StackPanel>(layout, "Segments"), entry, ShellUi.Brush("ShellTextPrimaryBrush"));
+        if (entry.Caption is { } caption)
+        {
+            TextBlock block = ShellUi.Part<TextBlock>(layout, "Caption");
+            block.Text = caption;
+            block.Foreground = ShellUi.Brush(entry.IsWarning ? "ShellWarningBrush" : "ShellTextTertiaryBrush");
+            block.Visibility = Visibility.Visible;
+        }
+
+        AutomationProperties.SetName(layout, entry.AutomationName);
+        return layout;
     }
 
     private FrameworkElement BuildAssistantEntry(ConversationEntry entry)
     {
-        Grid layout = WorkspaceTemplate<Grid>("AssistantEntryTemplate");
-        ShellUi.Part<TextBlock>(layout, "Title").Text = entry.Title;
+        StackPanel layout = WorkspaceTemplate<StackPanel>("AssistantEntryTemplate");
         AddSegments(ShellUi.Part<StackPanel>(layout, "Segments"), entry, ShellUi.Brush("ShellTextPrimaryBrush"));
         AutomationProperties.SetName(layout, entry.AutomationName);
         return layout;
     }
 
-    private FrameworkElement BuildActivityEntry(ConversationEntry entry)
+    private FrameworkElement BuildDividerEntry(ConversationEntry entry)
     {
-        Border card = WorkspaceTemplate<Border>("ActivityEntryTemplate");
-        ShellUi.Part<TextBlock>(card, "Title").Text = entry.Title;
-        ShellUi.Part<TextBlock>(card, "Message").Text = entry.PlainText;
-        AutomationProperties.SetName(card, entry.AutomationName);
+        TextBlock label = WorkspaceTemplate<TextBlock>("DividerEntryTemplate");
+        label.Text = entry.Title ?? "";
+        AutomationProperties.SetName(label, entry.AutomationName);
+        return label;
+    }
+
+    private FrameworkElement BuildToolCard(ConversationSegment segment)
+    {
+        Border card = WorkspaceTemplate<Border>("ToolEntryTemplate");
+        bool failed = segment.ToolFailed || segment.ToolStatus == "error";
+        bool running = ConversationPresentation.ToolStatusText(segment.ToolStatus) == "running";
+        string name = segment.ToolName is { Length: > 0 } toolName ? toolName : "Tool";
+        string? caption = ConversationPresentation.ToolStatusText(segment.ToolStatus);
+
+        ShellUi.Part<TextBlock>(card, "Title").Text = name;
+        ShellUi.Part<TextBlock>(card, "Title").Foreground = ShellUi.Brush(failed ? "ShellDangerBrush" : "ShellTextPrimaryBrush");
+        FontIcon icon = ShellUi.Part<FontIcon>(card, "Icon");
+        icon.Foreground = ShellUi.Brush(failed ? "ShellDangerBrush" : "ShellAccentBrush");
+        if (segment.ToolInput is { Length: > 0 } input)
+        {
+            TextBlock subtitle = ShellUi.Part<TextBlock>(card, "Subtitle");
+            subtitle.Text = input;
+            subtitle.Visibility = Visibility.Visible;
+        }
+
+        if (running)
+        {
+            ShellUi.Part<ProgressRing>(card, "Running").Visibility = Visibility.Visible;
+        }
+        else if (caption is { Length: > 0 })
+        {
+            TextBlock status = ShellUi.Part<TextBlock>(card, "Status");
+            status.Text = caption;
+            status.Foreground = ShellUi.Brush(failed ? "ShellDangerBrush" : "ShellTextTertiaryBrush");
+            status.Visibility = Visibility.Visible;
+        }
+
+        card.BorderBrush = ShellUi.Brush(failed ? "ShellDangerBrush" : "ShellBorderBrush");
+        bool hasOutput = segment.Text.Length > 0;
+        FontIcon chevron = ShellUi.Part<FontIcon>(card, "Chevron");
+        chevron.Visibility = hasOutput ? Visibility.Visible : Visibility.Collapsed;
+        ContentControl output = ShellUi.Part<ContentControl>(card, "Output");
+        if (hasOutput)
+        {
+            output.Content = CodeBlock(segment.Text, wrap: true);
+            Button header = ShellUi.Part<Button>(card, "Header");
+            header.Click += (_, _) =>
+            {
+                bool show = output.Visibility == Visibility.Collapsed;
+                output.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+                chevron.Glyph = show ? "\uE70E" : "\uE70D";
+            };
+        }
+
+        AutomationProperties.SetName(card, "Tool " + name + (caption is { Length: > 0 } text ? ", " + text : "") + ".");
+        AutomationProperties.SetName(ShellUi.Part<Button>(card, "Header"), "Tool " + name + (hasOutput ? ". Activate to show or hide the recorded output." : "."));
         return card;
     }
 
-    private FrameworkElement BuildToolEntry(string title, string text, string? toolName, bool warning)
+    private FrameworkElement BuildThinkingBlock(string text)
     {
-        Border card = WorkspaceTemplate<Border>("ToolEntryTemplate");
-        ShellUi.Part<TextBlock>(card, "Title").Text = toolName is { Length: > 0 } ? "Tool · " + toolName : title;
-        ShellUi.Part<FontIcon>(card, "Icon").Foreground = ShellUi.Brush(warning ? "ShellWarningBrush" : "ShellAccentBrush");
-        ShellUi.Part<StackPanel>(card, "Segments").Children.Add(CodeBlock(text, wrap: true));
-        card.BorderBrush = ShellUi.Brush(warning ? "ShellWarningBrush" : "ShellBorderBrush");
-        AutomationProperties.SetName(card, title + ": " + text);
-        return card;
+        StackPanel block = WorkspaceTemplate<StackPanel>("ThinkingEntryTemplate");
+        Button header = ShellUi.Part<Button>(block, "Header");
+        TextBlock body = ShellUi.Part<TextBlock>(block, "Body");
+        FontIcon chevron = ShellUi.Part<FontIcon>(block, "Chevron");
+        body.Text = text;
+        header.Click += (_, _) =>
+        {
+            bool show = body.Visibility == Visibility.Collapsed;
+            body.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            chevron.Glyph = show ? "\uE70E" : "\uE70D";
+        };
+        AutomationProperties.SetName(header, "Thinking. Activate to show or hide the recorded thinking content");
+        AutomationProperties.SetName(body, "Thinking content: " + text);
+        return block;
     }
 
     private FrameworkElement BuildErrorEntry(ConversationEntry entry)
     {
         Border card = WorkspaceTemplate<Border>("ErrorEntryTemplate");
-        ShellUi.Part<TextBlock>(card, "Title").Text = entry.Title;
+        ShellUi.Part<TextBlock>(card, "Title").Text = entry.Title ?? "Error";
         AddSegments(ShellUi.Part<StackPanel>(card, "Segments"), entry, ShellUi.Brush("ShellDangerBrush"));
         AutomationProperties.SetName(card, entry.AutomationName);
         return card;
@@ -321,25 +476,22 @@ public sealed partial class WorkspaceView
     {
         foreach (ConversationSegment segment in entry.Segments)
         {
-            if (segment.IsCode)
+            switch (segment.Kind)
             {
-                content.Children.Add(CodeBlock(segment.Text, wrap: false));
-            }
-            else if (segment.IsTool)
-            {
-                content.Children.Add(BuildToolEntry("Tool activity", segment.Text, segment.ToolName, entry.IsWarning));
-            }
-            else if (segment.IsActivity)
-            {
-                TextBlock activity = ShellUi.Text(segment.Text, "ShellTertiaryTextStyle");
-                activity.IsTextSelectionEnabled = true;
-                content.Children.Add(activity);
-            }
-            else
-            {
-                TextBlock text = ShellUi.Text(segment.Text, "ShellSelectableBodyTextStyle");
-                text.Foreground = foreground;
-                content.Children.Add(text);
+                case ConversationSegmentKind.Code:
+                    content.Children.Add(CodeBlock(segment.Text, wrap: false));
+                    break;
+                case ConversationSegmentKind.Tool:
+                    content.Children.Add(BuildToolCard(segment));
+                    break;
+                case ConversationSegmentKind.Reasoning:
+                    content.Children.Add(BuildThinkingBlock(segment.Text));
+                    break;
+                default:
+                    TextBlock text = ShellUi.Text(segment.Text, "ShellSelectableBodyTextStyle");
+                    text.Foreground = foreground;
+                    content.Children.Add(text);
+                    break;
             }
         }
     }

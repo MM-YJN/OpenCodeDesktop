@@ -36,46 +36,58 @@
         </Border>
     </DataTemplate>
     <DataTemplate x:Key="UserEntryTemplate">
-        <Border Background="{ThemeResource ShellAccentSurfaceBrush}" BorderBrush="{ThemeResource ShellAccentBrush}"
-                BorderThickness="{StaticResource ShellHairlineThickness}" CornerRadius="{StaticResource ShellCornerRadiusLarge}"
-                Padding="14,10" MaxWidth="620" HorizontalAlignment="Left">
-            <StackPanel x:Name="Segments" Spacing="6">
-                <TextBlock x:Name="Title" Style="{StaticResource ShellCaptionTextStyle}" FontWeight="SemiBold" Foreground="{ThemeResource ShellAccentTextBrush}" VerticalAlignment="Center" />
-            </StackPanel>
-        </Border>
+        <StackPanel HorizontalAlignment="Right" MaxWidth="620" Spacing="4">
+            <Border Background="{ThemeResource ShellAccentSurfaceBrush}" BorderBrush="{ThemeResource ShellAccentBrush}"
+                    BorderThickness="{StaticResource ShellHairlineThickness}" CornerRadius="{StaticResource ShellCornerRadiusLarge}" Padding="14,10">
+                <StackPanel x:Name="Segments" Spacing="6" />
+            </Border>
+            <TextBlock x:Name="Caption" Style="{StaticResource ShellCaptionTextStyle}" HorizontalAlignment="Right" TextWrapping="Wrap" Visibility="Collapsed" />
+        </StackPanel>
     </DataTemplate>
     <DataTemplate x:Key="AssistantEntryTemplate">
-        <Grid ColumnSpacing="12">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-            <Border Width="30" Height="30" CornerRadius="{StaticResource ShellCornerRadiusMedium}" Background="{ThemeResource ShellAccentSurfaceBrush}"
-                    BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="{StaticResource ShellHairlineThickness}" VerticalAlignment="Top">
-                <FontIcon Glyph="{StaticResource ShellIconAssistant}" FontFamily="{StaticResource ShellIconFontFamily}" FontSize="{StaticResource ShellIconMedium}" Foreground="{ThemeResource ShellAccentTextBrush}" IsHitTestVisible="False" />
-            </Border>
-            <StackPanel x:Name="Segments" Grid.Column="1" Spacing="6">
-                <TextBlock x:Name="Title" Style="{StaticResource ShellCaptionTextStyle}" FontWeight="SemiBold" VerticalAlignment="Center" />
-            </StackPanel>
-        </Grid>
+        <StackPanel x:Name="Segments" Spacing="8" HorizontalAlignment="Left" />
     </DataTemplate>
-    <DataTemplate x:Key="ActivityEntryTemplate">
-        <Border Padding="10,8" CornerRadius="{StaticResource ShellCornerRadiusMedium}" Background="{ThemeResource ShellSubtleSurfaceBrush}">
-            <StackPanel Orientation="Horizontal" Spacing="{StaticResource ShellSpaceSmall}">
-                <FontIcon Glyph="{StaticResource ShellIconInfo}" FontFamily="{StaticResource ShellIconFontFamily}" FontSize="{StaticResource ShellIconSmall}" Foreground="{ThemeResource ShellTextTertiaryBrush}" IsHitTestVisible="False" />
-                <StackPanel Spacing="2">
-                    <TextBlock x:Name="Title" Style="{StaticResource ShellTertiaryTextStyle}" VerticalAlignment="Center" />
-                    <TextBlock x:Name="Message" Style="{StaticResource ShellTertiaryTextStyle}" VerticalAlignment="Center" />
-                </StackPanel>
-            </StackPanel>
-        </Border>
+    <DataTemplate x:Key="DividerEntryTemplate">
+        <TextBlock x:Name="Label" Style="{StaticResource ShellTertiaryTextStyle}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="620" Margin="0,-6,0,-6" />
     </DataTemplate>
     <DataTemplate x:Key="ToolEntryTemplate">
-        <Border Style="{StaticResource ShellCardStyle}" Padding="12,10">
-            <StackPanel x:Name="Segments" Spacing="6">
-                <StackPanel Orientation="Horizontal" Spacing="{StaticResource ShellSpaceSmall}">
-                    <FontIcon x:Name="Icon" Glyph="{StaticResource ShellIconTool}" FontFamily="{StaticResource ShellIconFontFamily}" FontSize="{StaticResource ShellIconSmall}" IsHitTestVisible="False" />
-                    <TextBlock x:Name="Title" Style="{StaticResource ShellBodyStrongTextStyle}" VerticalAlignment="Center" />
-                </StackPanel>
+        <Border Style="{StaticResource ShellCardStyle}" Padding="0">
+            <StackPanel>
+                <Button x:Name="Header" Style="{StaticResource ShellQuietButtonStyle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="12,8">
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <FontIcon x:Name="Icon" Glyph="{StaticResource ShellIconTool}" FontFamily="{StaticResource ShellIconFontFamily}" FontSize="{StaticResource ShellIconSmall}" VerticalAlignment="Center" IsHitTestVisible="False" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="Title" Style="{StaticResource ShellBodyStrongTextStyle}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                            <TextBlock x:Name="Subtitle" Style="{StaticResource ShellTertiaryTextStyle}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Visibility="Collapsed" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <ProgressRing x:Name="Running" Width="14" Height="14" IsActive="True" Visibility="Collapsed" IsHitTestVisible="False" />
+                            <TextBlock x:Name="Status" Style="{StaticResource ShellTertiaryTextStyle}" VerticalAlignment="Center" Visibility="Collapsed" />
+                            <FontIcon x:Name="Chevron" Glyph="&#xE70D;" FontSize="10" Foreground="{ThemeResource ShellTextTertiaryBrush}" IsHitTestVisible="False" />
+                        </StackPanel>
+                    </Grid>
+                </Button>
+                <ContentControl x:Name="Output" Padding="12,0,12,10" Visibility="Collapsed" HorizontalContentAlignment="Stretch" />
             </StackPanel>
         </Border>
+    </DataTemplate>
+    <DataTemplate x:Key="ThinkingEntryTemplate">
+        <StackPanel>
+            <Button x:Name="Header" Style="{StaticResource ShellQuietButtonStyle}" Padding="8,4" HorizontalContentAlignment="Left">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="Thinking" Style="{StaticResource ShellTertiaryTextStyle}" VerticalAlignment="Center" />
+                    <FontIcon x:Name="Chevron" Glyph="&#xE70D;" FontSize="10" Foreground="{ThemeResource ShellTextTertiaryBrush}" VerticalAlignment="Center" IsHitTestVisible="False" />
+                </StackPanel>
+            </Button>
+            <TextBlock x:Name="Body" Style="{StaticResource ShellSelectableBodyTextStyle}" Foreground="{ThemeResource ShellTextTertiaryBrush}" TextWrapping="Wrap" Margin="10,2,0,0" Visibility="Collapsed" />
+        </StackPanel>
+    </DataTemplate>
+    <DataTemplate x:Key="WorkingIndicatorTemplate">
+        <StackPanel Orientation="Horizontal" Spacing="8" Padding="4,2">
+            <ProgressRing x:Name="Indicator" Width="16" Height="16" IsActive="True" />
+            <TextBlock x:Name="Label" Style="{StaticResource ShellTertiaryTextStyle}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+        </StackPanel>
     </DataTemplate>
     <DataTemplate x:Key="ErrorEntryTemplate">
         <Border Style="{StaticResource ShellCardStyle}" Background="{ThemeResource ShellDangerSurfaceBrush}" BorderBrush="{ThemeResource ShellDangerBrush}" Padding="12,10">

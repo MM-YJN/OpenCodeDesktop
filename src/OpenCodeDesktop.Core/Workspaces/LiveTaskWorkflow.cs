@@ -29,6 +29,7 @@ public sealed class SessionTaskState(string id, string directory, string project
     public IReadOnlyList<TaskForm> Forms { get; internal set; } = [];
     public Dictionary<string, Dictionary<string, object>> Answers { get; } = new(StringComparer.Ordinal);
     internal Dictionary<(string Message, int Ordinal), string> Text { get; } = [];
+    internal Dictionary<(string Message, int Ordinal), string> Reasoning { get; } = [];
     internal Dictionary<(string Message, string Tool), string> Tools { get; } = [];
     internal long Revision { get; set; }
     internal Task? Refresh { get; set; }
@@ -86,7 +87,9 @@ public sealed class SessionTaskState(string id, string directory, string project
             return history;
         }
 
-        var live = Text.Where(part => part.Key.Message == history.Id).ToDictionary(part => part.Key.Ordinal, part => part.Value);
+        var live = Text.Where(part => part.Key.Message == history.Id).Select(part => (part.Key.Ordinal, Text: part.Value, Kind: HistoryPartKind.Text))
+            .Concat(Reasoning.Where(part => part.Key.Message == history.Id).Select(part => (part.Key.Ordinal, Text: part.Value, Kind: HistoryPartKind.Reasoning)))
+            .ToList();
         if (live.Count == 0)
         {
             return history;
@@ -95,29 +98,38 @@ public sealed class SessionTaskState(string id, string directory, string project
         List<HistoryContentPart> parts = [.. history.Parts];
         if (parts.Count == 0 && history.Text.Length > 0)
         {
-            parts.Add(new(-1, history.Text, false));
+            parts.Add(new(-1, history.Text, HistoryPartKind.Text));
         }
 
-        foreach ((int ordinal, string text) in live)
+        foreach ((int ordinal, string text, HistoryPartKind kind) in live)
         {
-            int index = parts.FindIndex(part => part.Ordinal == ordinal);
+            int index = parts.FindIndex(part => part.Ordinal == ordinal && part.Kind == kind);
             if (index < 0)
             {
-                parts.Add(new(ordinal, text, true));
+                parts.Add(new(ordinal, text, kind));
             }
-            else if (parts[index].IsText && text.Length > parts[index].Text.Length)
+            else if (text.Length > parts[index].Text.Length)
             {
                 parts[index] = parts[index] with { Text = text };
             }
         }
 
-        return history with { Text = string.Join("\n\n", parts.OrderBy(part => part.Ordinal).Select(part => part.Text)) };
+        HistoryContentPart[] ordered = [.. parts.OrderBy(part => part.Ordinal)];
+        return history with { Text = string.Join("\n\n", ordered.Select(part => part.Text)), Parts = ordered };
+    }
+
+    private HistoryMessage LiveMessage(string id)
+    {
+        HistoryContentPart[] parts = [.. Text.Where(part => part.Key.Message == id).Select(part => new HistoryContentPart(part.Key.Ordinal, part.Value, HistoryPartKind.Text))
+            .Concat(Reasoning.Where(part => part.Key.Message == id).Select(part => new HistoryContentPart(part.Key.Ordinal, part.Value, HistoryPartKind.Reasoning)))
+            .OrderBy(part => part.Ordinal)];
+        return new(id, "assistant", string.Join("\n\n", parts.Select(part => part.Text))) { Parts = parts, IsComplete = false };
     }
 
     public IReadOnlyList<HistoryMessage> Conversation => History.Select(OverlayLiveText)
         .Concat(Submission is { } submitted && !History.Any(m => m.Id == submitted.Id) ? [new HistoryMessage(submitted.Id, DeliveryUncertain ? "user · delivery uncertain" : "user · accepted / queued", submitted.Text) { FileReferences = submitted.Files.Select(f => new HistoryFileReference(f.IsServer ? f.Uri : "", f.Name)).ToArray() }] : [])
-        .Concat(Text.GroupBy(p => p.Key.Message)
-        .Where(g => !History.Any(h => h.Id == g.Key)).Select(g => new HistoryMessage(g.Key, "assistant", string.Join("\n", g.OrderBy(p => p.Key.Ordinal).Select(p => p.Value)))))
+        .Concat(Text.Keys.Select(part => part.Message).Concat(Reasoning.Keys.Select(part => part.Message)).Distinct()
+        .Where(id => !History.Any(h => h.Id == id)).Select(LiveMessage))
         .Concat(Tools.Where(t => !History.Any(m => m.Id == t.Key.Message)).Select(t => new HistoryMessage(t.Key.Message + ":" + t.Key.Tool, "tool activity", t.Value))).ToArray();
 }
 
@@ -450,6 +462,11 @@ public sealed partial class LiveTaskWorkflow : IDisposable
         foreach ((string Message, int Ordinal) key in state.Text.Keys.Where(k => messages.Any(m => m.Id == k.Message && m.IsComplete)).ToArray())
         {
             state.Text.Remove(key);
+        }
+
+        foreach ((string Message, int Ordinal) key in state.Reasoning.Keys.Where(k => messages.Any(m => m.Id == k.Message && m.IsComplete)).ToArray())
+        {
+            state.Reasoning.Remove(key);
         }
     }
 
@@ -831,6 +848,21 @@ public sealed partial class LiveTaskWorkflow : IDisposable
                 }
 
                 state.Text[key] = text + e.Delta;
+            }
+
+            if (e.Type == "session.reasoning.started")
+            {
+                state.Reasoning.TryAdd(key, "");
+            }
+
+            if (e.Type == "session.reasoning.delta" && state.Reasoning.TryGetValue(key, out string? thinking))
+            {
+                if (thinking.Length + e.Delta?.Length > 8388608)
+                {
+                    throw new WorkspaceException(WorkspaceFailure.Size, "Streaming reasoning exceeded the size limit.");
+                }
+
+                state.Reasoning[key] = thinking + e.Delta;
             }
         }
     }

@@ -26,9 +26,42 @@ public sealed class OpenCodeWorkspaceConnectionTests
         using OpenCodeWorkspaceConnection api = Api(client);
         HistoryMessage message = Assert.Single((await api.HistoryAsync("s", null, TestContext.Current.CancellationToken)).Data);
         Assert.Equal(completed, message.IsComplete);
-        Assert.Equal("Recorded reasoning: context\n\nprefix", message.Text);
-        Assert.Equal(new HistoryContentPart(0, "Recorded reasoning: context", false), message.Parts[0]);
-        Assert.Equal(new HistoryContentPart(1, "prefix", true), message.Parts[1]);
+        Assert.Equal("context\n\nprefix", message.Text);
+        Assert.Equal(new HistoryContentPart(0, "context", HistoryPartKind.Reasoning), message.Parts[0]);
+        Assert.Equal(new HistoryContentPart(1, "prefix", HistoryPartKind.Text), message.Parts[1]);
+    }
+
+    [Fact]
+    public async Task HistoryMapsToolPartsWithNameStatusInputAndFailure()
+    {
+        const string body = """
+            {"data":[
+              {"id":"tools","type":"assistant","content":[
+                {"type":"tool","name":"bash","state":{"status":"completed","input":{"command":"dotnet test"},"content":[{"type":"text","text":"passed"}]}},
+                {"type":"tool","name":"write","state":{"status":"error","input":{"filePath":"src/Program.cs"},"content":[{"type":"text","text":"denied"}],"error":{"type":"denied"}}}
+              ],"time":{"completed":1}}
+            ],"cursor":{"next":null}}
+            """;
+        using HttpClient client = new(new Handler((_, _) => Task.FromResult(Json(body))));
+        using OpenCodeWorkspaceConnection api = Api(client);
+        HistoryMessage message = Assert.Single((await api.HistoryAsync("s", null, TestContext.Current.CancellationToken)).Data);
+        Assert.Equal(2, message.Parts.Count);
+        Assert.Equal(new HistoryContentPart(0, "passed", HistoryPartKind.Tool) { ToolName = "bash", ToolInput = "dotnet test", ToolStatus = "completed" }, message.Parts[0]);
+        Assert.Equal(new HistoryContentPart(1, "denied", HistoryPartKind.Tool) { ToolName = "write", ToolInput = "src/Program.cs", ToolStatus = "error", ToolFailed = true }, message.Parts[1]);
+        Assert.Equal("passed\n\ndenied", message.Text);
+    }
+
+    [Fact]
+    public async Task RecordedShellCommandsKeepTheCommandOutputAndStatusStructured()
+    {
+        const string body = """
+            {"data":[{"id":"sh","type":"shell","command":"dotnet build","status":"completed","output":"ok"}],"cursor":{"next":null}}
+            """;
+        using HttpClient client = new(new Handler((_, _) => Task.FromResult(Json(body))));
+        using OpenCodeWorkspaceConnection api = Api(client);
+        HistoryMessage message = Assert.Single((await api.HistoryAsync("s", null, TestContext.Current.CancellationToken)).Data);
+        Assert.Equal("ok", message.Text);
+        Assert.Equal(new HistoryContentPart(0, "ok", HistoryPartKind.Tool) { ToolName = "shell", ToolInput = "dotnet build", ToolStatus = "completed" }, Assert.Single(message.Parts));
     }
 
     [Theory]
@@ -172,8 +205,11 @@ public sealed class OpenCodeWorkspaceConnectionTests
         Assert.Contains("passed", page.Data[1].Text, StringComparison.Ordinal);
         Assert.Contains("recorded assistant error", page.Data[1].Text, StringComparison.Ordinal);
         Assert.Contains("Unsupported historical", page.Data[2].Text, StringComparison.Ordinal);
-        Assert.Contains("Recorded status: running", page.Data[3].Text, StringComparison.Ordinal);
+        Assert.Equal("recording", page.Data[3].Text);
+        Assert.Equal("running", Assert.Single(page.Data[3].Parts).ToolStatus);
+        Assert.Equal("build", Assert.Single(page.Data[3].Parts).ToolInput);
         Assert.DoesNotContain("hidden", string.Join("", page.Data.Select(m => m.Text)), StringComparison.Ordinal);
+        Assert.DoesNotContain("hidden", string.Join("", page.Data.SelectMany(m => m.Parts).Select(p => p.Text + p.ToolInput)), StringComparison.Ordinal);
         Assert.NotNull(page.Next);
     }
 

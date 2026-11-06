@@ -273,6 +273,8 @@ public sealed partial class WorkspaceView
             return;
         }
 
+        // Sending is a deliberate jump: the conversation pins to the bottom regardless of the prior reading position.
+        PinConversationToBottom();
         if (live.SelectedSessionId is null)
         {
             // Draft mode: the session is created on the server as part of sending.

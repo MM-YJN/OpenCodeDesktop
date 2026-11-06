@@ -181,18 +181,23 @@ public sealed partial class OpenCodeWorkspaceConnection(HttpClient client, Serve
     {
         string id = Required(value, "id");
         string type = Required(value, "type");
-        IReadOnlyList<HistoryContentPart> parts = type == "assistant" ? AssistantParts(value) : [];
+        IReadOnlyList<HistoryContentPart> parts = type switch
+        {
+            "assistant" => AssistantParts(value),
+            "shell" => [ShellPart(value)],
+            _ => [],
+        };
         string text = type switch
         {
             "user" or "system" or "synthetic" => Required(value, "text", allowEmpty: true),
             "assistant" => string.Join("\n\n", parts.Select(part => part.Text)),
-            "shell" => "Recorded shell command: " + Optional(value, "command") + "\n" + Optional(value, "output") + "\nRecorded status: " + Optional(value, "status"),
+            "shell" => Optional(value, "output") ?? "",
             "idle" => "Recorded idle activity.",
-            "compaction" => "Recorded context compaction: " + Optional(value, "status") + "\n" + Optional(value, "summary"),
-            "skill" => "Recorded skill: " + Optional(value, "name") + "\n" + Optional(value, "text"),
-            "agent-switched" => "Recorded agent selection: " + Optional(value, "agent"),
-            "model-switched" => "Recorded model selection change.",
-            "location-switched" => "Recorded directory selection change.",
+            "compaction" => Optional(value, "status") is { Length: > 0 } status ? "Context compacted · " + status : "Context compacted",
+            "skill" => "Used skill: " + (Optional(value, "name") ?? "unknown"),
+            "agent-switched" => "Agent changed: " + (Optional(value, "agent") ?? "unknown"),
+            "model-switched" => "Model changed",
+            "location-switched" => "Directory changed",
             _ => "Unsupported historical entry. This client cannot display this variant.",
         };
         HistoryFailureOutcome? failure = null;
@@ -249,41 +254,83 @@ public sealed partial class OpenCodeWorkspaceConnection(HttpClient client, Serve
         List<HistoryContentPart> content = [];
         foreach (JsonElement part in value.GetProperty("content").EnumerateArray())
         {
-            bool isText = Required(part, "type") == "text";
-            string text = Required(part, "type") switch
+            HistoryContentPart mapped = Required(part, "type") switch
             {
-                "text" => Required(part, "text", allowEmpty: true),
-                "reasoning" => "Recorded reasoning: " + Optional(part, "text"),
-                "tool" => "Recorded tool: " + Optional(part, "name") + "\n" + ToolState(part),
-                _ => "Unsupported historical content.",
+                "text" => new(content.Count, Required(part, "text", allowEmpty: true), HistoryPartKind.Text),
+                "reasoning" => new(content.Count, Optional(part, "text") ?? "", HistoryPartKind.Reasoning),
+                "tool" => ToolPart(part, content.Count),
+                _ => new(content.Count, "A recorded content block is not supported by this client.", HistoryPartKind.Text),
             };
-            content.Add(new(content.Count, text, isText));
+            content.Add(mapped);
         }
         if (value.TryGetProperty("error", out JsonElement error) && error.ValueKind != JsonValueKind.Null)
         {
-            content.Add(new(content.Count, "A recorded assistant error occurred.", false));
+            content.Add(new(content.Count, "A recorded assistant error occurred.", HistoryPartKind.Error));
         }
 
         return content;
     }
 
-    private static string ToolState(JsonElement part)
+    private static HistoryContentPart ShellPart(JsonElement value) => new(0, Optional(value, "output") ?? "", HistoryPartKind.Tool)
+    {
+        ToolName = "shell",
+        ToolInput = Optional(value, "command"),
+        ToolStatus = Optional(value, "status"),
+        ToolFailed = Optional(value, "status") == "error",
+    };
+
+    private static HistoryContentPart ToolPart(JsonElement part, int ordinal)
     {
         JsonElement state = part.GetProperty("state");
-        List<string> output = ["Recorded status: " + Optional(state, "status")];
-        if (state.TryGetProperty("content", out JsonElement content))
+        List<string> output = [];
+        if (state.TryGetProperty("content", out JsonElement content) && content.ValueKind == JsonValueKind.Array)
         {
             foreach (JsonElement item in content.EnumerateArray())
             {
                 output.Add(Optional(item, "type") == "text" ? Required(item, "text", allowEmpty: true) : "Recorded file or unsupported tool content.");
             }
         }
-        if (state.TryGetProperty("error", out _))
+
+        return new(ordinal, string.Join("\n", output), HistoryPartKind.Tool)
         {
-            output.Add("The recorded tool reported an error.");
+            ToolName = Optional(part, "name"),
+            ToolInput = ToolInputSummary(state),
+            ToolStatus = Optional(state, "status"),
+            ToolFailed = state.TryGetProperty("error", out JsonElement toolError) && toolError.ValueKind == JsonValueKind.Object,
+        };
+    }
+
+    private static string? ToolInputSummary(JsonElement state)
+    {
+        if (!state.TryGetProperty("input", out JsonElement input))
+        {
+            return null;
         }
 
-        return string.Join("\n", output);
+        if (input.ValueKind == JsonValueKind.String)
+        {
+            return SingleLine(input.GetString());
+        }
+
+        if (input.ValueKind == JsonValueKind.Object)
+        {
+            foreach (string key in new[] { "command", "filePath", "path", "pattern", "query", "url" })
+            {
+                if (input.TryGetProperty(key, out JsonElement candidate) && candidate.ValueKind == JsonValueKind.String &&
+                    SingleLine(candidate.GetString()) is { Length: > 0 } summary)
+                {
+                    return summary;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static string? SingleLine(string? value)
+    {
+        string? line = value?.Split('\n')[0].Trim();
+        return line?.Length > 96 ? line[..96] + "…" : line;
     }
 
     private static string Required(JsonElement value, string name, bool allowEmpty = false)

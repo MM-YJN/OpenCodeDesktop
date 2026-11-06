@@ -174,13 +174,23 @@
                             </StackPanel>
                         </StackPanel>
                     </Border>
-                    <ScrollViewer x:Name="ConversationScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" IsTabStop="True" AutomationProperties.Name="Conversation history">
-                        <StackPanel x:Name="Conversation" Padding="20,24" Spacing="20" MaxWidth="{StaticResource ShellContentMaximumWidth}" HorizontalAlignment="Center">
-                            <ContentControl x:Name="ConversationStateHost" HorizontalContentAlignment="Stretch" />
-                            <StackPanel x:Name="ConversationHistoryActions" HorizontalAlignment="Center" />
-                            <StackPanel x:Name="ConversationEntries" Spacing="20" />
-                        </StackPanel>
-                    </ScrollViewer>
+                    <Grid Grid.Row="1">
+                        <ScrollViewer x:Name="ConversationScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" IsTabStop="True" AutomationProperties.Name="Conversation history" ViewChanged="ConversationScroll_ViewChanged">
+                            <StackPanel x:Name="Conversation" Padding="20,24" Spacing="20" MaxWidth="{StaticResource ShellContentMaximumWidth}" HorizontalAlignment="Center">
+                                <ContentControl x:Name="ConversationStateHost" HorizontalContentAlignment="Stretch" />
+                                <StackPanel x:Name="ConversationHistoryActions" HorizontalAlignment="Center" />
+                                <StackPanel x:Name="ConversationEntries" Spacing="20" />
+                                <ContentControl x:Name="WorkingIndicatorHost" HorizontalContentAlignment="Stretch" Visibility="Collapsed" />
+                            </StackPanel>
+                        </ScrollViewer>
+                        <Button x:Name="JumpToLatest" Style="{StaticResource ShellSecondaryButtonStyle}" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                Margin="0,0,24,16" Padding="12,8" Visibility="Collapsed" Click="JumpToLatest_Click" AutomationProperties.Name="Jump to latest messages" ToolTipService.ToolTip="Jump to latest messages">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE70D;" FontSize="12" />
+                                <TextBlock x:Name="JumpToLatestLabel" Text="Jump to latest" Style="{StaticResource ShellBodyTextStyle}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
                     <Border x:Name="PendingRequestsSection" Grid.Row="2" Visibility="Collapsed" Background="{ThemeResource ShellWarningSurfaceBrush}" BorderBrush="{ThemeResource ShellBorderBrush}" BorderThickness="0,1,0,1">
                         <StackPanel>
                             <Grid Padding="16,10" ColumnSpacing="8">

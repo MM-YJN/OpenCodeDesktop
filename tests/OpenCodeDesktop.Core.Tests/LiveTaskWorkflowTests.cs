@@ -15,7 +15,7 @@ public sealed partial class LiveTaskWorkflowTests
         api.History = [new("message", "assistant", "tool context")
         {
             IsComplete = false,
-            Parts = [new(0, "tool context", false), new(1, "", true)],
+            Parts = [new(0, "tool context", HistoryPartKind.Tool), new(1, "", HistoryPartKind.Text)],
         }];
         using LiveTaskWorkflow workflow = new(api, api);
         await workflow.OpenAsync(api.Session);
@@ -53,6 +53,34 @@ public sealed partial class LiveTaskWorkflowTests
                 workflow.Changed -= Changed;
             }
         }
+    }
+
+    [Fact]
+    public async Task ReasoningDeltasStreamIntoTheConversationAsThinkingParts()
+    {
+        using Api api = new();
+        api.Snapshot = api.Snapshot with { Active = true };
+        using LiveTaskWorkflow workflow = new(api, api);
+        await workflow.OpenAsync(api.Session);
+        SessionTaskState state = workflow.Find("s")!;
+
+        await api.Events.Writer.WriteAsync(new("r-start", "session.reasoning.started", "s", "thinking-message", 0, null), TestContext.Current.CancellationToken);
+        await api.Events.Writer.WriteAsync(new("r-delta-1", "session.reasoning.delta", "s", "thinking-message", 0, "planning"), TestContext.Current.CancellationToken);
+        await ObserveAsync(workflow, () => state.Conversation.OfType<HistoryMessage>().Any(m => m.Id == "thinking-message"));
+        await api.Events.Writer.WriteAsync(new("r-delta-2", "session.reasoning.delta", "s", "thinking-message", 0, " next"), TestContext.Current.CancellationToken);
+        await ObserveAsync(workflow, () => state.Conversation.Any(m => m.Id == "thinking-message" && m.Text == "planning next"));
+
+        HistoryMessage message = Assert.Single(state.Conversation, m => m.Id == "thinking-message");
+        Assert.Equal("assistant", message.Kind);
+        Assert.False(message.IsComplete);
+        Assert.Equal(new HistoryContentPart(0, "planning next", HistoryPartKind.Reasoning), Assert.Single(message.Parts));
+
+        // Terminal hydration replaces the live projection and clears the retained deltas.
+        api.Snapshot = api.Snapshot with { Active = false, Idle = 2, Outcome = "succeeded" };
+        api.History = [new("idle", "idle", "idle"), new HistoryMessage("thinking-message", "assistant", "done") { Parts = [new(0, "done", HistoryPartKind.Text)] }];
+        await api.Events.Writer.WriteAsync(new("r-terminal", "session.execution.succeeded", "s", null, 0, null), TestContext.Current.CancellationToken);
+        await ObserveAsync(workflow, () => state.Conversation.Any(m => m.Id == "thinking-message" && m.IsComplete));
+        Assert.Equal("done", Assert.Single(state.Conversation, m => m.Id == "thinking-message").Text);
     }
 
     [Theory]

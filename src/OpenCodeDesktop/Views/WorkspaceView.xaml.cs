@@ -58,6 +58,13 @@ public sealed partial class WorkspaceView : UserControl
                     LiveChanged(this, EventArgs.Empty);
                 }
             }
+
+            // A resized viewport changes the scrollable geometry without moving the content;
+            // honor the bottom pin across resizes instead of letting the view drift off the end.
+            if (_pinnedToBottom)
+            {
+                ConversationScroll.ChangeView(null, double.MaxValue, null, true);
+            }
         };
         VariantSelector.SelectionChanged += (_, _) =>
         {

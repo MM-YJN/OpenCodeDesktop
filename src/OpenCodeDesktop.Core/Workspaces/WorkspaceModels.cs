@@ -19,7 +19,19 @@ public sealed record WorkspaceSession(string Id, string Directory, string Projec
     public bool Archived { get; init; }
 }
 public enum HistoryFailureOutcome { Failed, Interrupted }
-public sealed record HistoryContentPart(int Ordinal, string Text, bool IsText);
+public enum HistoryPartKind { Text, Reasoning, Tool, Error }
+
+/// <summary>One typed block of assistant content: visible text, thinking, a tool call, or an inline error.</summary>
+public sealed record HistoryContentPart(int Ordinal, string Text, HistoryPartKind Kind)
+{
+    public string? ToolName { get; init; }
+    /// <summary>Normalized tool status: "running", "completed", or "error".</summary>
+    public string? ToolStatus { get; init; }
+    /// <summary>Collapsed single-line summary of the tool input, when the server provided one.</summary>
+    public string? ToolInput { get; init; }
+    public bool ToolFailed { get; init; }
+    public bool IsText => Kind == HistoryPartKind.Text;
+}
 public sealed record HistoryFileReference(string Uri, string? Name);
 
 public sealed record HistoryMessage(string Id, string Kind, string Text)
